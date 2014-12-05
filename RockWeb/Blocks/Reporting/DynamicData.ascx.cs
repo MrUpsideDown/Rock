@@ -309,6 +309,7 @@ namespace RockWeb.Blocks.Reporting
                     {
                         bool personReport = GetAttributeValue( "PersonReport" ).AsBoolean();
 
+                        int tableId = 0;
                         foreach ( DataTable dataTable in dataSet.Tables )
                         {
                             var div = new HtmlGenericControl( "div" );
@@ -316,6 +317,8 @@ namespace RockWeb.Blocks.Reporting
                             phContent.Controls.Add( div );
 
                             var grid = new Grid();
+                            div.Controls.Add( grid );
+                            grid.ID = string.Format( "dynamic_data_{0}", tableId++ );
                             grid.AllowSorting = true;
                             grid.EmptyDataText = "No Results";
                             grid.GridRebind += gReport_GridRebind;
@@ -329,10 +332,9 @@ namespace RockWeb.Blocks.Reporting
                                 grid.PersonIdField = null;
                             }
                             grid.CommunicateMergeFields = GetAttributeValue( "MergeFields" ).SplitDelimitedValues().ToList<string>();
-                            div.Controls.Add( grid );
 
                             AddGridColumns( grid, dataTable );
-                            SetDataKeyNames( grid );
+                            SetDataKeyNames( grid, dataTable );
 
                             if ( setData )
                             {
@@ -388,7 +390,7 @@ namespace RockWeb.Blocks.Reporting
         /// <summary>
         /// Sets the data key names.
         /// </summary>
-        private void SetDataKeyNames(Grid grid)
+        private void SetDataKeyNames(Grid grid, DataTable dataTable )
         {
             string urlMask = GetAttributeValue( "UrlMask" );
             if ( !string.IsNullOrWhiteSpace( urlMask ) )
@@ -404,6 +406,13 @@ namespace RockWeb.Blocks.Reporting
                     }
 
                     grid.DataKeyNames = keyNames;
+                }
+            }
+            else
+            {
+                if (dataTable.Columns.Contains("Id"))
+                {
+                    grid.DataKeyNames = new string[1] { "Id" };
                 }
             }
         }

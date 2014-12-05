@@ -24,11 +24,11 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 
 using Rock;
+using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
-using Rock.Attribute;
 using System.Web.UI.HtmlControls;
 
 namespace Rockweb.Blocks.Crm
@@ -41,7 +41,7 @@ namespace Rockweb.Blocks.Crm
     [Category( "CRM > DiscAssessment" )]
     [Description( "Allows you to take a DISC test and saves your DISC score." )]
     [IntegerField( "Min Days To Retake", "The number of days that must pass before the test can be taken again.", false, 30 )]
-    [CodeEditorField( "Instructions", "The text (HTML) to display at the top of the instructions section.  <span class='tip tip-liquid'></span> <span class='tip tip-html'></span>", CodeEditorMode.Html, CodeEditorTheme.Rock, 400, true, @"
+    [CodeEditorField( "Instructions", "The text (HTML) to display at the top of the instructions section.  <span class='tip tip-lava'></span> <span class='tip tip-html'></span>", CodeEditorMode.Html, CodeEditorTheme.Rock, 400, true, @"
             <h2>Welcome!</h2>
             <p>
                 {{ Person.NickName }}, in this assessment you are given a series of questions, each containing four phrases.
@@ -100,7 +100,7 @@ namespace Rockweb.Blocks.Crm
                 {
                     _targetPerson = new PersonService( new RockContext() ).GetByUrlEncodedKey( personKey );
                 }
-                catch ( Exception ex )
+                catch
                 {
                     nbError.Visible = true;
                 }
@@ -247,14 +247,12 @@ namespace Rockweb.Blocks.Crm
                     results.NaturalBehaviorD.ToString(),
                     results.NaturalBehaviorI.ToString(),
                     results.NaturalBehaviorS.ToString(),
-                    results.NaturalBehaviorC.ToString()
+                    results.NaturalBehaviorC.ToString(),
+                    results.PersonalityType
                 );
 
-                // Plot graph
-                PlotGraph( results );
-
-                pnlQuestions.Visible = false;
-                pnlResults.Visible = true;
+                // Show the results
+                ShowResults( results );
             }
             catch ( Exception ex )
             {
@@ -375,8 +373,6 @@ namespace Rockweb.Blocks.Crm
             {
                 throw new ArgumentOutOfRangeException( "One of the RadioButtonList must be selected." );
             }
-
-            return string.Empty;
         }
 
         /// <summary>
@@ -386,64 +382,8 @@ namespace Rockweb.Blocks.Crm
         private void PlotGraph( DiscService.AssessmentResults results )
         {
             // Plot the Natural graph
-            PlotOneGraph( discNaturalScore_D, discNaturalScore_I, discNaturalScore_S, discNaturalScore_C,
+            DiscService.PlotOneGraph( discNaturalScore_D, discNaturalScore_I, discNaturalScore_S, discNaturalScore_C,
                 results.NaturalBehaviorD, results.NaturalBehaviorI, results.NaturalBehaviorS, results.NaturalBehaviorC, 35 );
-        }
-
-        /// <summary>
-        /// Plots the one DISC graph.
-        /// </summary>
-        /// <param name="barD">The D bar.</param>
-        /// <param name="barI">The I bar.</param>
-        /// <param name="barS">The S bar.</param>
-        /// <param name="barC">The C bar.</param>
-        /// <param name="scoreD">The D score.</param>
-        /// <param name="scoreI">The I score.</param>
-        /// <param name="scoreS">The S score.</param>
-        /// <param name="scoreC">The C score.</param>
-        /// <param name="maxScale">Highest score which is used for the scale of the chart.</param>
-        private void PlotOneGraph( HtmlGenericControl barD, HtmlGenericControl barI, HtmlGenericControl barS, HtmlGenericControl barC,
-            int scoreD, int scoreI, int scoreS, int scoreC, int maxScale )
-        {
-            barD.RemoveCssClass( "discbar-primary" );
-            barI.RemoveCssClass( "discbar-primary" );
-            barS.RemoveCssClass( "discbar-primary" );
-            barC.RemoveCssClass( "discbar-primary" );
-
-            // find the max value
-            var maxScore = barD;
-            var maxValue = scoreD;
-            if ( scoreI > maxValue )
-            {
-                maxScore = barI;
-                maxValue = scoreI;
-            }
-            if ( scoreS > maxValue )
-            {
-                maxScore = barS;
-                maxValue = scoreS;
-            }
-            if ( scoreC > maxValue )
-            {
-                maxScore = barC;
-                maxValue = scoreC;
-            }
-            maxScore.AddCssClass( "discbar-primary" );
-            var score = Math.Floor( (double)( (double)scoreD / (double)maxScale ) * 100 ).ToString();
-            barD.Style.Add( "height", score + "%" );
-            barD.Attributes["title"] = scoreD.ToString();
-
-            score = Math.Floor( (double)( (double)scoreI / (double)maxScale ) * 100 ).ToString();
-            barI.Style.Add( "height", score + "%" );
-            barI.Attributes["title"] = scoreI.ToString();
-
-            score = Math.Floor( (double)( (double)scoreS / (double)maxScale ) * 100 ).ToString();
-            barS.Style.Add( "height", score + "%" );
-            barS.Attributes["title"] = scoreS.ToString();
-
-            score = Math.Floor( (double)( (double)scoreC / (double)maxScale ) * 100 ).ToString();
-            barC.Style.Add( "height", score + "%" );
-            barC.Attributes["title"] = scoreC.ToString();
         }
 
         /// <summary>
@@ -479,6 +419,8 @@ namespace Rockweb.Blocks.Crm
             pnlQuestions.Visible = false;
             pnlResults.Visible = true;
 
+            lHeading.Text = string.Format( "<div class='disc-heading'><h1>{0}</h1><h4>Personality Type: {1}</h4></div>", _targetPerson.FullName, savedScores.PersonalityType );
+
             // Show re-take test button if MinDaysToRetake has passed...
             double days = GetAttributeValue( "MinDaysToRetake" ).AsDouble();
             if ( savedScores.LastSaveDate.AddDays( days ) <= RockDateTime.Now )
@@ -488,7 +430,23 @@ namespace Rockweb.Blocks.Crm
 
             PlotGraph( savedScores );
 
-            BindRepeater();
+            ShowExplaination( savedScores.PersonalityType );
+        }
+
+        /// <summary>
+        /// Shows the explaination for the given personality type as defined in one of the
+        /// DefinedValues of the DISC Results DefinedType.
+        /// </summary>
+        /// <param name="personalityType">The one or two letter personality type.</param>
+        private void ShowExplaination( string personalityType )
+        {
+            var personalityValue = DefinedTypeCache.Read( Rock.SystemGuid.DefinedType.DISC_RESULTS_TYPE.AsGuid() ).DefinedValues.Where( v => v.Value == personalityType ).FirstOrDefault();
+            if ( personalityValue != null )
+            {
+                lDescription.Text = personalityValue.Description;
+                lStrengths.Text = personalityValue.GetAttributeValue( "Strengths" );
+                lChallenges.Text = personalityValue.GetAttributeValue( "Challenges" );
+            }
         }
 
         /// <summary>

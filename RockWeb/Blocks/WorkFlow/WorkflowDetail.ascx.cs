@@ -462,7 +462,7 @@ namespace RockWeb.Blocks.WorkFlow
                     var group = _groupService.Get( activity.AssignedGroupId.Value);
                     if ( group != null )
                     {
-                        tdAssignedToGroup.Description = activity.AssignedGroup.Name;
+                        tdAssignedToGroup.Description = group.Name;
                     }
                 }
 
@@ -673,7 +673,7 @@ namespace RockWeb.Blocks.WorkFlow
                     if ( Workflow.InitiatorPersonAlias != null && Workflow.InitiatorPersonAlias.Person != null )
                     {
                         var person = Workflow.InitiatorPersonAlias.Person;
-                        tdInitiator.Description = string.Format( "<a href='~/Person/{0}'>{1}</a>", person.Id, person.FullName );
+                        tdInitiator.Description = string.Format( "<a href='{0}{1}'>{2}</a>", ResolveRockUrl("~/Person/"), person.Id, person.FullName );
                     }
                     else
                     {

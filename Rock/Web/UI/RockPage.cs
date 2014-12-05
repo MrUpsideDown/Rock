@@ -457,7 +457,7 @@ namespace Rock.Web.UI
 
             if ( _scriptManager == null )
             {
-                _scriptManager = new AjaxControlToolkit.ToolkitScriptManager { ID = "sManager" };
+                _scriptManager = new AjaxControlToolkit.ToolkitScriptManager { ID = "sManager", CombineScripts = false };
                 Page.Trace.Warn( "Adding script manager" );
                 Page.Form.Controls.AddAt( 0, _scriptManager );
             }
@@ -1401,8 +1401,8 @@ namespace Rock.Web.UI
                         {
                             // In the case of core Rock.dll Types, we'll just use Rock.Data.Service<> and Rock.Data.RockContext<>
                             // otherwise find the first (and hopefully only) Service<> and dbContext we can find in the Assembly.  
-                            System.Data.Entity.DbContext dbContext = Reflection.GetDbContextForModel( modelType );
-                            IService serviceInstance = Reflection.GetServiceForModel( modelType, dbContext );
+                            System.Data.Entity.DbContext dbContext = Reflection.GetDbContextForEntityType( modelType );
+                            IService serviceInstance = Reflection.GetServiceForEntityType( modelType, dbContext );
 
                             if ( string.IsNullOrWhiteSpace( keyModel.Key ) )
                             {
