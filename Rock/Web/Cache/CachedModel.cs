@@ -33,8 +33,7 @@ namespace Rock.Web.Cache
     /// <typeparam name="T"></typeparam>
     [Serializable]
     [DataContract]
-    public abstract class CachedModel<T> : ISecured, Rock.Attribute.IHasAttributes,
-        DotLiquid.IIndexable, DotLiquid.ILiquidizable
+    public abstract class CachedModel<T> : ISecured, Rock.Attribute.IHasAttributes, Lava.ILiquidizable
         where T : Rock.Data.Entity<T>, ISecured, Rock.Attribute.IHasAttributes, new()
     {
         /// <summary>
@@ -92,7 +91,7 @@ namespace Rock.Web.Cache
         /// The type id.
         /// </value>
         [DataMember]
-        [LiquidIgnore]
+        [LavaIgnore]
         public virtual int TypeId { get; private set; }
 
         /// <summary>
@@ -101,14 +100,14 @@ namespace Rock.Web.Cache
         /// qualified name of the class.
         /// </summary>
         [DataMember]
-        [LiquidIgnore]
+        [LavaIgnore]
         public virtual string TypeName { get; private set; }
 
         /// <summary>
         /// A parent authority.  If a user is not specifically allowed or denied access to
         /// this object, Rock will check access to the parent authority specified by this property.
         /// </summary>
-        [LiquidIgnore]
+        [LavaIgnore]
         public virtual ISecured ParentAuthority
         {
             get
@@ -125,9 +124,19 @@ namespace Rock.Web.Cache
         }
 
         /// <summary>
+        /// An optional additional parent authority.  (i.e for Groups, the GroupType is main parent
+        /// authority, but parent group is an additional parent authority )
+        /// </summary>
+        [LavaIgnore]
+        public virtual Security.ISecured ParentAuthorityPre
+        {
+            get { return null; }
+        }
+
+        /// <summary>
         /// A dictionary of actions that this class supports and the description of each.
         /// </summary>
-        [LiquidIgnore]
+        [LavaIgnore]
         public virtual Dictionary<string, string> SupportedActions { get; private set; }
 
         /// <summary>
@@ -203,6 +212,7 @@ namespace Rock.Web.Cache
         /// <value>
         /// The attributes.
         /// </value>
+        [LavaIgnore]
         public Dictionary<string, Rock.Web.Cache.AttributeCache> Attributes
         {
             get
@@ -234,13 +244,14 @@ namespace Rock.Web.Cache
         /// The attribute ids
         /// </summary>
         [DataMember]
-        [LiquidIgnore]
+        [LavaIgnore]
         protected List<int> AttributeIds = new List<int>();
 
         /// <summary>
         /// Dictionary of all attributes and their value.
         /// </summary>
         [DataMember]
+        [LavaIgnore]
         public virtual Dictionary<string, Rock.Model.AttributeValue> AttributeValues { get; set; }
 
         /// <summary>
@@ -249,7 +260,7 @@ namespace Rock.Web.Cache
         /// <value>
         /// The attribute defaults.
         /// </value>
-        [LiquidIgnore]
+        [LavaIgnore]
         public virtual Dictionary<string, string> AttributeValueDefaults
         {
             get { return null; }
@@ -369,6 +380,31 @@ namespace Rock.Web.Cache
         }
 
         /// <summary>
+        /// Gets the available keys (for debuging info).
+        /// </summary>
+        /// <value>
+        /// The available keys.
+        /// </value>
+        [LavaIgnore]
+        public List<string> AvailableKeys
+        {
+            get
+            {
+                var availableKeys = new List<string>();
+
+                foreach ( var propInfo in GetType().GetProperties() )
+                {
+                    if ( propInfo != null && propInfo.GetCustomAttributes( typeof( Rock.Data.LavaIgnoreAttribute ) ).Count() <= 0 )
+                    {
+                        availableKeys.Add( propInfo.Name );
+                    }
+                }
+
+                return availableKeys;
+            }
+        }
+
+        /// <summary>
         /// Gets the <see cref="System.Object"/> with the specified key.
         /// </summary>
         /// <value>
@@ -376,23 +412,22 @@ namespace Rock.Web.Cache
         /// </value>
         /// <param name="key">The key.</param>
         /// <returns></returns>
-        [LiquidIgnore]
+        [LavaIgnore]
         public object this[object key]
         {
             get
             {
-                Type entityType = this.GetType();
-                if ( entityType.Namespace == "System.Data.Entity.DynamicProxies" )
-                    entityType = entityType.BaseType;
+                string keyString = key.ToStringSafe();
 
-                var propInfo = entityType.GetProperty( key.ToStringSafe() );
-                if ( propInfo != null &&
-                    propInfo.Name != "Attributes" &&
-                    propInfo.Name != "AttributeValues" &&
-                    propInfo.GetCustomAttributes( typeof( Rock.Data.LiquidIgnoreAttribute ) ).Count() <= 0 )
+                if ( keyString == "AttributeValues" )
+                {
+                    return AttributeValues.Select( a => a.Value ).ToList();
+                }
+
+                var propInfo = GetType().GetProperty( key.ToStringSafe() );
+                if ( propInfo != null && propInfo.GetCustomAttributes( typeof( Rock.Data.LavaIgnoreAttribute ) ).Count() <= 0 )
                 {
                     object propValue = propInfo.GetValue( this, null );
-
                     if ( propValue is Guid )
                     {
                         return ( (Guid)propValue ).ToString();
@@ -426,7 +461,7 @@ namespace Rock.Web.Cache
                         url = true;
                     }
 
-                    if ( this.Attributes != null && this.Attributes.ContainsKey( attributeKey ) )
+                    if ( this.Attributes.ContainsKey( attributeKey ) )
                     {
                         var attribute = this.Attributes[attributeKey];
                         if ( attribute.IsAuthorized( Authorization.VIEW, null ) )
@@ -462,31 +497,24 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public bool ContainsKey( object key )
         {
-            Type entityType = this.GetType();
-            if ( entityType.Namespace == "System.Data.Entity.DynamicProxies" )
-                entityType = entityType.BaseType;
+            string attributeKey = key.ToStringSafe();
 
-            var propInfo = entityType.GetProperty( key.ToStringSafe() );
-            if ( propInfo != null &&
-                propInfo.Name != "Attributes" &&
-                propInfo.Name != "AttributeValues" &&
-                propInfo.GetCustomAttributes( typeof( Rock.Data.LiquidIgnoreAttribute ) ).Count() <= 0 )
+            if ( attributeKey == "AttributeValues" )
             {
                 return true;
             }
 
-            // The remainder of this method is only neccessary to support the old way of getting attribute 
-            // values in liquid templates (e.g. {{ Person.BaptismData }} ).  Once support for this method is 
-            // deprecated ( in v4.0 ), and only the new method of using the Attribute filter is 
-            // suported (e.g. {{ Person | Attribute:'BaptismDate' }} ), the remainder of this method 
-            // can be removed
+            var propInfo = GetType().GetProperty( key.ToStringSafe() );
+            if ( propInfo != null && propInfo.GetCustomAttributes( typeof( Rock.Data.LavaIgnoreAttribute ) ).Count() <= 0 )
+            {
+                return true;
+            }
 
             if ( this.Attributes == null )
             {
                 this.LoadAttributes();
             }
 
-            string attributeKey = key.ToStringSafe();
             if ( attributeKey.EndsWith( "_unformatted" ) )
             {
                 attributeKey = attributeKey.Replace( "_unformatted", "" );
@@ -506,6 +534,7 @@ namespace Rock.Web.Cache
             }
 
             return false;
+
         }
 
         #endregion

@@ -42,6 +42,7 @@ namespace Rock.Model
         /// </value>
         [Required]
         [DataMember( IsRequired = true )]
+        [LavaIgnore]
         public bool IsSystem { get; set; }
         
         /// <summary>
@@ -64,6 +65,7 @@ namespace Rock.Model
         /// A <see cref="System.Int32"/> that identifies the Id of the entity instance that uses this AttributeValue.
         /// </value>
         [DataMember]
+        [LavaIgnore]
         public int? EntityId { get; set; }
         
         /// <summary>
@@ -81,12 +83,13 @@ namespace Rock.Model
 
         /// <summary>
         /// Gets the Value as a double
-        /// Calculated Field: alter table AttributeValue add ValueAsNumeric as case when (len(value) &lt; 100 and ISNUMERIC( value) = 1 and value not like '%[^0-9.]%') then convert(numeric(38,10), value ) else null end
+        /// Calculated Field: alter table AttributeValue add ValueAsNumeric as (case when len([value]) &lt; (100) AND isnumeric([value])=(1) AND NOT [value] like %[^0-9.]%' AND NOT [value] like '%[.]%' then CONVERT([numeric](38,10),[value])  end
         /// </summary>
         /// <value>
         /// </value>
         [DataMember]
         [DatabaseGenerated( DatabaseGeneratedOption.Computed )]
+        [LavaIgnore]
         public decimal? ValueAsNumeric { get; set; }
 
         /// <summary>
@@ -98,6 +101,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [DatabaseGenerated( DatabaseGeneratedOption.Computed )]
+        [LavaIgnore]
         public DateTime? ValueAsDateTime { get; private set; }
         
         /// <summary>
@@ -133,7 +137,76 @@ namespace Rock.Model
         /// The <see cref="Rock.Model.Attribute"/> that uses this value.
         /// </value>
         [DataMember]
+        [LavaIgnore]
         public virtual Attribute Attribute { get; set; }
+
+        /// <summary>
+        /// Gets the value formatted.
+        /// </summary>
+        /// <value>
+        /// The value formatted.
+        /// </value>
+        [LavaInclude]
+        public virtual string ValueFormatted
+        {
+            get
+            {
+                var attribute = AttributeCache.Read( this.AttributeId );
+                if ( attribute != null )
+                {
+                    return attribute.FieldType.Field.FormatValue( null, Value, attribute.QualifierValues, false);
+                }
+                return Value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the name of the attribute 
+        /// </summary>
+        /// <remarks>
+        /// Note: this property is provided specifically for Lava templates when the Attribute property is not available
+        /// as a navigable property
+        /// </remarks>
+        /// <value>
+        /// The name of the attribute.
+        /// </value>
+        [LavaInclude]
+        public virtual string AttributeName
+        {
+            get
+            {
+                var attribute = AttributeCache.Read( this.AttributeId );
+                if ( attribute != null )
+                {
+                    return attribute.Name;
+                }
+                return Value;
+            }
+        }
+
+        /// <summary>
+        /// Gets the attribute key.
+        /// </summary>
+        /// <remarks>
+        /// Note: this property is provided specifically for Lava templates when the Attribute property is not available
+        /// as a navigable property
+        /// </remarks>
+        /// <value>
+        /// The attribute key.
+        /// </value>
+        [LavaInclude]
+        public virtual string AttributeKey
+        {
+            get
+            {
+                var attribute = AttributeCache.Read( this.AttributeId );
+                if ( attribute != null )
+                {
+                    return attribute.Key;
+                }
+                return Value;
+            }
+        }
 
         #endregion
 

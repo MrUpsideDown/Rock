@@ -110,8 +110,18 @@ namespace Rock
             //return liquidObject.LiquidizeChildren( 0, rockContext ).ToJson();
             StringBuilder lavaDebugPanel = new StringBuilder();
             lavaDebugPanel.Append( "<div class='alert alert-info lava-debug'><h4>Lava Debug Info</h4>" );
+            lavaDebugPanel.Append( "<p>Below is a listing of available merge fields for this block. Find out more on Lava at <a href='http://www.rockrms.com/lava' target='_blank'>rockrms.com/lava</a>." );
 
             lavaDebugPanel.Append( formatLavaDebugInfo( lavaObject.LiquidizeChildren( 0, rockContext ) ) );
+
+            // Add a 'GlobalAttribute' entry if it wasn't part of the LavaObject
+            if ( ! (lavaObject is Dictionary<string, object>) || !((Dictionary<string, object>)lavaObject).Keys.Contains("GlobalAttribute") )
+            {
+                var globalAttributes = new Dictionary<string, object>();
+                globalAttributes.Add( "GlobalAttribute", Rock.Web.Cache.GlobalAttributesCache.GetMergeFields(null) );
+                lavaDebugPanel.Append(  formatLavaDebugInfo( globalAttributes.LiquidizeChildren( 0, rockContext ) ) );
+            }
+
             lavaDebugPanel.Append( "</div>" );
 
             return lavaDebugPanel.ToString() ;
@@ -120,10 +130,12 @@ namespace Rock
         /// <summary>
         /// Liquidizes the child properties of an object for displaying debug information about fields available for lava templates
         /// </summary>
-        /// <param name="liquidObject">The liquid object.</param>
+        /// <param name="myObject">an object.</param>
         /// <param name="levelsDeep">The levels deep.</param>
+        /// <param name="rockContext">The rock context.</param>
+        /// <param name="parentElement">The parent element.</param>
         /// <returns></returns>
-        private static object LiquidizeChildren( this object liquidObject, int levelsDeep = 0, RockContext rockContext = null, string parentElement = "" )
+        private static object LiquidizeChildren( this object myObject, int levelsDeep = 0, RockContext rockContext = null, string parentElement = "" )
         {
             // Add protection for stack-overflow if property attributes are not set correctly resulting in child/parent objects being evaluated in loop
             levelsDeep++;
@@ -132,26 +144,37 @@ namespace Rock
                 return string.Empty;
             }
 
-            if ( liquidObject == null )
+            // If the object is liquidable, get the object return by it's ToLiquid() method.
+            if ( myObject is DotLiquid.ILiquidizable)
+            {
+                myObject = ( (DotLiquid.ILiquidizable)myObject ).ToLiquid();
+            }
+
+            // If the object is null, return an empty string
+            if ( myObject == null )
             {
                 return string.Empty;
             }
 
-            if ( liquidObject is string )
+            // If the object is a string, return it's value converted to HTML and truncated
+            if ( myObject is string )
             {
-                return liquidObject.ToString().Truncate( 50 ).EncodeHtml();
+                return myObject.ToString().Truncate( 50 ).EncodeHtml();
             }
 
-            if ( liquidObject is Guid )
+            // If the object is a guid, return it's string representation
+            if ( myObject is Guid )
             {
-                return liquidObject.ToString();
+                return myObject.ToString();
             }
 
-            Type entityType = liquidObject.GetType();
+            // Get the object's type ( checking for a proxy object )
+            Type entityType = myObject.GetType();
             if ( entityType.Namespace == "System.Data.Entity.DynamicProxies" )
                 entityType = entityType.BaseType;
 
-            if ( liquidObject is Drop )
+            // If the object is a Liquid Drop object, return a list of all of the object's properties
+            if ( myObject is Drop )
             {
                 var result = new Dictionary<string, object>();
 
@@ -164,7 +187,7 @@ namespace Rock
                     {
                         try
                         {
-                            result.Add( propInfo.Name, propInfo.GetValue( liquidObject, null ).LiquidizeChildren( levelsDeep, rockContext ) );
+                            result.Add( propInfo.Name, propInfo.GetValue( myObject, null ).LiquidizeChildren( levelsDeep, rockContext ) );
                         }
                         catch ( Exception ex )
                         {
@@ -176,6 +199,7 @@ namespace Rock
                 return result;
             }
 
+            // If the object has the [LiquidType] attribute, enumerate the allowed properties and return a list of those properties
             if ( entityType.GetCustomAttributes( typeof( LiquidTypeAttribute ), false ).Any() )
             {
                 var result = new Dictionary<string, object>();
@@ -189,7 +213,7 @@ namespace Rock
                         {
                             try
                             {
-                                result.Add( propInfo.Name, propInfo.GetValue( liquidObject, null ).LiquidizeChildren( levelsDeep, rockContext, parentElement + "." + propName ) );
+                                result.Add( propInfo.Name, propInfo.GetValue( myObject, null ).LiquidizeChildren( levelsDeep, rockContext, parentElement + "." + propName ) );
                             }
                             catch ( Exception ex )
                             {
@@ -202,28 +226,30 @@ namespace Rock
                 return result;
             }
 
-            if ( liquidObject is ILiquidizable )
+            // If the object is a Rock Liquidizable object, call the object's AvailableKeys method to determine the properties available. 
+            if ( myObject is Lava.ILiquidizable )
             {
+                var liquidObject = (Lava.ILiquidizable)myObject;
+
                 var result = new Dictionary<string, object>();
 
-                bool isEntity = ( liquidObject is IEntity );
-                foreach ( var propInfo in entityType.GetProperties() )
+                foreach ( var key in liquidObject.AvailableKeys )
                 {
-                    if ( propInfo.Name != "Attributes" &&
-                        propInfo.Name != "AttributeValues" &&
-                        ( !isEntity ||
-                            propInfo.GetCustomAttributes( typeof( System.Runtime.Serialization.DataMemberAttribute ) ).Count() > 0 ||
-                            propInfo.GetCustomAttributes( typeof( Rock.Data.LiquidIncludeAttribute ) ).Count() > 0 ) &&
-                        propInfo.GetCustomAttributes( typeof( Rock.Data.LiquidIgnoreAttribute ) ).Count() <= 0 )
+                    try
                     {
-                        try
+                        object propValue = liquidObject[key];
+                        if ( propValue != null )
                         {
-                            result.Add( propInfo.Name, propInfo.GetValue( liquidObject, null ).LiquidizeChildren( levelsDeep, rockContext, parentElement + "." + propInfo.Name ) );
+                            result.Add( key, propValue.LiquidizeChildren( levelsDeep, rockContext, parentElement + "." + key ) );
                         }
-                        catch ( Exception ex )
+                        else
                         {
-                            result.Add( propInfo.Name, ex.ToString() );
+                            result.AddOrIgnore( key, string.Empty );
                         }
+                    }
+                    catch ( Exception ex )
+                    {
+                        result.AddOrIgnore( key, ex.ToString() );
                     }
                 }
 
@@ -254,11 +280,11 @@ namespace Rock
                 return result;
             }
 
-            if ( liquidObject is IDictionary<string, object> )
+            if ( myObject is IDictionary<string, object> )
             {
                 var result = new Dictionary<string, object>();
 
-                foreach ( var keyValue in ( (IDictionary<string, object>)liquidObject ) )
+                foreach ( var keyValue in ( (IDictionary<string, object>)myObject ) )
                 {
                     try
                     {
@@ -273,15 +299,15 @@ namespace Rock
                 return result;
             }
 
-            if ( liquidObject is IEnumerable )
+            if ( myObject is IEnumerable )
             {
                 var result = new List<object>();
 
-                foreach ( var value in ( (IEnumerable)liquidObject ) )
+                foreach ( var value in ( (IEnumerable)myObject ) )
                 {
                     try
                     {
-                        result.Add( value.LiquidizeChildren( levelsDeep ) );
+                        result.Add( value.LiquidizeChildren( levelsDeep, rockContext, parentElement ) );
                     }
                     catch { }
                 }
@@ -289,7 +315,7 @@ namespace Rock
                 return result;
             }
 
-            return liquidObject.ToStringSafe();
+            return myObject.ToStringSafe();
         }
         
         private static string formatLavaDebugInfo( object liquidizedObject, int levelsDeep = 0, string parents = "" )
@@ -325,8 +351,8 @@ namespace Rock
 
                             sb.Append( "<div class='panel panel-default panel-lavadebug'>" );
 
-                            sb.Append( string.Format( "<div class='panel-heading clearfix' data-toggle='collapse' data-target='#collapse-{0}'>", panelId ) );
-                            sb.Append( string.Format("<h5 class='panel-title pull-left'>{0}</h5> <div class='pull-right'><i class='fa fa-chevron-down'></i></div>", keyVal.Key ));
+                            sb.Append( string.Format( "<div class='panel-heading clearfix collapsed' data-toggle='collapse' data-target='#collapse-{0}'>", panelId ) );
+                            sb.Append( string.Format("<h5 class='panel-title pull-left'>{0}</h5> <div class='pull-right'><i class='fa fa-chevron-up'></i></div>", keyVal.Key.SplitCase() ));
                             sb.Append( "</div>");
 
                             sb.Append( string.Format( "<div id='collapse-{0}' class='panel-collapse collapse'>", panelId ) );
@@ -334,7 +360,15 @@ namespace Rock
 
                             if ( keyVal.Key == "GlobalAttribute" )
                             {
-                                sb.Append( "<p>Global attributes should be accessed using <code>{{ 'Global' | Attribute:'[AttributeKey]' }}</code>.</p>" );
+                                sb.Append( "<p>Global attributes should be accessed using <code>{{ 'Global' | Attribute:'[AttributeKey]' }}</code>. Find out more about using Global Attributes in Lava at <a href='http://www.rockrms.com/lava/globalattributes' target='_blank'>rockrms.com/lava/globalattributes</a>.</p>" );
+                            }
+                            else if ( keyVal.Value is List<object> )
+                            {
+                                sb.Append( string.Format( "<p>{0} properties can be accessed by <code>{{% for {2} in {1} %}}{{{{ {2}.[PropertyKey] }}}}{{% endfor %}}</code>.</p>", char.ToUpper( keyVal.Key[0] ) + keyVal.Key.Substring( 1 ), keyVal.Key, keyVal.Key.Singularize() ) );
+                            }
+                            else if ( keyVal.Key == "CurrentPerson" )
+                            {
+                                sb.Append( string.Format( "<p>{0} properties can be accessed by <code>{{{{ {1}.[PropertyKey] }}}}</code>. Find out more about using 'Person' fields in Lava at <a href='http://www.rockrms.com/lava/person' target='_blank'>rockrms.com/lava/person</a>.</p>", char.ToUpper( keyVal.Key[0] ) + keyVal.Key.Substring( 1 ), keyVal.Key ) );
                             }
                             else
                             {
@@ -351,8 +385,7 @@ namespace Rock
                     }
                     else
                     {
-                        string section = (keyVal.Value is string) ? "" : string.Format( " lava-debug-section level-{0}", levelsDeep );
-
+                        string section = ( keyVal.Value is string ) ? "" : string.Format( " lava-debug-section level-{0}", levelsDeep );
                         string value = formatLavaDebugInfo( keyVal.Value, levelsDeep + 1, parents + "." + keyVal.Key );
                         sb.AppendFormat( "<li><span class='lava-debug-key{0}'>{1}</span> {2}</li>{3}", section, keyVal.Key, value, Environment.NewLine );
                     }
@@ -899,7 +932,7 @@ namespace Rock
             }
             catch ( Exception ex )
             {
-                return "Error resolving Liquid merge fields: " + ex.Message;
+                return "Error resolving Lava merge fields: " + ex.Message;
             }
         }
 
@@ -980,7 +1013,7 @@ namespace Rock
         }
 
         /// <summary>
-        /// Sanitizes the HTML by removing tags.  If Scrict is true, all html tags will be removed, if false, only a blacklist of specific XSS dangerous tags and attribute values are removed.
+        /// Sanitizes the HTML by removing tags.  If strict is true, all html tags will be removed, if false, only a blacklist of specific XSS dangerous tags and attribute values are removed.
         /// </summary>
         /// <param name="html">The HTML.</param>
         /// <param name="strict">if set to <c>true</c> [strict].</param>
@@ -989,9 +1022,10 @@ namespace Rock
         {
             if ( strict )
             {
-                var allowedElements = new Dictionary<string, string[]>();
-                var allowedAttributes = new Dictionary<string, string[]>();
-                return new AjaxControlToolkit.Sanitizer.HtmlAgilityPackSanitizerProvider().GetSafeHtmlFragment( html, allowedElements, allowedAttributes );
+                // from http://stackoverflow.com/a/18154152/
+                HtmlAgilityPack.HtmlDocument doc = new HtmlAgilityPack.HtmlDocument();
+                doc.LoadHtml( html );
+                return doc.DocumentNode.InnerText;
             }
             else
             {
@@ -2349,7 +2383,7 @@ namespace Rock
         /// <returns></returns>
         public static int RouteId( this Route route )
         {
-            if ( route.DataTokens != null )
+            if ( route.DataTokens != null && route.DataTokens["RouteId"] != null )
             {
                 return int.Parse( route.DataTokens["RouteId"] as string );
             }

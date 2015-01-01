@@ -20,7 +20,7 @@ using System.Dynamic;
 using System.Linq;
 using System.Net;
 using System.Web.Http;
-
+using System.Web.Http.OData;
 using Rock.Data;
 using Rock.Model;
 using Rock.Rest.Filters;
@@ -36,7 +36,7 @@ namespace Rock.Rest.Controllers
     public partial class GroupsController
     {
         /// <summary>
-        /// Gets the children.
+        /// Gets the children (obsolete, use the other GetChildren method)
         /// </summary>
         /// <param name="id">The id.</param>
         /// <param name="rootGroupId">The root group id.</param>
@@ -45,9 +45,33 @@ namespace Rock.Rest.Controllers
         /// <returns></returns>
         [Authenticate, Secured]
         [System.Web.Http.Route( "api/Groups/GetChildren/{id}/{rootGroupId}/{limitToSecurityRoleGroups}/{groupTypeIds}" )]
+        [Obsolete( "use the other GetChildren" )]
         public IQueryable<TreeViewItem> GetChildren( int id, int rootGroupId, bool limitToSecurityRoleGroups, string groupTypeIds )
         {
-            var qry = ( (GroupService)Service ).GetNavigationChildren( id, rootGroupId, limitToSecurityRoleGroups, groupTypeIds );
+            return GetChildren( id, rootGroupId, limitToSecurityRoleGroups, groupTypeIds, "" );
+        }
+
+        /// <summary>
+        /// Gets the children.
+        /// </summary>
+        /// <param name="id">The identifier.</param>
+        /// <param name="rootGroupId">The root group identifier.</param>
+        /// <param name="limitToSecurityRoleGroups">if set to <c>true</c> [limit to security role groups].</param>
+        /// <param name="includedGroupTypeIds">The included group type ids.</param>
+        /// <param name="excludedGroupTypeIds">The excluded group type ids.</param>
+        /// <returns></returns>
+        [Authenticate, Secured]
+        [System.Web.Http.Route( "api/Groups/GetChildren/{id}" )]
+        public IQueryable<TreeViewItem> GetChildren( int id, int rootGroupId = 0, bool limitToSecurityRoleGroups = false, string includedGroupTypeIds = "", string excludedGroupTypeIds = "" )
+        {
+            // Enable proxy creation since security is being checked and need to navigate parent authorities
+            SetProxyCreation( true );
+
+            var includedGroupTypeIdList = includedGroupTypeIds.SplitDelimitedValues().AsIntegerList().Except( new List<int> { 0 } ).ToList();
+            var excludedGroupTypeIdList = excludedGroupTypeIds.SplitDelimitedValues().AsIntegerList().Except( new List<int> { 0 } ).ToList();
+
+            var groupService = (GroupService)Service;
+            var qry = groupService.GetNavigationChildren( id, rootGroupId, limitToSecurityRoleGroups, includedGroupTypeIdList, excludedGroupTypeIdList );
 
             List<Group> groupList = new List<Group>();
             List<TreeViewItem> groupNameList = new List<TreeViewItem>();
@@ -74,19 +98,23 @@ namespace Rock.Rest.Controllers
                 }
             }
 
-            var groupTypes = new List<int>();
-            if ( !string.IsNullOrWhiteSpace( groupTypeIds ) && groupTypeIds != "0" )
-            {
-                groupTypes = groupTypeIds.SplitDelimitedValues().Select( a => int.Parse( a ) ).ToList();
-            }
-
             // try to quickly figure out which items have Children
             List<int> resultIds = groupList.Select( a => a.Id ).ToList();
-            var qryHasChildrenList = Get()
+            var qryHasChildren = Get()
                 .Where( g =>
                     g.ParentGroupId.HasValue &&
-                    resultIds.Contains( g.ParentGroupId.Value ) &&
-                    ( !groupTypes.Any() || groupTypes.Contains( g.GroupTypeId ) ) )
+                    resultIds.Contains( g.ParentGroupId.Value ) );
+
+            if ( includedGroupTypeIdList.Any() )
+            {
+                qryHasChildren = qryHasChildren.Where( a => includedGroupTypeIdList.Contains( a.GroupTypeId ) );
+            }
+            else if ( excludedGroupTypeIdList.Any() )
+            {
+                qryHasChildren = qryHasChildren.Where( a => !excludedGroupTypeIdList.Contains( a.GroupTypeId ) );
+            }
+
+            var qryHasChildrenList = qryHasChildren
                 .Select( g => g.ParentGroupId.Value )
                 .Distinct()
                 .ToList();
@@ -101,6 +129,26 @@ namespace Rock.Rest.Controllers
         }
 
         /// <summary>
+        /// Gets the families.
+        /// </summary>
+        /// <param name="personId">The person identifier.</param>
+        /// <returns></returns>
+        [Authenticate, Secured]
+        [EnableQuery]
+        [HttpGet]
+        [System.Web.Http.Route( "api/Groups/GetFamilies/{personId}" )]
+        public IQueryable<Group> GetFamilies( int personId )
+        {
+            Guid groupTypeGuid = Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid();
+
+            return ( (GroupService)Service )
+                .Queryable( "Campus,GroupLocations.Location,Members.GroupRole" )
+                .Where( g =>
+                    g.GroupType.Guid.Equals( groupTypeGuid ) &&
+                    g.Members.Select( m => m.PersonId ).Contains( personId ) );
+        }
+
+        /// <summary>
         /// Gets the map information.
         /// </summary>
         /// <param name="groupId">The group identifier.</param>
@@ -111,6 +159,9 @@ namespace Rock.Rest.Controllers
         [System.Web.Http.Route( "api/Groups/GetMapInfo/{groupId}" )]
         public IQueryable<MapItem> GetMapInfo( int groupId )
         {
+            // Enable proxy creation since security is being checked and need to navigate parent authorities
+            SetProxyCreation( true );
+
             var group = ( (GroupService)Service ).Queryable( "GroupLocations.Location" )
                 .Where( g => g.Id == groupId )
                 .FirstOrDefault();
@@ -157,6 +208,9 @@ namespace Rock.Rest.Controllers
 
             var mapItems = new List<MapItem>();
 
+            // Enable proxy creation since security is being checked and need to navigate parent authorities
+            SetProxyCreation( true );
+
             foreach ( var group in ( (GroupService)Service ).Queryable( "GroupLocations.Location" )
                 .Where( g => g.ParentGroupId == groupId ) )
             {
@@ -185,6 +239,9 @@ namespace Rock.Rest.Controllers
         [System.Web.Http.Route( "api/Groups/GetMapInfo/{groupId}/Members" )]
         public IQueryable<MapItem> GetMemberMapInfo( int groupId )
         {
+            // Enable proxy creation since security is being checked and need to navigate parent authorities
+            SetProxyCreation( true );
+
             var group = ( (GroupService)Service ).Queryable( "Members" )
                 .Where( g => g.Id == groupId )
                 .FirstOrDefault();
@@ -239,6 +296,9 @@ namespace Rock.Rest.Controllers
         [System.Web.Http.Route( "api/Groups/GetMapInfo/{groupId}/Families/{statusId}" )]
         public IQueryable<MapItem> GetFamiliesMapInfo( int groupId, int statusId )
         {
+            // Enable proxy creation since security is being checked and need to navigate parent authorities
+            SetProxyCreation( true );
+
             var group = ( (GroupService)Service ).Queryable( "GroupLocations.Location" )
                 .Where( g => g.Id == groupId )
                 .FirstOrDefault();
@@ -313,6 +373,9 @@ namespace Rock.Rest.Controllers
         [System.Web.Http.Route( "api/Groups/GetMapInfoWindow/{groupId}/{locationId}" )]
         public InfoWindowResult GetMapInfoWindow( int groupId, int locationId, [FromBody] InfoWindowRequest infoWindowDetails )
         {
+            // Enable proxy creation since security is being checked and need to navigate parent authorities
+            SetProxyCreation( true );
+
             // Use new service with new context so properties can be navigated by liquid
             var group = new GroupService( new RockContext() ).Queryable( "GroupType,GroupLocations.Location,Campus,Members.Person" )
                 .Where( g => g.Id == groupId )
