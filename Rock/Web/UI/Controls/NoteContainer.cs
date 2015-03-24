@@ -299,38 +299,33 @@ namespace Rock.Web.UI.Controls
             }
         }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether [show more option].
-        /// </summary>
-
-        public bool ShowMoreOption
-        {
-            get
-            {
-                if ( SortDirection == ListSortDirection.Ascending )
-                {
-                    return false;
-                }
-                else
-                {
-                    EnsureChildControls();
-                    return _lbShowMore.Visible;
-                }
-            }
-            set
-            {
-                EnsureChildControls();
-                _lbShowMore.Visible = value;
-            }
-        }
 
         /// <summary>
-        /// Gets or sets the current display count.  
+        /// Gets or sets the current display count. Only applies if notes are in descending order. 
+        /// If notes are displayed in ascending order, all notes will always be displayed
         /// </summary>
         public int DisplayCount
         {
             get { return ViewState["DisplayCount"] as int? ?? 10; }
             set { ViewState["DisplayCount"] = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether [show more option].
+        /// </summary>
+        private bool ShowMoreOption
+        {
+            get { return ViewState["ShowMoreOption"] as bool? ?? true; }
+            set { ViewState["ShowMoreOption"] = value; }
+        }
+
+        /// <summary>
+        /// Gets or sets the entity identifier.
+        /// </summary>
+        public int NoteCount
+        {
+            get { return ViewState["NoteCount"] as int? ?? 0; }
+            private set { ViewState["NoteCount"] = value; }
         }
 
         #endregion
@@ -616,7 +611,7 @@ namespace Rock.Web.UI.Controls
             {
                 ShowMoreOption = false;
 
-                int noteCount = 0;
+                int i = 0;
 
                 var qry = new NoteService( new RockContext() ).Queryable( "CreatedByPersonAlias.Person" )
                     .Where( n =>
@@ -634,9 +629,13 @@ namespace Rock.Web.UI.Controls
                         .ThenBy( n => n.CreatedDateTime );
                 }
 
-                foreach ( var note in qry )
+                var notes = qry.ToList();
+
+                NoteCount = notes.Count();
+
+                foreach ( var note in notes )
                 {
-                    if ( noteCount >= DisplayCount )
+                    if ( SortDirection == ListSortDirection.Descending && i >= DisplayCount )
                     {
                         ShowMoreOption = true;
                         break;
@@ -653,7 +652,7 @@ namespace Rock.Web.UI.Controls
                         noteEditor.DeleteButtonClick += note_Updated;
                         Controls.Add( noteEditor );
 
-                        noteCount++;
+                        i++;
                     }
                 }
             }
