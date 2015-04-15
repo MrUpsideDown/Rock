@@ -27,24 +27,27 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Device
+    /// Base client model for Device that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Device
+    public partial class DeviceEntity
     {
         /// <summary />
-        public int DeviceTypeValueId { get; set; }
-
-        /// <summary />
-        public string Name { get; set; }
+        public int Id { get; set; }
 
         /// <summary />
         public string Description { get; set; }
 
         /// <summary />
-        public int? LocationId { get; set; }
+        public int DeviceTypeValueId { get; set; }
 
         /// <summary />
         public string IPAddress { get; set; }
+
+        /// <summary />
+        public int? LocationId { get; set; }
+
+        /// <summary />
+        public string Name { get; set; }
 
         /// <summary />
         public int? PrinterDeviceId { get; set; }
@@ -55,6 +58,19 @@ namespace Rock.Client
         /// <summary />
         public int /* PrintTo*/ PrintToOverride { get; set; }
 
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for Device that includes all the fields that are available for GETs. Use this for GETs (use DeviceEntity for POST/PUTs)
+    /// </summary>
+    public partial class Device : DeviceEntity
+    {
         /// <summary />
         public DefinedValue DeviceType { get; set; }
 
@@ -70,14 +86,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public int Id { get; set; }
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
     }
 }

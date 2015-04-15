@@ -88,6 +88,7 @@ namespace RockWeb.Blocks.Administration
                 gLayoutBlocks.DataKeyNames = new string[] { "Id" };
                 gLayoutBlocks.Actions.ShowAdd = true;
                 gLayoutBlocks.Actions.ShowExcelExport = false;
+                gLayoutBlocks.Actions.ShowMergeTemplate = false;
                 gLayoutBlocks.Actions.AddClick += LayoutBlocks_Add;
                 gLayoutBlocks.GridReorder += gLayoutBlocks_GridReorder;
                 gLayoutBlocks.GridRebind += gLayoutBlocks_GridRebind;
@@ -98,6 +99,7 @@ namespace RockWeb.Blocks.Administration
                 gPageBlocks.DataKeyNames = new string[] { "Id" };
                 gPageBlocks.Actions.ShowAdd = true;
                 gPageBlocks.Actions.ShowExcelExport = false;
+                gPageBlocks.Actions.ShowMergeTemplate = false;
                 gPageBlocks.Actions.AddClick += gPageBlocks_GridAdd;
                 gPageBlocks.GridReorder += gPageBlocks_GridReorder;
                 gPageBlocks.GridRebind += gPageBlocks_GridRebind;
@@ -363,9 +365,13 @@ namespace RockWeb.Blocks.Administration
 
             int blockId = hfBlockId.ValueAsInt();
 
+            bool newBlock = false;
+
             if ( blockId == 0 )
             {
+
                 block = new Rock.Model.Block();
+                newBlock = true;
 
                 BlockLocation location = hfBlockLocation.Value.ConvertToEnum<BlockLocation>();
                 if ( location == BlockLocation.Layout )
@@ -404,7 +410,10 @@ namespace RockWeb.Blocks.Administration
 
             rockContext.SaveChanges();
 
-            Rock.Security.Authorization.CopyAuthorization( page, block );
+            if ( newBlock )
+            {
+                Rock.Security.Authorization.CopyAuthorization( page, block );
+            }
 
             if ( block.Layout != null )
             {

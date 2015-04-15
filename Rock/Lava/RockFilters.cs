@@ -16,17 +16,25 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Web;
+using System.Web.UI.HtmlControls;
+
 using DotLiquid;
 using DotLiquid.Util;
+
 using Humanizer;
+
+using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
+using Rock.Web.UI;
 
 namespace Rock.Lava
 {
@@ -36,6 +44,32 @@ namespace Rock.Lava
     public static class RockFilters
     {
         #region String Filters
+
+        /// <summary>
+        /// obfuscate a given email
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        public static string ObfuscateEmail( string input )
+        {
+            if ( input == null )
+            {
+                return null;
+            }
+            else
+            {
+                string[] emailParts = input.Split('@');
+
+                if ( emailParts.Length != 2 )
+                {
+                    return input;
+                }
+                else
+                {
+                    return string.Format( "{0}xxxxx@{1}", emailParts[0].Substring( 0, 1 ), emailParts[1] );
+                }
+            }
+        }
 
         /// <summary>
         /// pluralizes string
@@ -660,7 +694,11 @@ namespace Rock.Lava
                     .FirstOrDefault( a => a.Key.Equals(attributeKey, StringComparison.OrdinalIgnoreCase));
                 if (attribute != null )
                 {
-                    rawValue = globalAttributeCache.GetValue( attributeKey );
+                    // Get the value
+                    string theValue = globalAttributeCache.GetValue( attributeKey );
+
+                    // Global attributes may reference other global attributes, so try to resolve this value again
+                    rawValue = theValue.ResolveMergeFields( new Dictionary<string, object>() );
                 }
             }
 
@@ -681,42 +719,66 @@ namespace Rock.Lava
             }
 
             // If valid attribute and value were found
-            if ( attribute != null && 
-                !string.IsNullOrWhiteSpace(rawValue) &&
-                attribute.IsAuthorized( Authorization.VIEW, null ) )
+            if ( attribute != null && !string.IsNullOrWhiteSpace( rawValue ) )
             {
-                // Check qualifier for 'Raw' if present, just return the raw unformatted value
-                if ( qualifier.Equals("RawValue", StringComparison.OrdinalIgnoreCase) )
-                {
-                    return rawValue;
-                }
+                Person currentPerson = null;
 
-                // Check qualifier for 'Url' and if present and attribute's field type is a ILinkableFieldType, then return the formatted url value
-                var field = attribute.FieldType.Field;
-                if ( qualifier.Equals("Url", StringComparison.OrdinalIgnoreCase) && field is Rock.Field.ILinkableFieldType )
+                // First check for a person override value included in lava context
+                if ( context.Scopes != null )
                 {
-                    return ( (Rock.Field.ILinkableFieldType)field ).UrlLink( rawValue, attribute.QualifierValues );
-                }
-
-                // If qualifier was specified, and the attribute field type is an IEntityFieldType, try to find a property on the entity
-                if ( !string.IsNullOrWhiteSpace(qualifier) && field is Rock.Field.IEntityFieldType )
-                {
-                    IEntity entity = ( (Rock.Field.IEntityFieldType)field ).GetEntity( rawValue );
-                    if (entity != null)
+                    foreach ( var scopeHash in context.Scopes )
                     {
-                        if ( qualifier.Equals( "object", StringComparison.OrdinalIgnoreCase ) )
+                        if ( scopeHash.ContainsKey( "CurrentPerson" ) )
                         {
-                            return entity;
-                        }
-                        else
-                        {
-                            return entity.GetPropertyValue( qualifier ).ToStringSafe();
+                            currentPerson = scopeHash["CurrentPerson"] as Person;
                         }
                     }
                 }
 
-                // Otherwise return the formatted value
-                return field.FormatValue( null, rawValue, attribute.QualifierValues, false );
+                if ( currentPerson == null )
+                {
+                    var httpContext = System.Web.HttpContext.Current;
+                    if ( httpContext != null && httpContext.Items.Contains( "CurrentPerson" ) )
+                    {
+                        currentPerson = httpContext.Items["CurrentPerson"] as Person;
+                    }
+                }
+
+                if ( attribute.IsAuthorized( Authorization.VIEW, currentPerson ) )
+                {
+                    // Check qualifier for 'Raw' if present, just return the raw unformatted value
+                    if ( qualifier.Equals( "RawValue", StringComparison.OrdinalIgnoreCase ) )
+                    {
+                        return rawValue;
+                    }
+
+                    // Check qualifier for 'Url' and if present and attribute's field type is a ILinkableFieldType, then return the formatted url value
+                    var field = attribute.FieldType.Field;
+                    if ( qualifier.Equals( "Url", StringComparison.OrdinalIgnoreCase ) && field is Rock.Field.ILinkableFieldType )
+                    {
+                        return ( (Rock.Field.ILinkableFieldType)field ).UrlLink( rawValue, attribute.QualifierValues );
+                    }
+
+                    // If qualifier was specified, and the attribute field type is an IEntityFieldType, try to find a property on the entity
+                    if ( !string.IsNullOrWhiteSpace( qualifier ) && field is Rock.Field.IEntityFieldType )
+                    {
+                        IEntity entity = ( (Rock.Field.IEntityFieldType)field ).GetEntity( rawValue );
+                        if ( entity != null )
+                        {
+                            if ( qualifier.Equals( "object", StringComparison.OrdinalIgnoreCase ) )
+                            {
+                                return entity;
+                            }
+                            else
+                            {
+                                return entity.GetPropertyValue( qualifier ).ToStringSafe();
+                            }
+                        }
+                    }
+
+                    // Otherwise return the formatted value
+                    return field.FormatValue( null, rawValue, attribute.QualifierValues, false );
+                }
             }
 
             return string.Empty;
@@ -756,11 +818,11 @@ namespace Rock.Lava
             if ( input != null && input is Person )
             {
                 var person = (Person)input;
-                
-
+               
                 Guid familyGuid = Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid();
                 var location = new GroupMemberService( GetRockContext(context) )
                     .Queryable( "GroupLocations.Location" )
+                    .AsNoTracking()
                     .Where( m => 
                         m.PersonId == person.Id && 
                         m.Group.GroupType.Guid == familyGuid )
@@ -857,6 +919,38 @@ namespace Rock.Lava
         }
 
         /// <summary>
+        /// Addresses the specified context.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="input">The input.</param>
+        /// <param name="addressType">Type of the group.</param>
+        /// <returns></returns>
+        public static List<Rock.Model.Group> Groups( DotLiquid.Context context, object input, string groupTypeId )
+        {
+            if ( input != null && input is Person )
+            {
+                var person = (Person)input;
+
+                int? numericalGroupTypeId = groupTypeId.AsIntegerOrNull();
+                if ( numericalGroupTypeId.HasValue )
+                {
+                    return new GroupMemberService( GetRockContext( context ) )
+                        .Queryable().AsNoTracking()
+                        .Where( m =>
+                            m.PersonId == person.Id &&
+                            m.Group.GroupTypeId == numericalGroupTypeId.Value &&
+                            m.GroupMemberStatus == GroupMemberStatus.Active &&
+                            m.Group.IsActive )
+                        .Select( m =>
+                            m.Group )
+                        .ToList();
+                }
+            }
+
+            return new List<Model.Group>();
+        }
+
+        /// <summary>
         /// Gets the rock context.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -873,6 +967,82 @@ namespace Rock.Lava
                 context.Registers.Add( "rock_context", rockContext );
                 return rockContext;
             }
+        }
+
+        #endregion
+
+        #region Misc Filters
+
+        /// <summary>
+        /// creates a postback javascript function
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <param name="command">The command.</param>
+        /// <returns></returns>
+        public static string Postback( object input, string command )
+        {
+            if ( input != null )
+            {
+                return string.Format( "javascript:__doPostBack('[ClientId]','{0}^{1}'); return false;", command, input.ToString() );
+            }
+            else
+            {
+                return string.Empty;
+            }
+        }
+
+        /// <summary>
+        /// To the json.
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <returns></returns>
+        public static string ToJSON (object input)
+        {
+            return input.ToJson();
+        }
+
+        /// <summary>
+        /// adds a meta tag to the head of the document
+        /// </summary>
+        /// <param name="input">The input to use for the content attribute of the tag.</param>
+        /// <param name="attributeName">Name of the attribute.</param>
+        /// <param name="attributeValue">The attribute value.</param>
+        /// <returns></returns>
+        public static string AddMetaTagToHead( string input, string attributeName, string attributeValue )
+        {
+            RockPage page = HttpContext.Current.Handler as RockPage;
+
+            if ( page != null )
+            {
+                HtmlMeta metaTag = new HtmlMeta();
+                metaTag.Attributes.Add( attributeName, attributeValue );
+                metaTag.Content = input;
+                page.Header.Controls.Add( metaTag );
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// adds a link tag to the head of the document
+        /// </summary>
+        /// <param name="input">The input to use for the href of the tag.</param>
+        /// <param name="attributeName">Name of the attribute.</param>
+        /// <param name="attributeValue">The attribute value.</param>
+        /// <returns></returns>
+        public static string AddLinkTagToHead( string input, string attributeName, string attributeValue )
+        {
+            RockPage page = HttpContext.Current.Handler as RockPage;
+
+            if ( page != null )
+            {
+                HtmlLink imageLink = new HtmlLink();
+                imageLink.Attributes.Add( attributeName, attributeValue );
+                imageLink.Attributes.Add( "href", input );
+                page.Header.Controls.Add( imageLink );
+            }
+
+            return null;
         }
 
         #endregion

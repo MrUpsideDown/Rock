@@ -43,6 +43,8 @@
     <Compile Include="CodeGenerated\Audit.cs" />
     <Compile Include="CodeGenerated\AuditDetail.cs" />
     <Compile Include="CodeGenerated\Auth.cs" />
+    <Compile Include="CodeGenerated\BenevolenceRequest.cs" />
+    <Compile Include="CodeGenerated\BenevolenceResult.cs" />
     <Compile Include="CodeGenerated\BinaryFile.cs" />
     <Compile Include="CodeGenerated\BinaryFileData.cs" />
     <Compile Include="CodeGenerated\BinaryFileType.cs" />
@@ -82,6 +84,7 @@
     <Compile Include="CodeGenerated\Group.cs" />
     <Compile Include="CodeGenerated\GroupLocation.cs" />
     <Compile Include="CodeGenerated\GroupMember.cs" />
+    <Compile Include="CodeGenerated\GroupScheduleExclusion.cs" />
     <Compile Include="CodeGenerated\GroupType.cs" />
     <Compile Include="CodeGenerated\GroupTypeLocationType.cs" />
     <Compile Include="CodeGenerated\GroupTypeRole.cs" />
@@ -89,6 +92,8 @@
     <Compile Include="CodeGenerated\HtmlContent.cs" />
     <Compile Include="CodeGenerated\Layout.cs" />
     <Compile Include="CodeGenerated\Location.cs" />
+    <Compile Include="CodeGenerated\LoginParameters.cs" />
+    <Compile Include="CodeGenerated\Metaphone.cs" />
     <Compile Include="CodeGenerated\Metric.cs" />
     <Compile Include="CodeGenerated\MetricCategory.cs" />
     <Compile Include="CodeGenerated\MetricValue.cs" />
@@ -116,9 +121,11 @@
     <Compile Include="CodeGenerated\Site.cs" />
     <Compile Include="CodeGenerated\SiteDomain.cs" />
     <Compile Include="CodeGenerated\SystemEmail.cs" />
+    <Compile Include="CodeGenerated\SystemGuid\RockSystemGuids.cs" />
     <Compile Include="CodeGenerated\Tag.cs" />
     <Compile Include="CodeGenerated\TaggedItem.cs" />
     <Compile Include="CodeGenerated\UserLogin.cs" />
+    <Compile Include="CodeGenerated\UserLoginWithPlainTextPassword.cs" />
     <Compile Include="CodeGenerated\Workflow.cs" />
     <Compile Include="CodeGenerated\WorkflowAction.cs" />
     <Compile Include="CodeGenerated\WorkflowActionForm.cs" />

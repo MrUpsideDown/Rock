@@ -244,8 +244,7 @@ namespace RockWeb.Blocks.WorkFlow
             // Set the note type if this is first request
             if ( !Page.IsPostBack )
             {
-                var noteEntityTypeId = EntityTypeCache.Read( typeof( Workflow ) ).Id;
-                var noteType = new NoteTypeService( _rockContext ).Get( noteEntityTypeId, "WorkflowNote" );
+                var noteType = new NoteTypeService( _rockContext ).Get( Rock.SystemGuid.NoteType.WORKFLOW_NOTE.AsGuid() );
                 ncWorkflowNotes.NoteTypeId = noteType.Id;
             }
 
@@ -329,7 +328,7 @@ namespace RockWeb.Blocks.WorkFlow
                         }
                     }
 
-                    // Loop through all the query string parameters and try to set any workflo
+                    // Loop through all the query string parameters and try to set any workflow
                     // attributes that might have the same key
                     foreach ( string key in Request.QueryString.AllKeys )
                     {
@@ -342,7 +341,10 @@ namespace RockWeb.Blocks.WorkFlow
                         // If the workflow type is persisted, save the workflow
                         if ( _workflow.IsPersisted || _workflowType.IsPersisted )
                         {
-                            _workflowService.Add( _workflow );
+                            if ( _workflow.Id == 0 )
+                            {
+                                _workflowService.Add( _workflow );
+                            }
 
                             _rockContext.WrapTransaction( () =>
                             {
@@ -380,12 +382,12 @@ namespace RockWeb.Blocks.WorkFlow
 
                             _actionType = _action.ActionType;
                             ActionTypeId = _actionType.Id;
-                            return true;
+                            return true; 
                         }
                     }
                 }
 
-                var canEdit = IsUserAuthorized( Authorization.EDIT );
+                var canEdit = UserCanEdit || _workflow.IsAuthorized( Authorization.EDIT, CurrentPerson );
 
                 // Find first active action form
                 int personId = CurrentPerson != null ? CurrentPerson.Id : 0;
@@ -393,6 +395,7 @@ namespace RockWeb.Blocks.WorkFlow
                     .Where( a =>
                         a.IsActive &&
                         (
+                            ( canEdit ) ||
                             ( !a.AssignedGroupId.HasValue && !a.AssignedPersonAliasId.HasValue ) ||
                             ( a.AssignedPersonAlias != null && a.AssignedPersonAlias.PersonId == personId ) ||
                             ( a.AssignedGroup != null && a.AssignedGroup.Members.Any( m => m.PersonId == personId ) )
@@ -419,6 +422,7 @@ namespace RockWeb.Blocks.WorkFlow
                 }
             }
 
+            ShowNotes( false );
             ShowMessage( NotificationBoxType.Warning, string.Empty, "The selected workflow is not in a state that requires you to enter information." );
             return false;
 
@@ -520,7 +524,7 @@ namespace RockWeb.Blocks.WorkFlow
                     if ( formAttribute.IsReadOnly )
                     {
                         var field = attribute.FieldType.Field;
-                        string formattedValue = field.FormatValueAsHtml( value, attribute.QualifierValues );
+                        string formattedValue = field.FormatValueAsHtml( phAttributes, value, attribute.QualifierValues );
 
                         if ( formAttribute.HideLabel )
                         {
@@ -560,20 +564,15 @@ namespace RockWeb.Blocks.WorkFlow
                 }
             }
 
-            if ( _workflow != null && _workflow.Id != 0 )
+            if ( form.AllowNotes.HasValue && form.AllowNotes.Value && _workflow != null && _workflow.Id != 0 )
             {
                 ncWorkflowNotes.EntityId = _workflow.Id;
                 ncWorkflowNotes.RebuildNotes( setValues );
-
-                divAttributes.RemoveCssClass( "col-md-12" );
-                divAttributes.AddCssClass( "col-md-6" );
-                divNotes.Visible = true;
+                ShowNotes( true );
             }
             else
             {
-                divAttributes.AddCssClass( "col-md-12" );
-                divAttributes.RemoveCssClass( "col-md-6" );
-                divNotes.Visible = false;
+                ShowNotes( false );
             }
 
             phActions.Controls.Clear();
@@ -612,6 +611,22 @@ namespace RockWeb.Blocks.WorkFlow
                 }
             }
 
+        }
+
+        private void ShowNotes(bool visible)
+        {
+            divNotes.Visible = visible;
+
+            if ( visible )
+            {
+                divForm.RemoveCssClass( "col-md-12" );
+                divForm.AddCssClass( "col-md-6" );
+            }
+            else
+            {
+                divForm.AddCssClass( "col-md-12" );
+                divForm.RemoveCssClass( "col-md-6" );
+            }
         }
 
         private void GetFormValues()

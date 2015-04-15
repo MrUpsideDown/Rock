@@ -30,7 +30,7 @@ using Rock;
 namespace Rock.Rest
 {
     /// <summary>
-    /// 
+    ///
     /// </summary>
     public static class WebApiConfig
     {
@@ -43,6 +43,8 @@ namespace Rock.Rest
             config.EnableCors( new Rock.Rest.EnableCorsFromOriginAttribute() );
             config.Filters.Add( new Rock.Rest.Filters.ValidateAttribute() );
             config.Services.Replace( typeof( IExceptionLogger ), new RockApiExceptionLogger() );
+            config.Services.Replace( typeof( IExceptionHandler ), new RockApiExceptionHandler() );
+            config.Formatters.Insert( 0, new Rock.Utility.RockJsonMediaTypeFormatter() );
 
             // Add API route for dataviews
             config.Routes.MapHttpRoute(
@@ -53,7 +55,20 @@ namespace Rock.Rest
                     action = "DataView"
                 } );
 
-            // finds all [Route] attributes on REST controllers and creates the routes 
+            // Add API route for setting context
+            config.Routes.MapHttpRoute(
+                name: "SetContextApi",
+                routeTemplate: "api/{controller}/SetContext/{id}",
+                defaults: new
+                {
+                    action = "SetContext"
+                },
+                constraints: new
+                {
+                    httpMethod = new HttpMethodConstraint( new string[] { "PUT", "OPTIONS" } ),
+                } );
+
+            // finds all [Route] attributes on REST controllers and creates the routes
             config.MapHttpAttributeRoutes();
 
             // Add any custom api routes
@@ -75,7 +90,7 @@ namespace Rock.Rest
             }
 
             //// Add Default API Service routes
-            //// Instead of being able to use one default route that gets action from http method, have to 
+            //// Instead of being able to use one default route that gets action from http method, have to
             //// have a default route for each method so that other actions do not match the default (i.e. DataViews).
             //// Also, this will make controller routes case-insensitive (vs the odata routing)
             config.Routes.MapHttpRoute(
@@ -132,6 +147,20 @@ namespace Rock.Rest
                } );
 
             config.Routes.MapHttpRoute(
+               name: "DefaultApiPatch",
+               routeTemplate: "api/{controller}/{id}",
+               defaults: new
+               {
+                   action = "PATCH",
+                   id = System.Web.Http.RouteParameter.Optional
+               },
+               constraints: new
+               {
+                   httpMethod = new HttpMethodConstraint( new string[] { "PATCH", "OPTIONS" } ),
+                   controllerName = new Rock.Rest.Constraints.ValidControllerNameConstraint()
+               } );
+
+            config.Routes.MapHttpRoute(
                 name: "DefaultApiPost",
                 routeTemplate: "api/{controller}/{id}",
                 defaults: new
@@ -163,7 +192,7 @@ namespace Rock.Rest
             ODataConventionModelBuilder builder = new ODataConventionModelBuilder();
 
             var entityTypeList = Reflection.FindTypes( typeof( Rock.Data.IEntity ) )
-                .Where( a => !a.Value.IsAbstract && ( a.Value.GetCustomAttribute<NotMappedAttribute>() == null ) && (a.Value.GetCustomAttribute<DataContractAttribute>() != null) )
+                .Where( a => !a.Value.IsAbstract && ( a.Value.GetCustomAttribute<NotMappedAttribute>() == null ) && ( a.Value.GetCustomAttribute<DataContractAttribute>() != null ) )
                 .OrderBy( a => a.Key ).Select( a => a.Value );
 
             foreach ( var entityType in entityTypeList )

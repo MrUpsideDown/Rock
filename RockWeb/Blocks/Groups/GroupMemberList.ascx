@@ -14,6 +14,10 @@
                             <i class="fa fa-users"></i>
                             <asp:Literal ID="lHeading" runat="server" Text="Group Members" />
                         </h1>
+
+                        <div class="panel-labels">
+                            <Rock:HighlightLabel ID="hlSyncStatus" runat="server" LabelType="Info" Visible="false" Text="<i class='fa fa-exchange'></i>" /> &nbsp;
+                        </div>
                     </div>
 
                     <div class="panel-body">
@@ -27,6 +31,7 @@
                                 <Rock:RockTextBox ID="tbLastName" runat="server" Label="Last Name" />
                                 <Rock:RockCheckBoxList ID="cblRole" runat="server" Label="Role" DataTextField="Name" DataValueField="Id" RepeatDirection="Horizontal" />
                                 <Rock:RockCheckBoxList ID="cblStatus" runat="server" Label="Status" RepeatDirection="Horizontal" />
+                                <asp:PlaceHolder ID="phAttributeFilters" runat="server" />
                             </Rock:GridFilter>
                             <Rock:Grid ID="gGroupMembers" runat="server" DisplayType="Full" AllowSorting="true" OnRowSelected="gGroupMembers_Edit" >
                                 <Columns>

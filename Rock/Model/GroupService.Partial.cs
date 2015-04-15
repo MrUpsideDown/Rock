@@ -16,6 +16,7 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 
 using Rock.Data;
@@ -118,6 +119,8 @@ namespace Rock.Model
 
             if ( groupTypeIncludedIds.Any() )
             {
+                // if groupTypeIncludedIds is specified, only get grouptypes that are in the groupTypeIncludedIds
+                // NOTE: no need to factor in groupTypeExcludedIds since included would take precendance and the excluded ones would already not be included
                 qry = qry.Where( a => groupTypeIncludedIds.Contains( a.GroupTypeId ) );
             }
             else if (groupTypeExcludedIds.Any() )
@@ -150,6 +153,30 @@ namespace Rock.Model
         }
 
         /// <summary>
+        /// Returns an enumerable collection of the <see cref="Rock.Model.Group" /> Ids that are ancestors of a specified groupId sorted starting with the most immediate parent
+        /// </summary>
+        /// <param name="childGroupId">The child group identifier.</param>
+        /// <returns>
+        /// An enumerable collection of the group Ids that are descendants of referenced groupId.
+        /// </returns>
+        public IOrderedEnumerable<int> GetAllAncestorIds( int childGroupId )
+        {
+            var result = this.Context.Database.SqlQuery<int>(
+                @"
+                with CTE as (
+                select *, 0 as [Level] from [Group] where [Id]={0}
+                union all
+                select [a].*, [Level] + 1 as [Level] from [Group] [a]
+                inner join CTE pcte on pcte.ParentGroupId = [a].[Id]
+                )
+                select Id from CTE where Id != {0} order by Level
+                ", childGroupId );
+
+            // already ordered within the sql, so do a dummy order by to get IOrderedEnumerable
+            return result.OrderBy(a => 0);
+        }
+
+        /// <summary>
         /// Adds the person to a new family record
         /// </summary>
         /// <param name="rockContext">The rock context.</param>
@@ -157,21 +184,10 @@ namespace Rock.Model
         /// <param name="campusId">The campus identifier.</param>
         /// <param name="savePersonAttributes">if set to <c>true</c> [save person attributes].</param>
         /// <returns></returns>
+        [Obsolete("Use PersonService.SaveNewPerson() instead!")]
         public static Group SaveNewFamily( RockContext rockContext, Person person, int? campusId, bool savePersonAttributes )
         {
-            var groupMember = new GroupMember();
-            groupMember.Person = person;
-
-            var adultRole = new GroupTypeRoleService( rockContext ).Get( Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_ADULT.AsGuid() );
-            if ( adultRole != null )
-            {
-                groupMember.GroupRoleId = adultRole.Id;
-            }
-
-            var groupMembers = new List<GroupMember>();
-            groupMembers.Add( groupMember );
-
-            return SaveNewFamily( rockContext, groupMembers, campusId, savePersonAttributes );
+            return PersonService.SaveNewPerson( person, rockContext, campusId, savePersonAttributes );
         }
 
         /// <summary>
@@ -239,7 +255,7 @@ namespace Rock.Model
                         History.EvaluateChange( demographicChanges, "Gender", null, person.Gender );
                         History.EvaluateChange( demographicChanges, "Marital Status", string.Empty, person.MaritalStatusValueId.HasValue ? DefinedValueCache.GetName( person.MaritalStatusValueId ) : string.Empty );
                         History.EvaluateChange( demographicChanges, "Anniversary Date", null, person.AnniversaryDate );
-                        History.EvaluateChange( demographicChanges, "Graduation Date", null, person.GraduationDate );
+                        History.EvaluateChange( demographicChanges, "Graduation Year", null, person.GraduationYear );
                         History.EvaluateChange( demographicChanges, "Email", string.Empty, person.Email );
                         History.EvaluateChange( demographicChanges, "Email Active", false.ToString(), ( person.IsEmailActive ?? false ).ToString() );
                         History.EvaluateChange( demographicChanges, "Email Note", string.Empty, person.EmailNote );
@@ -379,7 +395,7 @@ namespace Rock.Model
                                 var prevLocationType = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_PREVIOUS );
                                 if ( prevLocationType != null )
                                 {
-                                    foreach ( var prevLoc in groupLocationService.Queryable()
+                                    foreach ( var prevLoc in groupLocationService.Queryable( "Location,GroupLocationTypeValue" )
                                         .Where( gl =>
                                             gl.GroupId == family.Id &&
                                             gl.GroupLocationTypeValueId == locationType.Id ) )

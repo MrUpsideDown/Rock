@@ -25,6 +25,9 @@
                                 <Rock:RockCheckBox ID="cbAllowCaching" runat="server" Label="Allows Caching" Text="Yes" Help="Should the file be cached from the storage provider to the server's file system.  This is not recommended for files that need heightened security. " />
                                 <Rock:RockCheckBox ID="cbRequiresViewSecurity" runat="server" Label="Requires View Security" Text="Yes" Help="Enable this to always do a security check before displaying images of this type. Leave disabled for files that can be viewed by any user." />
                                 <Rock:ComponentPicker ID="cpStorageType" runat="server" ContainerType="Rock.Storage.ProviderContainer, Rock" Label="Storage Type" Required="true" AutoPostBack="true" />
+                                <div class="attributes">
+                                    <asp:PlaceHolder ID="phAttributes" runat="server" EnableViewState="false"></asp:PlaceHolder>
+                                </div>
                             </div>
                             <div class="col-md-6">
 
@@ -44,6 +47,7 @@
                                 </div>
                             </div>
                         </div>
+
                         <div class="row">
                             <h3>Preferred File Settings</h3>
                             <div class="col-md-6">
@@ -58,18 +62,12 @@
                             </div>
 
                         </div>
-                        <div class="row">
-                            <div class="col-md-12">
-                                <div class="attributes">
-                                    <asp:PlaceHolder ID="phAttributes" runat="server" EnableViewState="false"></asp:PlaceHolder>
-                                </div>
-                            </div>
-                        </div>
+
                     </fieldset>
 
                     <div class="actions">
-                        <asp:LinkButton ID="btnSave" runat="server" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" />
-                        <asp:LinkButton ID="btnCancel" runat="server" Text="Cancel" CssClass="btn btn-link" CausesValidation="false" OnClick="btnCancel_Click" />
+                        <asp:LinkButton ID="btnSave" runat="server" AccessKey="s" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" />
+                        <asp:LinkButton ID="btnCancel" runat="server" AccessKey="c" Text="Cancel" CssClass="btn btn-link" CausesValidation="false" OnClick="btnCancel_Click" />
                     </div>
                 </div>
             </div>

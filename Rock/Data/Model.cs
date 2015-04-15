@@ -56,6 +56,7 @@ namespace Rock.Data
         /// The modified date time.
         /// </value>
         [DataMember]
+        [IncludeForReporting]
         public DateTime? ModifiedDateTime { get; set; }
 
         /// <summary>
@@ -184,6 +185,16 @@ namespace Rock.Data
         {
         }
 
+        /// <summary>
+        /// Method that will be called on an entity immediately before the item is saved by context
+        /// </summary>
+        /// <param name="dbContext"></param>
+        /// <param name="entry"></param>
+        public virtual void PreSaveChanges( Rock.Data.DbContext dbContext, System.Data.Entity.Infrastructure.DbEntityEntry entry )
+        {
+            PreSaveChanges( dbContext, entry.State );
+        }
+
         #endregion
 
         #region ISecured implementation
@@ -244,13 +255,12 @@ namespace Rock.Data
         /// </summary>
         /// <param name="action">The action.</param>
         /// <param name="person">The person.</param>
-        /// <param name="rockContext">The rock context.</param>
         /// <returns>
         ///   <c>true</c> if the specified action is authorized; otherwise, <c>false</c>.
         /// </returns>
-        public virtual bool IsAuthorized( string action, Rock.Model.Person person, RockContext rockContext = null )
+        public virtual bool IsAuthorized( string action, Rock.Model.Person person )
         {
-            return Security.Authorization.Authorized( this, action, person, rockContext );
+            return Security.Authorization.Authorized( this, action, person );
         }
 
         /// <summary>
@@ -269,13 +279,12 @@ namespace Rock.Data
         /// </summary>
         /// <param name="action">The action.</param>
         /// <param name="person">The person.</param>
-        /// <param name="rockContext">The rock context.</param>
         /// <returns>
         ///   <c>true</c> if the specified action is private; otherwise, <c>false</c>.
         /// </returns>
-        public virtual bool IsPrivate( string action, Person person, RockContext rockContext = null )
+        public virtual bool IsPrivate( string action, Person person )
         {
-            return Security.Authorization.IsPrivate( this, action, person, rockContext  );
+            return Security.Authorization.IsPrivate( this, action, person  );
         }
 
         /// <summary>

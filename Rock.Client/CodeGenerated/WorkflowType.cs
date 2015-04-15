@@ -27,54 +27,64 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for WorkflowType
+    /// Base client model for WorkflowType that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class WorkflowType
+    public partial class WorkflowTypeEntity
     {
         /// <summary />
-        public int? CreatedByPersonAliasId { get; set; }
-
-        /// <summary />
-        public int? ModifiedByPersonAliasId { get; set; }
-
-        /// <summary />
-        public bool IsSystem { get; set; }
-
-        /// <summary />
-        public bool? IsActive { get; set; }
-
-        /// <summary />
-        public string Name { get; set; }
-
-        /// <summary />
-        public string Description { get; set; }
+        public int Id { get; set; }
 
         /// <summary />
         public int? CategoryId { get; set; }
 
         /// <summary />
-        public int Order { get; set; }
-
-        /// <summary />
-        public string WorkTerm { get; set; }
-
-        /// <summary />
-        public int? ProcessingIntervalSeconds { get; set; }
-
-        /// <summary />
-        public bool IsPersisted { get; set; }
-
-        /// <summary />
-        public int /* WorkflowLoggingLevel*/ LoggingLevel { get; set; }
+        public string Description { get; set; }
 
         /// <summary />
         public string IconCssClass { get; set; }
 
         /// <summary />
-        public Category Category { get; set; }
+        public bool? IsActive { get; set; }
 
         /// <summary />
+        public bool IsPersisted { get; set; }
+
+        /// <summary />
+        public bool IsSystem { get; set; }
+
+        /// <summary />
+        public int /* WorkflowLoggingLevel*/ LoggingLevel { get; set; }
+
+        /// <summary />
+        public string Name { get; set; }
+
+        /// <summary />
+        public int Order { get; set; }
+
+        /// <summary />
+        public int? ProcessingIntervalSeconds { get; set; }
+
+        /// <summary />
+        public string WorkTerm { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for WorkflowType that includes all the fields that are available for GETs. Use this for GETs (use WorkflowTypeEntity for POST/PUTs)
+    /// </summary>
+    public partial class WorkflowType : WorkflowTypeEntity
+    {
+        /// <summary />
         public ICollection<WorkflowActivityType> ActivityTypes { get; set; }
+
+        /// <summary />
+        public Category Category { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -83,13 +93,19 @@ namespace Rock.Client
         public DateTime? ModifiedDateTime { get; set; }
 
         /// <summary />
-        public int Id { get; set; }
+        public int? CreatedByPersonAliasId { get; set; }
 
         /// <summary />
-        public Guid Guid { get; set; }
+        public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public string ForeignId { get; set; }
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
     }
 }

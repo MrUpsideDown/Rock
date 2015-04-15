@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for GroupTypeLocationType
+    /// Base client model for GroupTypeLocationType that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class GroupTypeLocationType
+    public partial class GroupTypeLocationTypeEntity
     {
         /// <summary />
         public int GroupTypeId { get; set; }
@@ -37,6 +37,13 @@ namespace Rock.Client
         /// <summary />
         public int LocationTypeValueId { get; set; }
 
+    }
+
+    /// <summary>
+    /// Client model for GroupTypeLocationType that includes all the fields that are available for GETs. Use this for GETs (use GroupTypeLocationTypeEntity for POST/PUTs)
+    /// </summary>
+    public partial class GroupTypeLocationType : GroupTypeLocationTypeEntity
+    {
         /// <summary />
         public GroupType GroupType { get; set; }
 

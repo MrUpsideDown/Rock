@@ -28,9 +28,6 @@
                     <li id="liActivities" runat="server">
                         <a href='#<%=divActivities.ClientID%>' data-toggle="pill" data-active-div="Activities">Activities</a>
                     </li>
-                    <li id="liNotes" runat="server">
-                        <a href='#<%=divNotes.ClientID%>' data-toggle="pill" data-active-div="Notes">Notes <asp:Literal ID="lNoteCount" runat="server" /></a>
-                    </li>
                     <li id="liLog" runat="server">
                         <a href='#<%=divLog.ClientID%>' data-toggle="pill" data-active-div="Log">Log</a>
                     </li>
@@ -151,16 +148,6 @@
 
                     </div>
 
-                    <div ID="divNotes" runat="server" class="tab-pane">
-
-                        <Rock:NoteContainer ID="ncWorkflowNotes" runat="server" Term="Note" ShowHeading="false"
-                            DisplayType="Full" UsePersonIcon="false" ShowAlertCheckBox="false"
-                            ShowPrivateCheckBox="false" ShowSecurityButton="false"
-                            AllowAnonymousEntry="false" AddAlwaysVisible="true"
-                            SortDirection="Descending" />
-
-                    </div>
-
                     <div ID="divLog" runat="server" class="tab-pane">
 
                         <div class="grid">
@@ -178,9 +165,9 @@
                 </div>
 
                 <div class="actions margin-b-md">
-                    <asp:LinkButton ID="btnEdit" runat="server" Text="Edit" CssClass="btn btn-primary" OnClick="btnEdit_Click" />
-                    <asp:LinkButton ID="btnSave" runat="server" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" Visible="false" />
-                    <asp:LinkButton ID="btnCancel" runat="server" Text="Cancel" CssClass="btn btn-link" CausesValidation="false" OnClick="btnCancel_Click" />
+                    <asp:LinkButton ID="btnEdit" runat="server" AccessKey="e" Text="Edit" CssClass="btn btn-primary" OnClick="btnEdit_Click" />
+                    <asp:LinkButton ID="btnSave" runat="server" AccessKey="s" Text="Save" CssClass="btn btn-primary" OnClick="btnSave_Click" Visible="false" />
+                    <asp:LinkButton ID="btnCancel" runat="server" AccessKey="c" Text="Cancel" CssClass="btn btn-link" CausesValidation="false" OnClick="btnCancel_Click" />
                 </div>
 
             </div>

@@ -258,10 +258,10 @@ namespace RockWeb.Blocks.Core
 
         void gCategories_GridReorder( object sender, GridReorderEventArgs e )
         {
-            var categories = GetCategories();
+            var rockContext = new RockContext();
+            var categories = GetCategories( rockContext );
             if ( categories != null )
             {
-                var rockContext = new RockContext();
                 new CategoryService( rockContext ).Reorder( categories.ToList(), e.OldIndex, e.NewIndex );
                 rockContext.SaveChanges();
             }
@@ -358,19 +358,22 @@ namespace RockWeb.Blocks.Core
                     ChildCount = c.ChildCategories.Count()
                 } ).ToList();
 
+            gCategories.EntityTypeId = EntityTypeCache.Read<Rock.Model.Category>().Id;
             gCategories.DataBind();
         }
 
-        private IQueryable<Category> GetCategories()
+        private IQueryable<Category> GetCategories( RockContext rockContext = null )
         {
-            return GetUnorderedCategories()
+            return GetUnorderedCategories( rockContext )
                 .OrderBy( a => a.Order )
                 .ThenBy( a => a.Name );
         }
 
-        private IQueryable<Category> GetUnorderedCategories()
+        private IQueryable<Category> GetUnorderedCategories( RockContext rockContext = null )
         {
-            var queryable = new CategoryService( new RockContext() ).Queryable().Where( c => c.EntityTypeId == _entityTypeId );
+            rockContext = rockContext ?? new RockContext();
+
+            var queryable = new CategoryService( rockContext ).Queryable().Where( c => c.EntityTypeId == _entityTypeId );
             if (_parentCategoryId.HasValue)
             {
                 queryable = queryable.Where( c => c.ParentCategoryId == _parentCategoryId );
