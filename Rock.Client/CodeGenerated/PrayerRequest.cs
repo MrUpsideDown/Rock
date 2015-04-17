@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for PrayerRequest
+    /// Base client model for PrayerRequest that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class PrayerRequest
+    public partial class PrayerRequestEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -41,16 +41,10 @@ namespace Rock.Client
         public string Answer { get; set; }
 
         /// <summary />
-        public PersonAlias ApprovedByPersonAlias { get; set; }
-
-        /// <summary />
         public int? ApprovedByPersonAliasId { get; set; }
 
         /// <summary />
         public DateTime? ApprovedOnDateTime { get; set; }
-
-        /// <summary />
-        public Category Category { get; set; }
 
         /// <summary />
         public int? CategoryId { get; set; }
@@ -92,13 +86,32 @@ namespace Rock.Client
         public int? PrayerCount { get; set; }
 
         /// <summary />
-        public PersonAlias RequestedByPersonAlias { get; set; }
-
-        /// <summary />
         public int? RequestedByPersonAliasId { get; set; }
 
         /// <summary />
         public string Text { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for PrayerRequest that includes all the fields that are available for GETs. Use this for GETs (use PrayerRequestEntity for POST/PUTs)
+    /// </summary>
+    public partial class PrayerRequest : PrayerRequestEntity
+    {
+        /// <summary />
+        public PersonAlias ApprovedByPersonAlias { get; set; }
+
+        /// <summary />
+        public Category Category { get; set; }
+
+        /// <summary />
+        public PersonAlias RequestedByPersonAlias { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -112,18 +125,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

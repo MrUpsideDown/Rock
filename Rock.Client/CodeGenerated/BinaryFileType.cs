@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for BinaryFileType
+    /// Base client model for BinaryFileType that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class BinaryFileType
+    public partial class BinaryFileTypeEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -56,25 +56,38 @@ namespace Rock.Client
         public string Name { get; set; }
 
         /// <summary />
-        public int /* PreferredColorDepth*/ PreferredColorDepth { get; set; }
+        public int /* ColorDepth*/ PreferredColorDepth { get; set; }
 
         /// <summary />
-        public int /* PreferredFormat*/ PreferredFormat { get; set; }
+        public int /* Format*/ PreferredFormat { get; set; }
 
         /// <summary />
         public bool PreferredRequired { get; set; }
 
         /// <summary />
-        public int /* PreferredResolution*/ PreferredResolution { get; set; }
+        public int /* Resolution*/ PreferredResolution { get; set; }
 
         /// <summary />
         public bool RequiresViewSecurity { get; set; }
 
         /// <summary />
-        public EntityType StorageEntityType { get; set; }
+        public int? StorageEntityTypeId { get; set; }
 
         /// <summary />
-        public int? StorageEntityTypeId { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for BinaryFileType that includes all the fields that are available for GETs. Use this for GETs (use BinaryFileTypeEntity for POST/PUTs)
+    /// </summary>
+    public partial class BinaryFileType : BinaryFileTypeEntity
+    {
+        /// <summary />
+        public EntityType StorageEntityType { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -88,18 +101,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

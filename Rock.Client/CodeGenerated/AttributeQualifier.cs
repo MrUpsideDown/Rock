@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for AttributeQualifier
+    /// Base client model for AttributeQualifier that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class AttributeQualifier
+    public partial class AttributeQualifierEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -52,5 +52,12 @@ namespace Rock.Client
         /// <summary />
         public string ForeignId { get; set; }
 
+    }
+
+    /// <summary>
+    /// Client model for AttributeQualifier that includes all the fields that are available for GETs. Use this for GETs (use AttributeQualifierEntity for POST/PUTs)
+    /// </summary>
+    public partial class AttributeQualifier : AttributeQualifierEntity
+    {
     }
 }

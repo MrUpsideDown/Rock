@@ -202,10 +202,7 @@ namespace Rock.Communication.Transport
                             var binaryFile = binaryFileService.Get(binaryFileId);
                             if ( binaryFile != null )
                             {
-                                using ( var attachmentStream = binaryFile.ContentStream )
-                                {
-                                    message.Attachments.Add( new Attachment( attachmentStream, binaryFile.FileName ) );
-                                }
+                                message.Attachments.Add( new Attachment( binaryFile.ContentStream, binaryFile.FileName ) );
                             }
                         }
                     }
@@ -378,8 +375,15 @@ namespace Rock.Communication.Transport
                         }
                     }
 
+                    // Add the recipients from the template
                     List<string> sendTo = SplitRecipient( template.To );
-                    sendTo.Add( recipientData.To );
+
+                    // Add the recipient from merge data ( if it's not null and not already added )
+                    if ( !string.IsNullOrWhiteSpace( recipientData.To ) && !sendTo.Contains( recipientData.To, StringComparer.OrdinalIgnoreCase ) )
+                    {
+                        sendTo.Add( recipientData.To );
+                    }
+
                     foreach ( string to in sendTo )
                     {
                         message.To.Clear();

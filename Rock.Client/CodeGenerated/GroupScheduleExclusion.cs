@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for GroupScheduleExclusion
+    /// Base client model for GroupScheduleExclusion that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class GroupScheduleExclusion
+    public partial class GroupScheduleExclusionEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -38,13 +38,26 @@ namespace Rock.Client
         public DateTime? EndDate { get; set; }
 
         /// <summary />
-        public GroupType GroupType { get; set; }
-
-        /// <summary />
         public int GroupTypeId { get; set; }
 
         /// <summary />
         public DateTime? StartDate { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for GroupScheduleExclusion that includes all the fields that are available for GETs. Use this for GETs (use GroupScheduleExclusionEntity for POST/PUTs)
+    /// </summary>
+    public partial class GroupScheduleExclusion : GroupScheduleExclusionEntity
+    {
+        /// <summary />
+        public GroupType GroupType { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -58,18 +71,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

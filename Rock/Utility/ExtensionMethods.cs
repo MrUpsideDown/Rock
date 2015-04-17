@@ -38,7 +38,7 @@ namespace Rock
     /// </summary>
     public static class ExtensionMethods
     {
-        #region Object Extensions
+        #region Json Extensions
 
         /// <summary>
         /// Converts object to JSON string
@@ -53,6 +53,35 @@ namespace Rock
                     ReferenceLoopHandling = ReferenceLoopHandling.Ignore
                 } );
         }
+
+        /// <summary>
+        /// Attempts to deserialize a json string into T.  If it can't be deserialized, returns null
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="val">The value.</param>
+        /// <returns></returns>
+        public static T FromJsonOrNull<T>( this string val )
+        {
+            try
+            {
+                if ( string.IsNullOrWhiteSpace( val ) )
+                {
+                    return default( T );
+                }
+                else
+                {
+                    return JsonConvert.DeserializeObject<T>( val );
+                }
+            }
+            catch
+            {
+                return default(T);
+            }
+        }
+
+        #endregion
+
+        #region Object Extensions
 
         /// <summary>
         /// Gets the property value.
@@ -120,7 +149,7 @@ namespace Rock
             lavaDebugPanel.Append( formatLavaDebugInfo( lavaObject.LiquidizeChildren( 0, rockContext ) ) );
 
             // Add a 'GlobalAttribute' entry if it wasn't part of the LavaObject
-            if ( !( lavaObject is Dictionary<string, object> ) || !( (Dictionary<string, object>)lavaObject ).Keys.Contains( "GlobalAttribute" ) )
+            if ( !( lavaObject is IDictionary<string, object> ) || !( (IDictionary<string, object>)lavaObject ).Keys.Contains( "GlobalAttribute" ) )
             {
                 var globalAttributes = new Dictionary<string, object>();
                 globalAttributes.Add( "GlobalAttribute", Rock.Web.Cache.GlobalAttributesCache.GetMergeFields( null ) );
@@ -177,8 +206,10 @@ namespace Rock
 
             // Get the object's type ( checking for a proxy object )
             Type entityType = myObject.GetType();
-            if ( entityType.Namespace == "System.Data.Entity.DynamicProxies" )
+            if ( entityType.IsDynamicProxyType() )
+            {
                 entityType = entityType.BaseType;
+            }
 
             // If the object is a Liquid Drop object, return a list of all of the object's properties
             if ( myObject is Drop )
@@ -280,7 +311,7 @@ namespace Rock
 
                     if ( objAttrs.Any() )
                     {
-                        result.Add( string.Format( "Attributes <p class='attributes'>Below is a list of attributes that can be retrieved using <code>{{ {0} | Attribute:'[AttributeKey]' }}</code>.</p>", parentElement ), objAttrs );
+                        result.Add( string.Format( "Attributes <p class='attributes'>Below is a list of attributes that can be retrieved using <code>{{{{ {0} | Attribute:'[AttributeKey]' }}}}</code>.</p>", parentElement ), objAttrs );
                     }
                 }
 
@@ -332,7 +363,7 @@ namespace Rock
                 return string.Format( "<span class='lava-debug-value'> - {0}</span>", liquidizedObject.ToString() );
             }
 
-            if ( liquidizedObject is Dictionary<string, object> )
+            if ( liquidizedObject is IDictionary<string, object> )
             {
                 var sb = new StringBuilder();
 
@@ -343,7 +374,7 @@ namespace Rock
                     sb.AppendFormat( "{0}<ul>{0}", Environment.NewLine );
                 }
 
-                foreach ( var keyVal in (Dictionary<string, object>)liquidizedObject )
+                foreach ( var keyVal in (IDictionary<string, object>)liquidizedObject )
                 {
                     if ( isTopLevel )
                     {
@@ -445,7 +476,7 @@ namespace Rock
                 return "Item";
             }
 
-            if ( type.Namespace.Equals( "System.Data.Entity.DynamicProxies" ) )
+            if ( type.IsDynamicProxyType() )
             {
                 type = type.BaseType;
             }
@@ -465,6 +496,23 @@ namespace Rock
             else
             {
                 return SplitCase( type.Name );
+            }
+        }
+
+        /// <summary>
+        /// Determines whether the type is a DynamicProxy of the type (type is from System.Data.Entity.DynamicProxies)
+        /// </summary>
+        /// <param name="type">The type.</param>
+        /// <returns></returns>
+        public static bool IsDynamicProxyType( this Type type )
+        {
+            if ( type != null )
+            {
+                return type.Namespace == "System.Data.Entity.DynamicProxies";
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -691,6 +739,24 @@ namespace Rock
         }
 
         /// <summary>
+        /// Pluralizes if the condition is true
+        /// </summary>
+        /// <param name="str">The string.</param>
+        /// <param name="condition">if set to <c>true</c> [condition].</param>
+        /// <returns></returns>
+        public static string PluralizeIf( this string str, bool condition )
+        {
+            if ( condition )
+            {
+                return str.Pluralize();
+            }
+            else
+            {
+                return str;
+            }
+        }
+
+        /// <summary>
         /// Singularizes the specified string.
         /// </summary>
         /// <param name="str">The string to singularize.</param>
@@ -709,6 +775,20 @@ namespace Rock
         public static string AsNumeric( this string str )
         {
             return Regex.Replace( str, @"[^0-9]", "" );
+        }
+
+        /// <summary>
+        /// Replaces the last occurrence of a given string with a new value
+        /// </summary>
+        /// <param name="Source">The string.</param>
+        /// <param name="Find">The search parameter.</param>
+        /// <param name="Replace">The replacement parameter.</param>
+        /// <returns></returns>
+        public static string ReplaceLastOccurrence( this string Source, string Find, string Replace )
+        {
+            int Place = Source.LastIndexOf( Find );
+            string result = Source.Remove( Place, Find.Length ).Insert( Place, Replace );
+            return result;
         }
 
         /// <summary>
@@ -764,6 +844,7 @@ namespace Rock
         /// </summary>
         /// <param name="str">The string.</param>
         /// <returns></returns>
+        [System.Diagnostics.DebuggerStepThrough()] 
         public static int? AsIntegerOrNull( this string str )
         {
             int value;
@@ -952,8 +1033,10 @@ namespace Rock
         /// </summary>
         /// <param name="content">The content.</param>
         /// <param name="mergeObjects">The merge objects.</param>
+        /// <param name="encodeStrings">if set to <c>true</c>, string values will be XML Encoded. For example, if you are creating an XML doc (not HTML), you probably want to set this to true.</param>
+        /// <param name="throwExceptionOnErrors">if set to <c>true</c> [throw exception on errors].</param>
         /// <returns></returns>
-        public static string ResolveMergeFields( this string content, IDictionary<string, object> mergeObjects )
+        public static string ResolveMergeFields( this string content, IDictionary<string, object> mergeObjects, bool encodeStrings = false, bool throwExceptionOnErrors = false )
         {
             try
             {
@@ -963,11 +1046,50 @@ namespace Rock
                 }
 
                 Template template = Template.Parse( content );
+
+                // if encodeStrings = true, we want any string values to be XML Encoded ( 
+                var stringTransformer = Template.GetValueTypeTransformer( typeof( string ) );
+                if ( encodeStrings )
+                {
+                    // if the stringTransformer hasn't been registered yet, register it
+                    if ( stringTransformer == null )
+                    {
+                        Template.RegisterValueTypeTransformer( typeof( string ), ( s ) =>
+                        {
+                            string val = ( s as string );
+                            if ( val != null )
+                            {
+                                // we techically want to XML encode, but Html Encode does the trick
+                                return val.EncodeHtml();
+                            }
+                            else
+                            {
+                                return s;
+                            }
+                        } );
+                    }
+                }
+                else
+                {
+                    // if the stringTransformer is registered, un-register it
+                    if ( stringTransformer != null )
+                    {
+                        Template.RegisterValueTypeTransformer( typeof( string ), null );
+                    }
+                }
+
                 return template.Render( Hash.FromDictionary( mergeObjects ) );
             }
             catch ( Exception ex )
             {
-                return "Error resolving Lava merge fields: " + ex.Message;
+                if ( throwExceptionOnErrors )
+                {
+                    throw ex;
+                }
+                else
+                {
+                    return "Error resolving Lava merge fields: " + ex.Message;
+                }
             }
         }
 
@@ -1253,6 +1375,36 @@ namespace Rock
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Replaces special Microsoft Word chars with standard chars
+        /// For example, smart quotes will be replaced with apostrophes
+        /// from http://www.andornot.com/blog/post/Replace-MS-Word-special-characters-in-javascript-and-C.aspx
+        /// </summary>
+        /// <param name="text">The text.</param>
+        /// <returns></returns>
+        public static string ReplaceWordChars( this string text )
+        {
+            var s = text;
+            // smart single quotes and apostrophe
+            s = Regex.Replace( s, "[\u2018\u2019\u201A]", "'" );
+            // smart double quotes
+            s = Regex.Replace( s, "[\u201C\u201D\u201E]", "\"" );
+            // ellipsis
+            s = Regex.Replace( s, "\u2026", "..." );
+            // dashes
+            s = Regex.Replace( s, "[\u2013\u2014]", "-" );
+            // circumflex
+            s = Regex.Replace( s, "\u02C6", "^" );
+            // open angle bracket
+            s = Regex.Replace( s, "\u2039", "<" );
+            // close angle bracket
+            s = Regex.Replace( s, "\u203A", ">" );
+            // spaces
+            s = Regex.Replace( s, "[\u02DC\u00A0]", " " );
+
+            return s;
         }
 
         #endregion String Extensions
@@ -1610,7 +1762,7 @@ namespace Rock
         public static string ToTimeString( this TimeSpan timespan )
         {
             // since the comments on this say HH:MM AM/PM, make sure to return the time in that format
-            return RockDateTime.Today.Add( timespan ).ToString("h:mm tt", System.Globalization.CultureInfo.InvariantCulture);
+            return RockDateTime.Today.Add( timespan ).ToString( "h:mm tt", System.Globalization.CultureInfo.InvariantCulture );
         }
 
         #endregion TimeSpan Extensions
@@ -1840,7 +1992,7 @@ namespace Rock
             try
             {
                 var valueItem = listControl.Items.FindByValue( value );
-                if (valueItem == null && defaultValue != null)
+                if ( valueItem == null && defaultValue != null )
                 {
                     valueItem = listControl.Items.FindByValue( defaultValue );
                 }
@@ -2159,18 +2311,33 @@ namespace Rock
         #region GenericCollection Extensions
 
         /// <summary>
-        /// Concatonate the items.
+        /// Concatonate the items into a Delimited string
         /// </summary>
+        /// <example>
+        /// FirstNamesList.AsDelimited(",") would be "Ted,Suzy,Noah"
+        /// FirstNamesList.AsDelimited(", ", " and ") would be "Ted, Suzy and Noah"
+        /// </example>
         /// <typeparam name="T"></typeparam>
         /// <param name="items">The items.</param>
         /// <param name="delimiter">The delimiter.</param>
+        /// <param name="finalDelimiter">The final delimiter. Set this if the finalDelimiter should be a different delimiter</param>
         /// <returns></returns>
-        public static string AsDelimited<T>( this List<T> items, string delimiter )
+        public static string AsDelimited<T>( this List<T> items, string delimiter, string finalDelimiter = null )
         {
             List<string> strings = new List<string>();
             foreach ( T item in items )
+            {
                 strings.Add( item.ToString() );
-            return String.Join( delimiter, strings.ToArray() );
+            }
+
+            if ( finalDelimiter != null && strings.Count > 1 )
+            {
+                return String.Join( delimiter, strings.Take( strings.Count - 1 ).ToArray() ) + string.Format( "{0}{1}", finalDelimiter, strings.Last() );
+            }
+            else
+            {
+                return String.Join( delimiter, strings.ToArray() );
+            }
         }
 
         /// <summary>
@@ -2452,11 +2619,20 @@ namespace Rock
         #region IHasAttributes extensions
 
         /// <summary>
+        /// Loads the attribute.
+        /// </summary>
+        /// <param name="entity">The entity.</param>
+        public static void LoadAttributes( this Rock.Attribute.IHasAttributes entity )
+        {
+            Rock.Attribute.Helper.LoadAttributes( entity );
+        }
+
+        /// <summary>
         /// Loads the attributes.
         /// </summary>
         /// <param name="entity">The entity.</param>
         /// <param name="rockContext">The rock context.</param>
-        public static void LoadAttributes( this Rock.Attribute.IHasAttributes entity, RockContext rockContext = null )
+        public static void LoadAttributes( this Rock.Attribute.IHasAttributes entity, RockContext rockContext )
         {
             Rock.Attribute.Helper.LoadAttributes( entity, rockContext );
         }
@@ -2492,7 +2668,7 @@ namespace Rock
         /// <returns></returns>
         public static int PageId( this Route route )
         {
-            if ( route.DataTokens != null && route.DataTokens["PageId"] != null  )
+            if ( route.DataTokens != null && route.DataTokens["PageId"] != null )
             {
                 return ( route.DataTokens["PageId"] as string ).AsIntegerOrNull() ?? -1;
             }
@@ -2560,6 +2736,23 @@ namespace Rock
             if ( item != null )
             {
                 list.Remove( item );
+            }
+        }
+
+        /// <summary>
+        /// Determines whether the Entity is an EF Proxy of the Entity
+        /// </summary>
+        /// <param name="entity">The entity.</param>
+        /// <returns></returns>
+        public static bool IsDynamicProxyEntity(this IEntity entity)
+        {
+            if ( entity != null )
+            {
+                return entity.GetType().IsDynamicProxyType();
+            }
+            else
+            {
+                return false;
             }
         }
 
@@ -2662,7 +2855,7 @@ namespace Rock
         /// <param name="dictionary">The dictionary.</param>
         /// <param name="key">The key.</param>
         /// <param name="value">The value.</param>
-        public static void AddOrIgnore<TKey, TValue>( this Dictionary<TKey, TValue> dictionary, TKey key, TValue value )
+        public static void AddOrIgnore<TKey, TValue>( this IDictionary<TKey, TValue> dictionary, TKey key, TValue value )
         {
             if ( !dictionary.ContainsKey( key ) )
             {
@@ -2678,7 +2871,7 @@ namespace Rock
         /// <param name="dictionary">The dictionary.</param>
         /// <param name="key">The key.</param>
         /// <returns></returns>
-        public static TValue GetValueOrNull<TKey, TValue>( this Dictionary<TKey, TValue> dictionary, TKey key)
+        public static TValue GetValueOrNull<TKey, TValue>( this IDictionary<TKey, TValue> dictionary, TKey key )
         {
             if ( dictionary.ContainsKey( key ) )
             {
@@ -2686,7 +2879,7 @@ namespace Rock
             }
             else
             {
-                return default(TValue);
+                return default( TValue );
             }
         }
 
@@ -2697,7 +2890,7 @@ namespace Rock
         /// <param name="dictionary">The dictionary.</param>
         /// <param name="key">The key.</param>
         /// <returns></returns>
-        public static string GetValueOrNull<TKey>( this Dictionary<TKey, Rock.Field.ConfigurationValue> dictionary, TKey key )
+        public static string GetValueOrNull<TKey>( this IDictionary<TKey, Rock.Field.ConfigurationValue> dictionary, TKey key )
         {
             if ( dictionary.ContainsKey( key ) && dictionary[key] != null )
             {

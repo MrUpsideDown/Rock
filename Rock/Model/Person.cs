@@ -418,6 +418,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [NotMapped]
+        [RockClientInclude( "The Primary PersonAliasId of the Person" )]
         public virtual int? PrimaryAliasId
         {
             get
@@ -434,10 +435,10 @@ namespace Rock.Model
         }
 
         /// <summary>
-        /// Gets the Full Name of the Person using the Title FirstName LastName format.
+        /// Gets the Full Name of the Person using the NickName LastName Suffix format.
         /// </summary>
         /// <value>
-        /// A <see cref="System.String"/> representing the Full Name of a Person using the Title FirstName LastName format.
+        /// A <see cref="System.String"/> representing the Full Name of a Person using the NickName LastName Suffix format.
         /// </value>
         [DataMember]
         [NotMapped]
@@ -449,11 +450,21 @@ namespace Rock.Model
 
                 fullName.AppendFormat( "{0} {1}", NickName, LastName );
 
-                if ( SuffixValue != null && !string.IsNullOrWhiteSpace( SuffixValue.Value ) )
-                    fullName.AppendFormat( " {0}", SuffixValue.Value );
+                // Use the SuffixValueId and DefinedValue cache instead of referencing SuffixValue property so 
+                // that if FullName is used in datagrid, the SuffixValue is not lazy-loaded for each row
+                if ( SuffixValueId.HasValue )
+                {
+                    var suffix = DefinedValueCache.Read( SuffixValueId.Value );
+                    if ( suffix != null )
+                    {
+                        fullName.AppendFormat( " {0}", suffix.Value );
+                    }
+                }
 
                 return fullName.ToString();
+
             }
+
             private set { }
         }
 
@@ -493,8 +504,16 @@ namespace Rock.Model
 
                 fullName.Append( LastName );
 
-                if ( SuffixValue != null && !string.IsNullOrWhiteSpace( SuffixValue.Value ) )
-                    fullName.AppendFormat( " {0}", SuffixValue.Value );
+                // Use the SuffixValueId and DefinedValue cache instead of referencing SuffixValue property so 
+                // that if FullName is used in datagrid, the SuffixValue is not lazy-loaded for each row
+                if ( SuffixValueId.HasValue )
+                {
+                    var suffix = DefinedValueCache.Read( SuffixValueId.Value );
+                    if ( suffix != null )
+                    {
+                        fullName.AppendFormat( " {0}", suffix.Value );
+                    }
+                }
 
                 fullName.AppendFormat( ", {0}", NickName );
                 return fullName.ToString();
@@ -793,6 +812,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [DatabaseGenerated( DatabaseGeneratedOption.Computed )]
+        [Column( TypeName = "Date" )]
         public DateTime? BirthDate
         {
             get
@@ -1157,6 +1177,7 @@ namespace Rock.Model
             var dictionary = base.ToDictionary();
             dictionary.Add( "Age", AgePrecise );
             dictionary.Add( "DaysToBirthday", DaysToBirthday );
+            dictionary.AddOrIgnore( "FullName", FullName );
             return dictionary;
         }
 
@@ -1215,9 +1236,10 @@ namespace Rock.Model
         /// </summary>
         /// <param name="action">The action.</param>
         /// <param name="person">The person.</param>
-        /// <param name="rockContext">The rock context.</param>
-        /// <returns></returns>
-        public override bool IsAuthorized( string action, Person person, RockContext rockContext = null )
+        /// <returns>
+        ///   <c>true</c> if the specified action is authorized; otherwise, <c>false</c>.
+        /// </returns>
+        public override bool IsAuthorized( string action, Person person )
         {
             if ( person.Guid.Equals( this.Guid ) )
             {
@@ -1225,7 +1247,7 @@ namespace Rock.Model
             }
             else
             {
-                return base.IsAuthorized( action, person, rockContext );
+                return base.IsAuthorized( action, person );
             }
         }
 
@@ -1518,12 +1540,13 @@ namespace Rock.Model
         /// is typically configured to allow check-in.  If an inverse relationship is configured for 'Can check in'
         /// (i.e. 'Allow check in by'), that relationship will also be created.
         /// </summary>
-        /// <param name="personId">A <see cref="System.Int32"/> representing the Id of the Person.</param>
-        /// <param name="relatedPersonId">A <see cref="System.Int32"/> representing the Id of the related Person.</param>
-        /// <param name="currentPersonAlias">A <see cref="Rock.Model.PersonAlias"/> representing the Person who is logged in.</param>
-        public static void CreateCheckinRelationship( int personId, int relatedPersonId, PersonAlias currentPersonAlias )
+        /// <param name="personId">A <see cref="System.Int32" /> representing the Id of the Person.</param>
+        /// <param name="relatedPersonId">A <see cref="System.Int32" /> representing the Id of the related Person.</param>
+        /// <param name="currentPersonAlias">A <see cref="Rock.Model.PersonAlias" /> representing the Person who is logged in.</param>
+        /// <param name="rockContext">The rock context.</param>
+        public static void CreateCheckinRelationship( int personId, int relatedPersonId, PersonAlias currentPersonAlias, RockContext rockContext = null )
         {
-            var rockContext = new RockContext();
+            rockContext = rockContext ?? new RockContext();
 
             var knownRelationshipGroupType = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS );
             var ownerRole = knownRelationshipGroupType.Roles.FirstOrDefault( r => r.Guid.Equals( new Guid( Rock.SystemGuid.GroupRole.GROUPROLE_KNOWN_RELATIONSHIPS_OWNER ) ) );

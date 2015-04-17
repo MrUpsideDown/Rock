@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for FinancialTransactionRefund
+    /// Base client model for FinancialTransactionRefund that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class FinancialTransactionRefund
+    public partial class FinancialTransactionRefundEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -38,10 +38,23 @@ namespace Rock.Client
         public string RefundReasonSummary { get; set; }
 
         /// <summary />
-        public DefinedValue RefundReasonValue { get; set; }
+        public int? RefundReasonValueId { get; set; }
 
         /// <summary />
-        public int? RefundReasonValueId { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for FinancialTransactionRefund that includes all the fields that are available for GETs. Use this for GETs (use FinancialTransactionRefundEntity for POST/PUTs)
+    /// </summary>
+    public partial class FinancialTransactionRefund : FinancialTransactionRefundEntity
+    {
+        /// <summary />
+        public DefinedValue RefundReasonValue { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -55,18 +68,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

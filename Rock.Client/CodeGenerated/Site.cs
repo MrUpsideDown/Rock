@@ -27,33 +27,21 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Site
+    /// Base client model for Site that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Site
+    public partial class SiteEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public Page CommunicationPage { get; set; }
-
-        /// <summary />
         public int? CommunicationPageId { get; set; }
-
-        /// <summary />
-        public PageRoute CommunicationPageRoute { get; set; }
 
         /// <summary />
         public int? CommunicationPageRouteId { get; set; }
 
         /// <summary />
-        public Page DefaultPage { get; set; }
-
-        /// <summary />
         public int? DefaultPageId { get; set; }
-
-        /// <summary />
-        public PageRoute DefaultPageRoute { get; set; }
 
         /// <summary />
         public int? DefaultPageRouteId { get; set; }
@@ -77,16 +65,7 @@ namespace Rock.Client
         public bool IsSystem { get; set; }
 
         /// <summary />
-        public ICollection<Layout> Layouts { get; set; }
-
-        /// <summary />
-        public Page LoginPage { get; set; }
-
-        /// <summary />
         public int? LoginPageId { get; set; }
-
-        /// <summary />
-        public PageRoute LoginPageRoute { get; set; }
 
         /// <summary />
         public int? LoginPageRouteId { get; set; }
@@ -95,34 +74,68 @@ namespace Rock.Client
         public string Name { get; set; }
 
         /// <summary />
-        public Page PageNotFoundPage { get; set; }
-
-        /// <summary />
         public int? PageNotFoundPageId { get; set; }
-
-        /// <summary />
-        public PageRoute PageNotFoundPageRoute { get; set; }
 
         /// <summary />
         public int? PageNotFoundPageRouteId { get; set; }
 
         /// <summary />
-        public Page RegistrationPage { get; set; }
-
-        /// <summary />
         public int? RegistrationPageId { get; set; }
-
-        /// <summary />
-        public PageRoute RegistrationPageRoute { get; set; }
 
         /// <summary />
         public int? RegistrationPageRouteId { get; set; }
 
         /// <summary />
-        public ICollection<SiteDomain> SiteDomains { get; set; }
+        public string Theme { get; set; }
 
         /// <summary />
-        public string Theme { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for Site that includes all the fields that are available for GETs. Use this for GETs (use SiteEntity for POST/PUTs)
+    /// </summary>
+    public partial class Site : SiteEntity
+    {
+        /// <summary />
+        public Page CommunicationPage { get; set; }
+
+        /// <summary />
+        public PageRoute CommunicationPageRoute { get; set; }
+
+        /// <summary />
+        public Page DefaultPage { get; set; }
+
+        /// <summary />
+        public PageRoute DefaultPageRoute { get; set; }
+
+        /// <summary />
+        public ICollection<Layout> Layouts { get; set; }
+
+        /// <summary />
+        public Page LoginPage { get; set; }
+
+        /// <summary />
+        public PageRoute LoginPageRoute { get; set; }
+
+        /// <summary />
+        public Page PageNotFoundPage { get; set; }
+
+        /// <summary />
+        public PageRoute PageNotFoundPageRoute { get; set; }
+
+        /// <summary />
+        public Page RegistrationPage { get; set; }
+
+        /// <summary />
+        public PageRoute RegistrationPageRoute { get; set; }
+
+        /// <summary />
+        public ICollection<SiteDomain> SiteDomains { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -136,18 +149,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

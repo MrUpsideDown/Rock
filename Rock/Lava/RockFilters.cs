@@ -16,17 +16,25 @@
 //
 using System;
 using System.Collections.Generic;
+using System.Data.Entity;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using System.Web;
+using System.Web.UI.HtmlControls;
+
 using DotLiquid;
 using DotLiquid.Util;
+
 using Humanizer;
+
+using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
 using Rock.Web.Cache;
+using Rock.Web.UI;
 
 namespace Rock.Lava
 {
@@ -36,6 +44,32 @@ namespace Rock.Lava
     public static class RockFilters
     {
         #region String Filters
+
+        /// <summary>
+        /// obfuscate a given email
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        public static string ObfuscateEmail( string input )
+        {
+            if ( input == null )
+            {
+                return null;
+            }
+            else
+            {
+                string[] emailParts = input.Split('@');
+
+                if ( emailParts.Length != 2 )
+                {
+                    return input;
+                }
+                else
+                {
+                    return string.Format( "{0}xxxxx@{1}", emailParts[0].Substring( 0, 1 ), emailParts[1] );
+                }
+            }
+        }
 
         /// <summary>
         /// pluralizes string
@@ -784,19 +818,53 @@ namespace Rock.Lava
             if ( input != null && input is Person )
             {
                 var person = (Person)input;
-                
-
+               
                 Guid familyGuid = Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY.AsGuid();
-                var location = new GroupMemberService( GetRockContext(context) )
-                    .Queryable( "GroupLocations.Location" )
-                    .Where( m => 
-                        m.PersonId == person.Id && 
-                        m.Group.GroupType.Guid == familyGuid )
-                    .SelectMany( m => m.Group.GroupLocations )
-                    .Where( gl => 
-                        gl.GroupLocationTypeValue.Value == addressType )
-                    .Select( gl => gl.Location )
-                    .FirstOrDefault();
+
+                Location location = null;
+
+                switch ( addressType )
+                {
+                    case "Mailing":
+                        location = new GroupMemberService( GetRockContext( context ) )
+                            .Queryable( "GroupLocations.Location" )
+                            .AsNoTracking()
+                            .Where( m =>
+                                m.PersonId == person.Id &&
+                                m.Group.GroupType.Guid == familyGuid )
+                            .SelectMany( m => m.Group.GroupLocations )
+                            .Where( gl =>
+                                gl.IsMailingLocation == true )
+                            .Select( gl => gl.Location )
+                            .FirstOrDefault();
+                        break;
+                    case "MapLocation":
+                        location = new GroupMemberService( GetRockContext( context ) )
+                            .Queryable( "GroupLocations.Location" )
+                            .AsNoTracking()
+                            .Where( m =>
+                                m.PersonId == person.Id &&
+                                m.Group.GroupType.Guid == familyGuid )
+                            .SelectMany( m => m.Group.GroupLocations )
+                            .Where( gl =>
+                                gl.IsMappedLocation == true )
+                            .Select( gl => gl.Location )
+                            .FirstOrDefault();
+                        break;
+                    default:
+                        location = new GroupMemberService( GetRockContext( context ) )
+                            .Queryable( "GroupLocations.Location" )
+                            .AsNoTracking()
+                            .Where( m =>
+                                m.PersonId == person.Id &&
+                                m.Group.GroupType.Guid == familyGuid )
+                            .SelectMany( m => m.Group.GroupLocations )
+                            .Where( gl =>
+                                gl.GroupLocationTypeValue.Value == addressType )
+                            .Select( gl => gl.Location )
+                            .FirstOrDefault();
+                        break;
+                }
 
                 if (location != null)
                 {
@@ -885,6 +953,38 @@ namespace Rock.Lava
         }
 
         /// <summary>
+        /// Addresses the specified context.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="input">The input.</param>
+        /// <param name="addressType">Type of the group.</param>
+        /// <returns></returns>
+        public static List<Rock.Model.Group> Groups( DotLiquid.Context context, object input, string groupTypeId )
+        {
+            if ( input != null && input is Person )
+            {
+                var person = (Person)input;
+
+                int? numericalGroupTypeId = groupTypeId.AsIntegerOrNull();
+                if ( numericalGroupTypeId.HasValue )
+                {
+                    return new GroupMemberService( GetRockContext( context ) )
+                        .Queryable().AsNoTracking()
+                        .Where( m =>
+                            m.PersonId == person.Id &&
+                            m.Group.GroupTypeId == numericalGroupTypeId.Value &&
+                            m.GroupMemberStatus == GroupMemberStatus.Active &&
+                            m.Group.IsActive )
+                        .Select( m =>
+                            m.Group )
+                        .ToList();
+                }
+            }
+
+            return new List<Model.Group>();
+        }
+
+        /// <summary>
         /// Gets the rock context.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -905,7 +1005,7 @@ namespace Rock.Lava
 
         #endregion
 
-        #region Object Filters
+        #region Misc Filters
 
         /// <summary>
         /// creates a postback javascript function
@@ -933,6 +1033,50 @@ namespace Rock.Lava
         public static string ToJSON (object input)
         {
             return input.ToJson();
+        }
+
+        /// <summary>
+        /// adds a meta tag to the head of the document
+        /// </summary>
+        /// <param name="input">The input to use for the content attribute of the tag.</param>
+        /// <param name="attributeName">Name of the attribute.</param>
+        /// <param name="attributeValue">The attribute value.</param>
+        /// <returns></returns>
+        public static string AddMetaTagToHead( string input, string attributeName, string attributeValue )
+        {
+            RockPage page = HttpContext.Current.Handler as RockPage;
+
+            if ( page != null )
+            {
+                HtmlMeta metaTag = new HtmlMeta();
+                metaTag.Attributes.Add( attributeName, attributeValue );
+                metaTag.Content = input;
+                page.Header.Controls.Add( metaTag );
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// adds a link tag to the head of the document
+        /// </summary>
+        /// <param name="input">The input to use for the href of the tag.</param>
+        /// <param name="attributeName">Name of the attribute.</param>
+        /// <param name="attributeValue">The attribute value.</param>
+        /// <returns></returns>
+        public static string AddLinkTagToHead( string input, string attributeName, string attributeValue )
+        {
+            RockPage page = HttpContext.Current.Handler as RockPage;
+
+            if ( page != null )
+            {
+                HtmlLink imageLink = new HtmlLink();
+                imageLink.Attributes.Add( attributeName, attributeValue );
+                imageLink.Attributes.Add( "href", input );
+                page.Header.Controls.Add( imageLink );
+            }
+
+            return null;
         }
 
         #endregion

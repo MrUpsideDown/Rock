@@ -23,6 +23,7 @@ using System.Net.Http;
 using System.Text;
 using System.Web.Http;
 using System.Web.Http.OData;
+using Rock.Data;
 using Rock.Model;
 using Rock.Rest.Filters;
 using Rock.Web.Cache;
@@ -34,29 +35,59 @@ namespace Rock.Rest.Controllers
     /// </summary>
     public partial class PeopleController
     {
-
         #region Get
 
+        // GET api/<controller>/5
+        [Authenticate, Secured]
+        [ActionName( "GetById" )]
+        public override Person GetById( int id )
+        {
+            // NOTE: We want PrimaryAliasId to be populated, so call this.Get( false ) which includes "Aliases"
+            var person = this.Get( true ).FirstOrDefault( a => a.Id == id );
+            if (person == null)
+            {
+                throw new HttpResponseException( HttpStatusCode.NotFound );
+            }
+
+            return person;
+        }
+
+        // GET api/<controller>(5)
+        [Authenticate, Secured]
+        [EnableQuery]
+        public override Person Get( [FromODataUri] int key )
+        {
+            // NOTE: We want PrimaryAliasId to be populated, so call this.Get( false ) which includes "Aliases"
+            return this.GetById( key );
+        }
+        
         /// <summary>
-        /// Overrides base Get api controller to add option to include Person records for deceased individuals.
+        /// Returns a Queryable of Person records
         /// </summary>
-        /// <returns>A queryable collection of Person records that matches the supplied Odata query.</returns>
+        /// <returns>
+        /// A queryable collection of Person records that matches the supplied Odata query.
+        /// </returns>
         [Authenticate, Secured]
         [EnableQuery]
         public override IQueryable<Person> Get()
         {
-            string queryString = Request.RequestUri.Query;
-            string includeDeceased = System.Web.HttpUtility.ParseQueryString( queryString ).Get( "IncludeDeceased" );
+            // NOTE: We want PrimaryAliasId to be populated, so call this.Get( false ) which includes "Aliases"
+            return this.Get( false );
+        }
 
-            if ( includeDeceased.AsBoolean( false ) )
-            {
-                var rockContext = new Rock.Data.RockContext();
-                return new PersonService( rockContext ).Queryable( true );
-            }
-            else
-            {
-                return base.Get();
-            }
+        /// <summary>
+        /// Get api controller with option to include Person records for deceased individuals.
+        /// </summary>
+        /// <param name="includeDeceased">if set to <c>true</c> [include deceased].</param>
+        /// <returns></returns>
+        [Authenticate, Secured]
+        [EnableQuery]
+        public IQueryable<Person> Get( bool includeDeceased)
+        {
+            var rockContext = this.Service.Context as RockContext;
+
+            // NOTE: We want PrimaryAliasId to be populated, so include "Aliases"
+            return new PersonService( rockContext ).Queryable( "Aliases", includeDeceased);
         }
 
         /// <summary>
@@ -218,7 +249,14 @@ namespace Rock.Rest.Controllers
             IOrderedQueryable<Person> sortedPersonQry = ( this.Service as PersonService )
                 .GetByFullNameOrdered( name, true, includeBusinesses, allowFirstNameOnly, out reversed );
 
-            var topQry = sortedPersonQry.Take( count );
+            var rockContext = this.Service.Context as Rock.Data.RockContext;
+
+            var phoneNumbersQry = new PhoneNumberService( rockContext ).Queryable();
+
+            // join with PhoneNumbers to avoid lazy loading
+            var joinQry = sortedPersonQry.GroupJoin( phoneNumbersQry, p => p.Id, n => n.PersonId, (Person, PhoneNumbers) => new { Person, PhoneNumbers } );
+
+            var topQry = joinQry.Take( count );
 
             var sortedPersonList = topQry.AsNoTracking().ToList();
 
@@ -238,11 +276,13 @@ namespace Rock.Rest.Controllers
             int groupTypeFamilyId = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY ).Id;
 
             // figure out Family, Address, Spouse
-            GroupMemberService groupMemberService = new GroupMemberService( this.Service.Context as Rock.Data.RockContext );
+            GroupMemberService groupMemberService = new GroupMemberService( rockContext );
 
             List<PersonSearchResult> searchResult = new List<PersonSearchResult>();
-            foreach ( var person in sortedPersonList )
+            foreach ( var item in sortedPersonList )
             {
+                var person = item.Person;
+                person.PhoneNumbers = item.PhoneNumbers.ToList();
                 PersonSearchResult personSearchResult = new PersonSearchResult();
                 personSearchResult.Name = reversed ? person.FullNameReversed : person.FullName;
 
@@ -276,7 +316,7 @@ namespace Rock.Rest.Controllers
                     "<div class='person-image' style='background-image:url({0}&width=65);background-size:cover;background-position:50%'></div>",
                     Person.GetPhotoUrl( person.PhotoId, person.Age, person.Gender, recordTypeValueGuid ) );
 
-                string personInfo = string.Empty;
+                string personInfoHtml = string.Empty;
                 Guid homeLocationGuid = Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuid();
 
                 var familyGroupMember = groupMemberService.Queryable()
@@ -294,16 +334,16 @@ namespace Rock.Rest.Controllers
                 {
                     if ( recordTypeValueGuid.HasValue && recordTypeValueGuid == Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_BUSINESS.AsGuid() )
                     {
-                        personInfo += "Business";
+                        personInfoHtml += "Business";
                     }
                     else
                     {
-                        personInfo += familyGroupTypeRoles.First( a => a.Id == familyGroupMember.GroupRoleId ).Name;
+                        personInfoHtml += familyGroupTypeRoles.First( a => a.Id == familyGroupMember.GroupRoleId ).Name;
                     }
                     
                     if ( personAge != null )
                     {
-                        personInfo += " <em>(" + personAge.ToString() + " yrs old)</em>";
+                        personInfoHtml += " <em>(" + personAge.ToString() + " yrs old)</em>";
                     }
 
                     if ( familyGroupMember.GroupRoleId == adultRoleId )
@@ -312,7 +352,7 @@ namespace Rock.Rest.Controllers
                         if ( spouse != null )
                         {
                             string spouseFullName = spouse.FullName;
-                            personInfo += "<p><strong>Spouse:</strong> " + spouseFullName + "</p>";
+                            personInfoHtml += "<p><strong>Spouse:</strong> " + spouseFullName + "</p>";
                             personSearchResult.SpouseName = spouseFullName;
                         }
                     }
@@ -321,7 +361,7 @@ namespace Rock.Rest.Controllers
                 {
                     if ( personAge != null )
                     {
-                        personInfo += personAge.ToString() + " yrs old";
+                        personInfoHtml += personAge.ToString() + " yrs old";
                     }
                 }
 
@@ -333,13 +373,33 @@ namespace Rock.Rest.Controllers
                     {
                         string addressHtml = "<h5>Address</h5>" + location.GetFullStreetAddress().ConvertCrLfToHtmlBr();
                         personSearchResult.Address = location.GetFullStreetAddress();
-                        personInfo += addressHtml;
+                        personInfoHtml += addressHtml;
                     }
+                }
 
-                    if ( includeHtml )
+                if ( includeHtml )
+                {
+                    // Generate the HTML for Email and PhoneNumbers
+                    if ( !string.IsNullOrWhiteSpace( person.Email ) || person.PhoneNumbers.Any() )
                     {
-                        personSearchResult.PickerItemDetailsHtml = string.Format( itemDetailFormat, imageHtml, personInfo );
+                        string emailAndPhoneHtml = "<p class='margin-t-sm'>";
+                        emailAndPhoneHtml += person.Email;
+                        string phoneNumberList = string.Empty;
+                        foreach ( var phoneNumber in person.PhoneNumbers )
+                        {
+                            var phoneType = DefinedValueCache.Read( phoneNumber.NumberTypeValueId ?? 0 );
+                            phoneNumberList += string.Format(
+                                "<br>{0} <small>{1}</small>",
+                                phoneNumber.IsUnlisted ? "Unlisted" : phoneNumber.NumberFormatted,
+                                phoneType != null ? phoneType.Value : string.Empty );
+                        }
+
+                        emailAndPhoneHtml += phoneNumberList + "<p>";
+
+                        personInfoHtml += emailAndPhoneHtml;
                     }
+                    
+                    personSearchResult.PickerItemDetailsHtml = string.Format( itemDetailFormat, imageHtml, personInfoHtml );
                 }
 
                 searchResult.Add( personSearchResult );

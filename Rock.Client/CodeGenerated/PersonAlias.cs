@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for PersonAlias
+    /// Base client model for PersonAlias that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class PersonAlias
+    public partial class PersonAliasEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -44,9 +44,6 @@ namespace Rock.Client
         public string Name { get; set; }
 
         /// <summary />
-        public Person Person { get; set; }
-
-        /// <summary />
         public int PersonId { get; set; }
 
         /// <summary />
@@ -54,6 +51,16 @@ namespace Rock.Client
 
         /// <summary />
         public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for PersonAlias that includes all the fields that are available for GETs. Use this for GETs (use PersonAliasEntity for POST/PUTs)
+    /// </summary>
+    public partial class PersonAlias : PersonAliasEntity
+    {
+        /// <summary />
+        public Person Person { get; set; }
 
     }
 }

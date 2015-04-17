@@ -341,10 +341,6 @@ img.jcrop-preview {
     float: right;
   }
 }
-/*
-    Used to manage styles related to modal dialog.
-
-*/
 /*!
  * Bootstrap Modal
  *
@@ -614,78 +610,93 @@ Copyright (c) 2012 Dan Eden*/
   -o-animation-name: shake;
   animation-name: shake;
 }
-.modal-overflow.modal {
-  top: 48px;
-}
-.modal-content {
+.modal-content.rock-modal,
+.rock-modal .modal-content {
   border: 0;
   background-color: #ffffff;
   color: #2c3e50;
 }
-.modal-content .modal-header {
+.modal-content.rock-modal .modal-header,
+.rock-modal .modal-content .modal-header {
   background-color: #3a3a3a;
   color: #bbbbbb;
   padding: 5px 15px;
   min-height: 34px;
 }
-.modal-content .modal-header:before,
-.modal-content .modal-header:after {
+.modal-content.rock-modal .modal-header:before,
+.rock-modal .modal-content .modal-header:before,
+.modal-content.rock-modal .modal-header:after,
+.rock-modal .modal-content .modal-header:after {
   content: " ";
   display: table;
 }
-.modal-content .modal-header:after {
+.modal-content.rock-modal .modal-header:after,
+.rock-modal .modal-content .modal-header:after {
   clear: both;
 }
-.modal-content .modal-header h3 {
+.modal-content.rock-modal .modal-header h3,
+.rock-modal .modal-content .modal-header h3 {
   float: left;
   margin-right: 12px;
 }
-.modal-content .modal-header .close {
+.modal-content.rock-modal .modal-header .close,
+.rock-modal .modal-content .modal-header .close {
   margin: 0;
   padding: 6px;
   color: #bbbbbb;
   text-shadow: none;
 }
-.modal-content .modal-header .label {
+.modal-content.rock-modal .modal-header .label,
+.rock-modal .modal-content .modal-header .label {
   margin-top: 8px;
 }
-.modal-content .modal-header small {
+.modal-content.rock-modal .modal-header small,
+.rock-modal .modal-content .modal-header small {
   margin-top: 12px;
   display: block;
   color: #a2a2a2;
 }
-.modal-content .modal-body {
+.modal-content.rock-modal .modal-body,
+.rock-modal .modal-content .modal-body {
   color: #2c3e50;
   text-align: left;
 }
-.modal-content .modal-body .nav-pills {
+.modal-content.rock-modal .modal-body .nav-pills,
+.rock-modal .modal-content .modal-body .nav-pills {
   margin: 6px 0 18px;
 }
-.modal-content .modal-body > .scroll-container {
+.modal-content.rock-modal .modal-body > .scroll-container,
+.rock-modal .modal-content .modal-body > .scroll-container {
   width: 720px;
 }
-.modal-content .modal-body > .scroll-container > .viewport {
+.modal-content.rock-modal .modal-body > .scroll-container > .viewport,
+.rock-modal .modal-content .modal-body > .scroll-container > .viewport {
   width: 670px;
 }
-.modal-content .modal-body.iframe {
+.modal-content.rock-modal .modal-body.iframe,
+.rock-modal .modal-content .modal-body.iframe {
   overflow: hidden;
 }
-.modal-content .modal-footer {
+.modal-content.rock-modal .modal-footer,
+.rock-modal .modal-content .modal-footer {
   padding: 8px;
   margin-top: 10px;
   background-color: #ecf0f1;
   color: #95a5a6;
   border-radius: 0 0 4px 4px;
 }
-.modal-body {
+.rock-modal .modal-body {
   padding: 8px 12px 12px 12px;
 }
-.modal-footer:after {
+.rock-modal .modal-footer:after {
   clear: both;
 }
-.modal-footer .btn {
+.rock-modal .modal-footer .btn {
   float: right;
   margin-left: 5px;
+}
+.modal.modal-overflow {
+  top: 30px;
 }
 #modal-popup_iframe {
   height: 100%;
@@ -693,15 +704,18 @@ Copyright (c) 2012 Dan Eden*/
   border: 0;
   display: block;
 }
-.bootbox .modal-dialog {
-  margin: 0;
-  width: auto;
-}
 .modal-backdrop,
 .modal-backdrop.fade.in {
   opacity: 0.7;
   filter: alpha(opacity=70);
   background: rgba(0, 0, 0, 0.3);
+}
+.modal-dialog {
+  margin: 0;
+  width: auto;
+}
+.modal-content {
+  border: none;
 }
 /*
     Used to manage styles related to reusable components / widgets.
@@ -1447,6 +1461,34 @@ fieldset .actions {
 .datepicker table td span.year:first-child {
   margin-left: 0;
 }
+.timepicker-input:before,
+.timepicker-input:after {
+  content: " ";
+  display: table;
+}
+.timepicker-input:after {
+  clear: both;
+}
+.timepicker-input .input-group {
+  float: left;
+}
+.timepicker-input i.fa-times {
+  float: left;
+  margin-top: 4px;
+  padding: 6px;
+  cursor: pointer;
+  opacity: 0;
+  -webkit-transition: opacity 0.2s ease-out;
+  -moz-transition: opacity 0.2s ease-out;
+  -o-transition: opacity 0.2s ease-out;
+  transition: opacity 0.2s ease-out;
+}
+.timepicker-input:hover i.fa-times {
+  opacity: 1;
+}
+.touch .timepicker-input i.fa-times {
+  opacity: 1;
+}
 .bootstrap-timepicker {
   position: relative;
 }
@@ -1997,7 +2039,8 @@ ul.rocklist .rocklist-item.selected {
   opacity: 0.5;
 }
 .image-editor-fileinput {
-  display: none;
+  visibility: hidden;
+  height: 0;
 }
 .image-editor-group.imageupload-group {
   border: 0;
@@ -2826,6 +2869,10 @@ tr.row-highlight td {
 .panel-noteentry > .panel-footer + .panel-collapse > .panel-body {
   border-bottom-color: #acf4e6;
 }
+.panel-noteentry .createDate {
+  margin-top: 10px;
+  width: 50%;
+}
 .panel-noteentry .settings {
   margin-top: 4px;
 }
@@ -3031,6 +3078,9 @@ table.inherited-attribute-grid tr td:nth-child(2),
 table.attribute-grid tr th:nth-child(3) {
   width: 550px;
 }
+.group-detail .panel-heading {
+  cursor: pointer;
+}
 /*
     Used to manage styles for specific blocks.
 
@@ -3136,6 +3186,7 @@ table.attribute-grid tr th:nth-child(3) {
     15. Photo Upload
     16. Duplicate Pages
     17. DISC
+    19. Edit Person
 */
 .personprofile {
   margin-top: -15px;
@@ -3384,9 +3435,6 @@ table.attribute-grid tr th:nth-child(3) {
   -moz-animation: bar-grow 1s ease-in-out;
   -o-animation: bar-grow 1s ease-in-out;
   animation: bar-grow 1s ease-in-out;
-}
-.badge-ingroupoftype {
-  width: 45px;
 }
 .badge-attendingduration {
   position: relative;
@@ -3855,6 +3903,14 @@ tr.inactive td {
   font-size: 30px;
   position: absolute;
 }
+.phonegroup-label {
+  margin-bottom: 5px;
+}
+@media (min-width: 768px) {
+  .phonegroup-label {
+    padding-top: 4px;
+  }
+}
 /*
     Used to manage styles for specific blocks.
 
@@ -4126,6 +4182,12 @@ iframe.email-body {
   background-color: #18bc9c;
   color: #ffffff;
   border: 1px solid #128f76;
+}
+.bg-color {
+  background-color: #ffffff;
+}
+.text-color {
+  color: #2c3e50;
 }
 .padding-all-none {
   padding: 0 !important;
@@ -5144,6 +5206,10 @@ html[xmlns] .slides {
     4. Flatly Theme
 
     */
+html {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
 main {
   display: block;
 }

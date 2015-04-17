@@ -43,6 +43,7 @@ namespace Rock.CodeGeneration
                 rockAssembly = typeof( Rock.Data.IEntity ).Assembly;
                 FileInfo fi = new FileInfo( ( new System.Uri( rockAssembly.CodeBase ) ).AbsolutePath );
                 lblAssemblyPath.Text = fi.FullName;
+                toolTip1.SetToolTip(lblAssemblyPath, fi.LastWriteTime.ToString());
             }
 
             ofdAssembly.InitialDirectory = Path.GetDirectoryName( lblAssemblyPath.Text );
@@ -143,8 +144,13 @@ namespace Rock.CodeGeneration
                         if ( cbClient.Checked )
                         {
                             WriteRockClientFile( rockClientFolder, type );
-                            WriteRockClientSystemGuidFiles( rockClientFolder );
                         }
+                    }
+
+                    if (cbClient.Checked)
+                    {
+                        WriteRockClientIncludeClientFiles( rockClientFolder, cblModels.CheckedItems.OfType<Type>().ToList() );
+                        WriteRockClientSystemGuidFiles( rockClientFolder );
                     }
                 }
             }
@@ -762,17 +768,48 @@ order by [parentTable], [columnName]
         }
 
         /// <summary>
+        /// Writes the rock client include client files.
+        /// </summary>
+        /// <param name="rootFolder">The root folder.</param>
+        /// <param name="alreadyIncludedTypes">The already included types.</param>
+        private void WriteRockClientIncludeClientFiles( string rootFolder, IEnumerable<Type> alreadyIncludedTypes)
+        {
+            foreach ( var rockClientIncludeType in rockAssembly.GetTypes().Where( a => a.GetCustomAttribute<Rock.Data.RockClientIncludeAttribute>() != null ).OrderBy( a => a.Name ) )
+            {
+                if ( !alreadyIncludedTypes.Any( a => a == rockClientIncludeType ) )
+                {
+                    WriteRockClientFile( rootFolder, rockClientIncludeType );
+                }
+            }
+        }
+
+        /// <summary>
         /// Writes the DTO file for a given type
         /// </summary>
         /// <param name="rootFolder"></param>
         /// <param name="type"></param>
         private void WriteRockClientFile( string rootFolder, Type type )
         {
+            var entityProperties = GetEntityProperties( type );
+            entityProperties.Remove( "CreatedDateTime" );
+            entityProperties.Remove( "ModifiedDateTime" );
+            entityProperties.Remove( "CreatedByPersonAliasId" );
+            entityProperties.Remove( "ModifiedByPersonAliasId" );
+
             var dataMembers = type.GetProperties().SortByStandardOrder()
                 .Where( a => a.GetCustomAttribute( typeof( DataMemberAttribute ) ) != null )
-                .Where( a => a.GetCustomAttribute( typeof( NotMappedAttribute ) ) == null );
+                .Where( a => (a.GetCustomAttribute( typeof( NotMappedAttribute ) ) == null || a.GetCustomAttribute<Rock.Data.RockClientIncludeAttribute>() != null) )
+                .Where( a => !entityProperties.Keys.Contains( a.Name ) );
 
-            if ( !dataMembers.Any() )
+            var rockClientIncludeAttribute = type.GetCustomAttribute<Rock.Data.RockClientIncludeAttribute>();
+            string comments = null;
+
+            if ( rockClientIncludeAttribute != null)
+            {
+                comments = rockClientIncludeAttribute.DocumentationMessage;
+            }
+            
+            if ( !entityProperties.Any() && !dataMembers.Any() )
             {
                 return;
             }
@@ -812,29 +849,88 @@ order by [parentTable], [columnName]
 
             sb.AppendFormat( "namespace Rock.Client" + Environment.NewLine, type.Namespace );
             sb.AppendLine( "{" );
+
             sb.AppendLine( "    /// <summary>" );
-            sb.AppendFormat( "    /// Simple Client Model for {0}" + Environment.NewLine, type.Name );
+            
+            
+            if ( !string.IsNullOrWhiteSpace( comments ) )
+            {
+                sb.AppendFormat( "    /// {0}" + Environment.NewLine, comments );
+            }
+            else
+            {
+                sb.AppendFormat( "    /// Base client model for {0} that only includes the non-virtual fields. Use this for PUT/POSTs" + Environment.NewLine, type.Name );
+            }
+
             sb.AppendLine( "    /// </summary>" );
 
-            sb.AppendFormat( "    public partial class {0}" + Environment.NewLine, type.Name );
+            sb.AppendFormat( "    public partial class {0}Entity" + Environment.NewLine, type.Name );
+            sb.AppendLine( "    {" );
+
+            foreach ( var keyVal in entityProperties )
+            {
+                sb.AppendLine( "        /// <summary />" );
+                sb.AppendFormat( "        public {0} {1} {{ get; set; }}" + Environment.NewLine, keyVal.Value, keyVal.Key );
+                sb.AppendLine( "" );
+            }
+
+            sb.AppendLine( "    }" );
+
+            sb.AppendLine( "" );
+            
+            sb.AppendLine( "    /// <summary>" );
+
+            if ( !string.IsNullOrWhiteSpace( comments ) )
+            {
+                sb.AppendFormat( "    /// {0}" + Environment.NewLine, comments );
+            }
+            else
+            {
+                sb.AppendFormat( "    /// Client model for {0} that includes all the fields that are available for GETs. Use this for GETs (use {0}Entity for POST/PUTs)" + Environment.NewLine, type.Name );
+            }
+
+            sb.AppendLine( "    /// </summary>" );
+
+            sb.AppendFormat( "    public partial class {0} : {0}Entity" + Environment.NewLine, type.Name );
             sb.AppendLine( "    {" );
 
             foreach ( var dataMember in dataMembers )
             {
-                sb.AppendLine( "        /// <summary />" );
+                var dataMemberRockClientIncludeAttribute = dataMember.GetCustomAttribute<Rock.Data.RockClientIncludeAttribute>();
+                string dataMemberComments = null;
+
+                if ( dataMemberRockClientIncludeAttribute != null )
+                {
+                    dataMemberComments = dataMemberRockClientIncludeAttribute.DocumentationMessage;
+                }
+                
+                if (!string.IsNullOrWhiteSpace(dataMemberComments))
+                {
+                    sb.AppendLine( "        /// <summary>" );
+                    sb.AppendFormat( "        /// {0}" + Environment.NewLine, dataMemberComments );
+                    sb.AppendLine( "        /// </summary>" );
+                }
+                else
+                {
+                    sb.AppendLine( "        /// <summary />" );    
+                }
+                
                 sb.AppendFormat( "        public {0} {1} {{ get; set; }}" + Environment.NewLine, PropertyTypeName( dataMember.PropertyType ), dataMember.Name );
                 sb.AppendLine( "" );
             }
 
-
             // if this is a IHasAttributes type, generate Attribute/AttributeValues since they can be fetched thru REST when ?loadAttributes is specified
             if ( typeof( Rock.Attribute.IHasAttributes ).IsAssignableFrom( type ) )
             {
-                sb.AppendLine( "        /// <summary />" );
-                sb.AppendLine( "        public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }" + Environment.NewLine );
+                sb.AppendLine( "        /// <summary>" );
+                sb.AppendLine( "        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' " );
+                sb.AppendLine( "        /// </summary>" );
+                sb.AppendLine( "        public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }" );
                 sb.AppendLine( "" );
-                sb.AppendLine( "        /// <summary />" );
-                sb.AppendLine( "        public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }" + Environment.NewLine );
+                sb.AppendLine( "        /// <summary>" );
+                sb.AppendLine( "        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' " );
+                sb.AppendLine( "        /// </summary>" );
+                sb.AppendLine( "        public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }" );
             }
 
             sb.AppendLine( "    }" );

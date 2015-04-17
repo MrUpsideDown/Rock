@@ -27,15 +27,12 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Page
+    /// Base client model for Page that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Page
+    public partial class PageEntity
     {
         /// <summary />
         public int Id { get; set; }
-
-        /// <summary />
-        public ICollection<Block> Blocks { get; set; }
 
         /// <summary />
         public bool BreadCrumbDisplayIcon { get; set; }
@@ -92,9 +89,6 @@ namespace Rock.Client
         public int OutputCacheDuration { get; set; }
 
         /// <summary />
-        public ICollection<PageContext> PageContexts { get; set; }
-
-        /// <summary />
         public bool PageDisplayBreadCrumb { get; set; }
 
         /// <summary />
@@ -107,12 +101,6 @@ namespace Rock.Client
         public bool PageDisplayTitle { get; set; }
 
         /// <summary />
-        public ICollection<PageRoute> PageRoutes { get; set; }
-
-        /// <summary />
-        public ICollection<Page> Pages { get; set; }
-
-        /// <summary />
         public string PageTitle { get; set; }
 
         /// <summary />
@@ -120,6 +108,31 @@ namespace Rock.Client
 
         /// <summary />
         public bool RequiresEncryption { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for Page that includes all the fields that are available for GETs. Use this for GETs (use PageEntity for POST/PUTs)
+    /// </summary>
+    public partial class Page : PageEntity
+    {
+        /// <summary />
+        public ICollection<Block> Blocks { get; set; }
+
+        /// <summary />
+        public ICollection<PageContext> PageContexts { get; set; }
+
+        /// <summary />
+        public ICollection<PageRoute> PageRoutes { get; set; }
+
+        /// <summary />
+        public ICollection<Page> Pages { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -133,18 +146,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Audit
+    /// Base client model for Audit that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Audit
+    public partial class AuditEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -41,13 +41,7 @@ namespace Rock.Client
         public DateTime? DateTime { get; set; }
 
         /// <summary />
-        public ICollection<AuditDetail> Details { get; set; }
-
-        /// <summary />
         public int EntityId { get; set; }
-
-        /// <summary />
-        public EntityType EntityType { get; set; }
 
         /// <summary />
         public int EntityTypeId { get; set; }
@@ -63,6 +57,19 @@ namespace Rock.Client
 
         /// <summary />
         public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for Audit that includes all the fields that are available for GETs. Use this for GETs (use AuditEntity for POST/PUTs)
+    /// </summary>
+    public partial class Audit : AuditEntity
+    {
+        /// <summary />
+        public ICollection<AuditDetail> Details { get; set; }
+
+        /// <summary />
+        public EntityType EntityType { get; set; }
 
     }
 }

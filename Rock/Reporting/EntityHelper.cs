@@ -18,11 +18,13 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
+using System.Reflection;
 using System.Web;
 using Rock.Data;
 using Rock.Field;
 using Rock.Model;
 using Rock.Web.Cache;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Reporting
 {
@@ -58,9 +60,9 @@ namespace Rock.Reporting
             // Find all non-virtual properties or properties that have the [IncludeForReporting] attribute
             var entityProperties = entityType.GetProperties().ToList();
             var filteredEntityProperties = entityProperties
-                .Where( p => 
-                    !p.GetGetMethod().IsVirtual || 
-                    p.GetCustomAttributes( typeof( IncludeForReportingAttribute ), true ).Any() || 
+                .Where( p =>
+                    !p.GetGetMethod().IsVirtual ||
+                    p.GetCustomAttributes( typeof( IncludeForReportingAttribute ), true ).Any() ||
                     p.Name == "Order" )
                 .ToList();
 
@@ -71,7 +73,7 @@ namespace Rock.Reporting
                 if ( !includeOnlyReportingFields || isReportable )
                 {
 
-                    EntityField entityField = new EntityField( property.Name, FieldKind.Property, property.PropertyType );
+                    EntityField entityField = new EntityField( property.Name, FieldKind.Property, property );
                     entityField.IsPreviewable = property.GetCustomAttributes( typeof( PreviewableAttribute ), true ).Any();
 
                     // Enum Properties
@@ -153,31 +155,33 @@ namespace Rock.Reporting
             }
 
             // Get Attributes
-            var rockContext = new RockContext();
-            var entityTypeCache = EntityTypeCache.Read( entityType, true, rockContext );
+            var entityTypeCache = EntityTypeCache.Read( entityType, true );
             if ( entityTypeCache != null )
             {
                 int entityTypeId = entityTypeCache.Id;
-                var qryAttributes = new AttributeService( rockContext ).Queryable().Where( a => a.EntityTypeId == entityTypeId );
-                if ( entityType == typeof( Group ) )
+                using ( var rockContext = new RockContext() )
                 {
-                    // in the case of Group, show attributes that are entity global, but also ones that are qualified by GroupTypeId
-                    qryAttributes = qryAttributes
-                        .Where( a =>
-                            a.EntityTypeQualifierColumn == null ||
-                            a.EntityTypeQualifierColumn == string.Empty || 
-                            a.EntityTypeQualifierColumn == "GroupTypeId" );
-                }
-                else
-                {
-                    qryAttributes = qryAttributes.Where( a => a.EntityTypeQualifierColumn == string.Empty && a.EntityTypeQualifierValue == string.Empty );
-                }
+                    var qryAttributes = new AttributeService( rockContext ).Queryable().Where( a => a.EntityTypeId == entityTypeId );
+                    if ( entityType == typeof( Group ) )
+                    {
+                        // in the case of Group, show attributes that are entity global, but also ones that are qualified by GroupTypeId
+                        qryAttributes = qryAttributes
+                            .Where( a =>
+                                a.EntityTypeQualifierColumn == null ||
+                                a.EntityTypeQualifierColumn == string.Empty ||
+                                a.EntityTypeQualifierColumn == "GroupTypeId" );
+                    }
+                    else
+                    {
+                        qryAttributes = qryAttributes.Where( a => a.EntityTypeQualifierColumn == string.Empty && a.EntityTypeQualifierValue == string.Empty );
+                    }
 
-                var attributeIdList = qryAttributes.Select( a => a.Id ).ToList();
+                    var attributeIdList = qryAttributes.Select( a => a.Id ).ToList();
 
-                foreach ( var attributeId in attributeIdList )
-                {
-                    AddEntityFieldForAttribute( entityFields, AttributeCache.Read( attributeId ) );
+                    foreach ( var attributeId in attributeIdList )
+                    {
+                        AddEntityFieldForAttribute( entityFields, AttributeCache.Read( attributeId ) );
+                    }
                 }
             }
 
@@ -212,19 +216,15 @@ namespace Rock.Reporting
             while ( entityFields.Any( p => p.Name.Equals( propName, StringComparison.CurrentCultureIgnoreCase ) ) )
             {
                 propName = attribute.Key + ( i++ ).ToString();
-            } 
-            
+            }
+
             // Make sure that the attributes field type actually renders a filter control
             var fieldType = FieldTypeCache.Read( attribute.FieldTypeId );
             if ( fieldType != null && fieldType.Field.FilterControl( attribute.QualifierValues, propName, true ) != null )
             {
-                var entityField = new EntityField();
-                entityField.Name = propName;
+                var entityField = new EntityField( propName, FieldKind.Attribute, typeof( string ), attribute.Guid, fieldType );
                 entityField.Title = attribute.Name.SplitCase();
-                entityField.FieldKind = FieldKind.Attribute;
-                entityField.PropertyType = typeof( string );
-                entityField.AttributeGuid = attribute.Guid;
-                entityField.FieldType = fieldType;
+                
                 foreach ( var config in attribute.QualifierValues )
                 {
                     entityField.FieldConfig.Add( config.Key, config.Value );
@@ -232,10 +232,13 @@ namespace Rock.Reporting
 
                 if ( attribute.EntityTypeId == EntityTypeCache.GetId( typeof( Group ) ) && attribute.EntityTypeQualifierColumn == "GroupTypeId" )
                 {
-                    var groupType = new GroupTypeService( new RockContext() ).Get( attribute.EntityTypeQualifierValue.AsInteger() );
-                    if ( groupType != null )
+                    using ( var rockContext = new RockContext() )
                     {
-                        entityField.Title = string.Format( "{0} ({1})", attribute.Name, groupType.Name );
+                        var groupType = new GroupTypeService( rockContext ).Get( attribute.EntityTypeQualifierValue.AsInteger() );
+                        if ( groupType != null )
+                        {
+                            entityField.Title = string.Format( "{0} ({1})", attribute.Name, groupType.Name );
+                        }
                     }
                 }
 
@@ -284,6 +287,14 @@ namespace Rock.Reporting
         public Type PropertyType { get; set; }
 
         /// <summary>
+        /// Gets or sets the property information (if this is FieldKind.Property and PropertyInfo is known)
+        /// </summary>
+        /// <value>
+        /// The property information.
+        /// </value>
+        public PropertyInfo PropertyInfo { get; set; }
+
+        /// <summary>
         /// Gets or sets the attribute identifier.
         /// </summary>
         /// <value>
@@ -308,6 +319,26 @@ namespace Rock.Reporting
         public FieldTypeCache FieldType { get; set; }
 
         /// <summary>
+        /// Gets the type of the bound field.
+        /// </summary>
+        /// <returns></returns>
+        public System.Web.UI.WebControls.BoundField GetBoundFieldType()
+        {
+            if ( this.FieldType.Guid.Equals( Rock.SystemGuid.FieldType.DEFINED_VALUE.AsGuid() ) )
+            {
+                return new DefinedValueField();
+            }
+            else if ( this.PropertyInfo != null )
+            {
+                return Grid.GetGridField( this.PropertyInfo );
+            }
+            else
+            {
+                return Grid.GetGridField( this.PropertyType );
+            }
+        }
+
+        /// <summary>
         /// Gets or sets the field configuration.
         /// </summary>
         /// <value>
@@ -324,11 +355,14 @@ namespace Rock.Reporting
         public bool IsPreviewable { get; set; }
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="EntityField"/> class.
+        /// Initializes a new instance of the <see cref="EntityField" /> class.
         /// </summary>
-        public EntityField()
+        /// <param name="name">The name.</param>
+        /// <param name="fieldKind">Kind of the field.</param>
+        /// <param name="propertyInfo">The property information.</param>
+        public EntityField( string name, FieldKind fieldKind, PropertyInfo propertyInfo )
+            : this( name, fieldKind, propertyInfo.PropertyType, propertyInfo, null )
         {
-            FieldConfig = new Dictionary<string, ConfigurationValue>();
         }
 
         /// <summary>
@@ -338,13 +372,30 @@ namespace Rock.Reporting
         /// <param name="fieldKind">Kind of the field.</param>
         /// <param name="propertyType">Type of the property.</param>
         /// <param name="attributeGuid">The attribute unique identifier.</param>
-        public EntityField( string name, FieldKind fieldKind, Type propertyType, Guid? attributeGuid = null ) : this()
+        /// <param name="fieldType">Type of the field.</param>
+        public EntityField( string name, FieldKind fieldKind, Type propertyType, Guid attributeGuid, FieldTypeCache fieldType )
+            : this( name, fieldKind, propertyType, null, attributeGuid )
         {
+            this.FieldType = fieldType;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EntityField"/> class.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="fieldKind">Kind of the field.</param>
+        /// <param name="propertyType">Type of the property.</param>
+        /// <param name="propertyInfo">The property information.</param>
+        /// <param name="attributeGuid">The attribute unique identifier.</param>
+        private EntityField( string name, FieldKind fieldKind, Type propertyType, PropertyInfo propertyInfo, Guid? attributeGuid )
+        {
+            FieldConfig = new Dictionary<string, ConfigurationValue>();
             Name = name;
             Title = name.SplitCase();
-            PropertyType = propertyType;
-            AttributeGuid = attributeGuid;
             FieldKind = fieldKind;
+            PropertyType = propertyType;
+            PropertyInfo = propertyInfo;
+            AttributeGuid = attributeGuid;
         }
 
         /// <summary>

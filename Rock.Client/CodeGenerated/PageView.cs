@@ -27,9 +27,9 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for PageView
+    /// Base client model for PageView that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class PageView
+    public partial class PageViewEntity
     {
         /// <summary />
         public int Id { get; set; }
@@ -48,9 +48,6 @@ namespace Rock.Client
 
         /// <summary />
         public string PageTitle { get; set; }
-
-        /// <summary />
-        public PersonAlias PersonAlias { get; set; }
 
         /// <summary />
         public int? PersonAliasId { get; set; }
@@ -72,6 +69,16 @@ namespace Rock.Client
 
         /// <summary />
         public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for PageView that includes all the fields that are available for GETs. Use this for GETs (use PageViewEntity for POST/PUTs)
+    /// </summary>
+    public partial class PageView : PageViewEntity
+    {
+        /// <summary />
+        public PersonAlias PersonAlias { get; set; }
 
     }
 }

@@ -27,30 +27,21 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for Report
+    /// Base client model for Report that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class Report
+    public partial class ReportEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public Category Category { get; set; }
-
-        /// <summary />
         public int? CategoryId { get; set; }
-
-        /// <summary />
-        public DataView DataView { get; set; }
 
         /// <summary />
         public int? DataViewId { get; set; }
 
         /// <summary />
         public string Description { get; set; }
-
-        /// <summary />
-        public EntityType EntityType { get; set; }
 
         /// <summary />
         public int? EntityTypeId { get; set; }
@@ -63,6 +54,28 @@ namespace Rock.Client
 
         /// <summary />
         public string Name { get; set; }
+
+        /// <summary />
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for Report that includes all the fields that are available for GETs. Use this for GETs (use ReportEntity for POST/PUTs)
+    /// </summary>
+    public partial class Report : ReportEntity
+    {
+        /// <summary />
+        public Category Category { get; set; }
+
+        /// <summary />
+        public DataView DataView { get; set; }
+
+        /// <summary />
+        public EntityType EntityType { get; set; }
 
         /// <summary />
         public ICollection<ReportField> ReportFields { get; set; }
@@ -79,18 +92,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
-
-        /// <summary />
-        public string ForeignId { get; set; }
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-
-        /// <summary />
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
         public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
-
     }
 }

@@ -495,6 +495,7 @@ namespace RockWeb.Blocks.WorkFlow
                         boundField.DataField = dataFieldExpression;
                         boundField.HeaderText = attribute.Name;
                         boundField.SortExpression = string.Empty;
+                        boundField.Condensed = false;
 
                         var attributeCache = Rock.Web.Cache.AttributeCache.Read( attribute.Id );
                         if ( attributeCache != null )
@@ -672,6 +673,7 @@ namespace RockWeb.Blocks.WorkFlow
                 gWorkflows.ObjectList = new Dictionary<string, object>();
                 workflows.ForEach( w => gWorkflows.ObjectList.Add( w.Id.ToString(), w ) );
 
+                gWorkflows.EntityTypeId = EntityTypeCache.Read<Workflow>().Id;
                 gWorkflows.DataSource = workflows.Select( w => new
                 {
                     w.Id,

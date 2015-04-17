@@ -27,24 +27,18 @@ using System.Collections.Generic;
 namespace Rock.Client
 {
     /// <summary>
-    /// Simple Client Model for BenevolenceRequest
+    /// Base client model for BenevolenceRequest that only includes the non-virtual fields. Use this for PUT/POSTs
     /// </summary>
-    public partial class BenevolenceRequest
+    public partial class BenevolenceRequestEntity
     {
         /// <summary />
         public int Id { get; set; }
 
         /// <summary />
-        public ICollection<BenevolenceResult> BenevolenceResults { get; set; }
-
-        /// <summary />
-        public PersonAlias CaseWorkerPersonAlias { get; set; }
-
-        /// <summary />
         public int? CaseWorkerPersonAliasId { get; set; }
 
         /// <summary />
-        public DefinedValue ConnectionStatusValue { get; set; }
+        public string CellPhoneNumber { get; set; }
 
         /// <summary />
         public int? ConnectionStatusValueId { get; set; }
@@ -59,37 +53,19 @@ namespace Rock.Client
         public string GovernmentId { get; set; }
 
         /// <summary />
-        public PhoneNumber HomePhoneNumber { get; set; }
-
-        /// <summary />
-        public int? HomePhoneNumberId { get; set; }
+        public string HomePhoneNumber { get; set; }
 
         /// <summary />
         public string LastName { get; set; }
 
         /// <summary />
-        public Location Location { get; set; }
-
-        /// <summary />
         public int? LocationId { get; set; }
-
-        /// <summary />
-        public PhoneNumber MobilePhoneNumber { get; set; }
-
-        /// <summary />
-        public int? MobilePhoneNumberId { get; set; }
 
         /// <summary />
         public DateTime RequestDateTime { get; set; }
 
         /// <summary />
-        public PersonAlias RequestedByPersonAlias { get; set; }
-
-        /// <summary />
         public int? RequestedByPersonAliasId { get; set; }
-
-        /// <summary />
-        public DefinedValue RequestStatusValue { get; set; }
 
         /// <summary />
         public int? RequestStatusValueId { get; set; }
@@ -101,10 +77,38 @@ namespace Rock.Client
         public string ResultSummary { get; set; }
 
         /// <summary />
-        public PhoneNumber WorkPhoneNumber { get; set; }
+        public string WorkPhoneNumber { get; set; }
 
         /// <summary />
-        public int? WorkPhoneNumberId { get; set; }
+        public Guid Guid { get; set; }
+
+        /// <summary />
+        public string ForeignId { get; set; }
+
+    }
+
+    /// <summary>
+    /// Client model for BenevolenceRequest that includes all the fields that are available for GETs. Use this for GETs (use BenevolenceRequestEntity for POST/PUTs)
+    /// </summary>
+    public partial class BenevolenceRequest : BenevolenceRequestEntity
+    {
+        /// <summary />
+        public ICollection<BenevolenceResult> BenevolenceResults { get; set; }
+
+        /// <summary />
+        public PersonAlias CaseWorkerPersonAlias { get; set; }
+
+        /// <summary />
+        public DefinedValue ConnectionStatusValue { get; set; }
+
+        /// <summary />
+        public Location Location { get; set; }
+
+        /// <summary />
+        public PersonAlias RequestedByPersonAlias { get; set; }
+
+        /// <summary />
+        public DefinedValue RequestStatusValue { get; set; }
 
         /// <summary />
         public DateTime? CreatedDateTime { get; set; }
@@ -118,11 +122,14 @@ namespace Rock.Client
         /// <summary />
         public int? ModifiedByPersonAliasId { get; set; }
 
-        /// <summary />
-        public Guid Guid { get; set; }
+        /// <summary>
+        /// NOTE: Attributes are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.Attribute> Attributes { get; set; }
 
-        /// <summary />
-        public string ForeignId { get; set; }
-
+        /// <summary>
+        /// NOTE: AttributeValues are only populated when ?loadAttributes is specified. Options for loadAttributes are true, false, 'simple', 'expanded' 
+        /// </summary>
+        public Dictionary<string, Rock.Client.AttributeValue> AttributeValues { get; set; }
     }
 }
