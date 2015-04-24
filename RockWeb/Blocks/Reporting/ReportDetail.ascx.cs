@@ -962,11 +962,17 @@ namespace RockWeb.Blocks.Reporting
                                 BoundField boundField;
 
                                 if ( attribute.FieldType.Guid.Equals( Rock.SystemGuid.FieldType.BOOLEAN.AsGuid() ) )
+                                {
                                     boundField = new BoolField();
+                                }
                                 else if ( attribute.FieldType.Guid.Equals( Rock.SystemGuid.FieldType.DEFINED_VALUE.AsGuid() ) )
+                                {
                                     boundField = new DefinedValueField();
+                                }
                                 else
+                                {
                                     boundField = new BoundField();
+                                }
 
                                 boundField.DataField = string.Format( "Attribute_{0}_{1}", attribute.Id, columnIndex );
                                 boundField.HeaderText = string.IsNullOrWhiteSpace( reportField.ColumnHeaderText ) ? attribute.Name : reportField.ColumnHeaderText;
