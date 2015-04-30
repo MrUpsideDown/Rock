@@ -294,7 +294,7 @@ img.jcrop-preview {
   bottom: 0;
   width: 100%;
   height: 26px;
-  z-index: 1001;
+  z-index: 1049;
   position: fixed;
   right: 0;
   margin-right: 0;
@@ -3204,7 +3204,8 @@ table.attribute-grid tr th:nth-child(3) {
   text-align: center;
   margin-top: 0;
 }
-.personprofilebar-bio .name .full-name {
+.personprofilebar-bio .name .full-name,
+.personprofilebar-bio .name .previous-names {
   font-size: 18px;
   display: none;
 }
@@ -3697,7 +3698,8 @@ span.field-value {
   .personprofilebar-bio .name {
     text-align: left;
   }
-  .personprofilebar-bio .name .full-name {
+  .personprofilebar-bio .name .full-name,
+  .personprofilebar-bio .name .previous-names {
     display: inline;
   }
   .personprofilebar-bio .labels {

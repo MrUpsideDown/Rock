@@ -36,7 +36,7 @@ namespace RockWeb.Blocks.Finance
     [DisplayName( "Benevolence Request Detail" )]
     [Category( "Finance" )]
     [Description( "Block for users to create, edit, and view benevolence requests." )]
-    [GroupField( "Case Worker Group", "The group to draw case workers from", true, "26E7148C-2059-4F45-BCFE-32230A12F0DC" )]
+    [SecurityRoleField( "Case Worker Role", "The security role to draw case workers from", true, Rock.SystemGuid.Group.GROUP_BENEVOLENCE )]
     public partial class BenevolenceRequestDetail : Rock.Web.UI.RockBlock
     {
         #region ViewState and Dynamic Controls
@@ -185,7 +185,7 @@ namespace RockWeb.Blocks.Finance
                 ddlResultType.AutoPostBack = false;
                 ddlResultType.Required = true;
                 ddlResultType.BindToDefinedType( DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.BENEVOLENCE_RESULT_TYPE ) ), true );
-                ddlResultType.SelectedValue = resultInfo.ResultTypeValueId.ToString();
+                ddlResultType.SetValue( resultInfo.ResultTypeValueId );
                 dtbResultSummary.Text = resultInfo.ResultSummary;
                 dtbAmount.Text = resultInfo.Amount.ToString();
                 hfInfoGuid.Value = e.RowKeyValue.ToString();
@@ -303,9 +303,9 @@ namespace RockWeb.Blocks.Finance
                 }
 
                 benevolenceRequest.RequestedByPersonAliasId = ppPerson.PersonAliasId;
-                benevolenceRequest.CaseWorkerPersonAliasId = ddlCaseWorker.SelectedItem.Value.AsIntegerOrNull();
-                benevolenceRequest.RequestStatusValueId = ddlRequestStatus.SelectedItem.Value.AsIntegerOrNull();
-                benevolenceRequest.ConnectionStatusValueId = ddlConnectionStatus.SelectedItem.Value.AsIntegerOrNull();
+                benevolenceRequest.CaseWorkerPersonAliasId = ddlCaseWorker.SelectedValue.AsIntegerOrNull();
+                benevolenceRequest.RequestStatusValueId = ddlRequestStatus.SelectedValue.AsIntegerOrNull();
+                benevolenceRequest.ConnectionStatusValueId = ddlConnectionStatus.SelectedValue.AsIntegerOrNull();
 
                 if ( dpRequestDate.SelectedDate.HasValue )
                 {
@@ -397,7 +397,7 @@ namespace RockWeb.Blocks.Finance
                     dtbLastName.Text = person.LastName;
                     dtbLastName.Enabled = false;
 
-                    ddlConnectionStatus.SelectedValue = person.ConnectionStatusValueId.ToString();
+                    ddlConnectionStatus.SetValue( person.ConnectionStatusValueId );
                     ddlConnectionStatus.Enabled = false;
 
                     var homePhoneType = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_HOME.AsGuid() );
@@ -498,7 +498,6 @@ namespace RockWeb.Blocks.Finance
             if ( benevolenceRequest.RequestedByPersonAlias != null )
             {
                 ppPerson.SetValue( benevolenceRequest.RequestedByPersonAlias.Person );
-                ppPerson_SelectPerson( null, null );
             }
             else
             {
@@ -526,7 +525,7 @@ namespace RockWeb.Blocks.Finance
 
             if ( benevolenceRequest.RequestStatusValueId != null )
             {
-                ddlRequestStatus.SelectedValue = benevolenceRequest.RequestStatusValueId.ToString();
+                ddlRequestStatus.SetValue( benevolenceRequest.RequestStatusValueId );
 
                 if ( benevolenceRequest.RequestStatusValue.Value == "Approved" )
                 {
@@ -543,12 +542,25 @@ namespace RockWeb.Blocks.Finance
 
             if ( benevolenceRequest.ConnectionStatusValueId != null )
             {
-                ddlConnectionStatus.SelectedValue = benevolenceRequest.ConnectionStatusValueId.ToString();
+                ddlConnectionStatus.SetValue( benevolenceRequest.ConnectionStatusValueId );
+            }
+            
+            string caseWorkerPersonAliasValue = benevolenceRequest.CaseWorkerPersonAliasId.ToString();
+            if (!string.IsNullOrWhiteSpace(caseWorkerPersonAliasValue))
+            {
+                if (!ddlCaseWorker.Items.OfType<ListItem>().Any(a => a.Value == caseWorkerPersonAliasValue))
+                {
+                    // if the current case worker is no longer part of the Case Worker Role, add them to the list
+                    ddlCaseWorker.Items.Add( new ListItem( benevolenceRequest.CaseWorkerPersonAlias.Person.FullName, caseWorkerPersonAliasValue ) );
+                }
             }
 
-            ddlCaseWorker.SelectedValue = benevolenceRequest.CaseWorkerPersonAliasId.ToString();
+            ddlCaseWorker.SetValue( caseWorkerPersonAliasValue );
 
             BindGridFromViewState();
+
+            // call the OnSelectPerson of the person picker which will update the UI based on the selected person
+            ppPerson_SelectPerson( null, null );
         }
 
         /// <summary>
@@ -568,7 +580,7 @@ namespace RockWeb.Blocks.Finance
         {
             ddlRequestStatus.BindToDefinedType( DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.BENEVOLENCE_REQUEST_STATUS ) ), false );
             ddlConnectionStatus.BindToDefinedType( DefinedTypeCache.Read( new Guid( Rock.SystemGuid.DefinedType.PERSON_CONNECTION_STATUS ) ), true );
-            Guid groupGuid = GetAttributeValue( "CaseWorkerGroup" ).AsGuid();
+            Guid groupGuid = GetAttributeValue( "CaseWorkerRole" ).AsGuid();
             var listData = new GroupMemberService( new RockContext() ).Queryable( "Person, Group" )
                 .Where( gm => gm.Group.Guid == groupGuid )
                 .Select( gm => gm.Person )
