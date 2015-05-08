@@ -29,6 +29,9 @@ namespace Rock.Migrations
             MigrationsNamespace = "Rock.Migrations";
             CodeGenerator = new RockCSharpMigrationCodeGenerator<Rock.Data.RockContext>();
             CommandTimeout = 300;
+
+            // Verify that the environment is configured correctly for the migration to proceed.
+            Rock.Data.MigrationHelper.ValidateConfiguration();
         }
 
         protected override void Seed(Rock.Data.RockContext context)

@@ -14,6 +14,9 @@
 // limitations under the License.
 // </copyright>
 //
+
+using Rock.Data;
+
 namespace Rock.Migrations
 {
     using System;
@@ -40,7 +43,10 @@ namespace Rock.Migrations
         [UserLogin] L
         INNER JOIN [EntityType] ET ON ET.[Id] = L.[entityTypeId] AND ET.[Guid] = '4E9B798F-BB68-4C0E-9707-0928D15AB020'
 ";
-            var rdr = Rock.Data.DbService.GetDataReader( qry, System.Data.CommandType.Text, null );
+
+            string connectionString = MigrationHelper.GetTargetConnectionString();
+
+            var rdr = Rock.Data.DbService.GetDataReader( connectionString, qry, System.Data.CommandType.Text, null );
             while ( rdr.Read() )
             {
                 var hash = new System.Security.Cryptography.HMACSHA1();
@@ -58,7 +64,7 @@ namespace Rock.Migrations
         [Id] = {1}
 ", newPassword, rdr["Id"].ToString() );
 
-                Rock.Data.DbService.ExecuteCommand( updateQry, System.Data.CommandType.Text );
+                Rock.Data.DbService.ExecuteCommand( connectionString, updateQry, System.Data.CommandType.Text );
             }
 
             rdr.Close();

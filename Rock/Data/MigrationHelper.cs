@@ -15,6 +15,8 @@
 // </copyright>
 //
 using System;
+using System.Configuration;
+using System.Linq;
 using System.Text;
 using Rock.Model;
 
@@ -34,6 +36,52 @@ namespace Rock.Data
         public MigrationHelper( IMigration migration )
         {
             Migration = migration;
+        }
+
+        /// <summary>
+        /// Get a connection string for the database being migrated.
+        /// The connection string may either be specified on the command-line or in the application configuration file.
+        /// </summary>
+        /// <returns></returns>
+        public static string GetTargetConnectionString()
+        {                        
+            // Get a connection string parameter from the command-line if it exists.
+            var commandLineArgs = Environment.GetCommandLineArgs();
+
+            var connectionString = commandLineArgs.FirstOrDefault( x => x.StartsWith( "/connectionString=", StringComparison.OrdinalIgnoreCase ) );
+
+            if ( connectionString != null )
+            {
+                // If a connection string was specified on the command line of the executing application, it takes precendence over the configuration setting.
+                // This occurs where the migration is started using a command-line tool such as the Entity Framework "migrate.exe" utility.
+                connectionString = connectionString.Substring( "/connectionString=".Length );
+            }
+            else
+            {
+                // Read the connection string from the configuration file.
+                var connectionStringSetting = ConfigurationManager.ConnectionStrings["RockContext"];
+                
+                if (connectionStringSetting != null)
+                {
+                    connectionString = connectionStringSetting.ConnectionString;
+                }
+            }
+
+            return connectionString;
+        }
+
+        /// <summary>
+        /// Validate the environment in which migrations will be executed.
+        /// If the configuration is not valid, the migration process can terminate with unexpected errors that are difficult to troubleshoot.
+        /// </summary>
+        public static void ValidateConfiguration()
+        {
+            // Verify that a connection string is available for the target.
+            // Some Migrations require this setting to read data fom the target database during the update process.
+            if ( string.IsNullOrWhiteSpace( GetTargetConnectionString() ))
+            {
+                throw new Exception( "The Rock Database Migrations feature is not configured correctly. The application configuration file must contain a \"RockContext\" ConnectionString entry, or the command-line must specify a \"/connectionString\" parameter." );
+            }
         }
 
         /// <summary>
