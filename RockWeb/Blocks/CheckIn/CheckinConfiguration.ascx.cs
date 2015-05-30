@@ -495,6 +495,7 @@ namespace RockWeb.Blocks.CheckIn
             Group checkinGroup = new Group();
             checkinGroup.Guid = Guid.NewGuid();
             checkinGroup.IsActive = true;
+            checkinGroup.IsPublic = true;
             checkinGroup.IsSystem = false;
 
             // set GroupType by Guid (just in case the parent groupType hasn't been added to the database yet)
@@ -555,7 +556,10 @@ namespace RockWeb.Blocks.CheckIn
             groupEditor.DeleteGroupClick += groupEditor_DeleteGroupClick;
 
             foreach ( var childGroup in group.Groups
-                .Where( a => !ProcessedGroupIds.Contains( a.Guid ))
+                .Where( a => 
+                    !ProcessedGroupIds.Contains( a.Guid ) &&
+                    a.GroupTypeId == group.GroupTypeId
+                    )
                 .OrderBy( a => a.Order ).ThenBy( a => a.Name ) )
             {
                 childGroup.GroupType = group.GroupType;
@@ -577,6 +581,7 @@ namespace RockWeb.Blocks.CheckIn
             Group checkinGroup = new Group();
             checkinGroup.Guid = Guid.NewGuid();
             checkinGroup.IsActive = true;
+            checkinGroup.IsPublic = true;
             checkinGroup.IsSystem = false;
 
             // set GroupType by Guid (just in case the parent groupType hasn't been added to the database yet)
@@ -1020,6 +1025,9 @@ namespace RockWeb.Blocks.CheckIn
                 }
 
                 rockContext.SaveChanges();
+
+                AttributeCache.FlushEntityAttributes();
+
             } );
 
             if ( !hasValidationErrors )

@@ -38,6 +38,7 @@ namespace Rock.Model
         /// <param name="state">A <see cref="System.String" /> representing the State to search by.</param>
         /// <param name="postalCode">A <see cref="System.String" /> representing the Zip/Postal code to search by</param>
         /// <param name="country">The country.</param>
+        /// <param name="verifyLocation">if set to <c>true</c> [verify location].</param>
         /// <returns>
         /// The first <see cref="Rock.Model.Location" /> where an address match is found, if no match is found a new <see cref="Rock.Model.Location" /> is created and returned.
         /// </returns>
@@ -238,6 +239,45 @@ namespace Rock.Model
                 )
                 SELECT * FROM CTE
                 ", parentLocationId ) );
+        }
+
+        /// <summary>
+        /// Gets all ancestors.
+        /// </summary>
+        /// <param name="locationId">The location identifier.</param>
+        /// <returns></returns>
+        public IEnumerable<Location> GetAllAncestors( int locationId )
+        {
+            return ExecuteQuery( string.Format(
+                @"
+                WITH CTE AS (
+                    SELECT * FROM [Location] WHERE [Id]={0}
+                    UNION ALL
+                    SELECT [a].* FROM [Location] [a]
+                    INNER JOIN CTE ON CTE.[ParentLocationId] = [a].[Id]
+                )
+                SELECT * FROM CTE
+                WHERE [Name] IS NOT NULL 
+                AND [Name] <> ''
+                ", locationId ) );
+        }
+
+        /// <summary>
+        /// Gets the path.
+        /// </summary>
+        /// <param name="locationId">The location identifier.</param>
+        /// <returns></returns>
+        public string GetPath( int locationId )
+        {
+            var locations = GetAllAncestors( locationId );
+            if ( locations.Any() )
+            {
+                var locationNames = locations.Select( l => l.Name ).ToList();
+                locationNames.Reverse();
+                return locationNames.AsDelimited( " > " );
+            }
+
+            return string.Empty;
         }
 
         /// <summary>

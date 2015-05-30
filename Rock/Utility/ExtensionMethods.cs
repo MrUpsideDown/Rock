@@ -345,6 +345,39 @@ namespace Rock
                 return result;
             }
 
+            if ( myObject is Newtonsoft.Json.Linq.JObject )
+            {
+                var result = new Dictionary<string, object>();
+                var jObject = myObject as Newtonsoft.Json.Linq.JObject;
+
+                foreach ( var keyValue in jObject )
+                {
+                    try
+                    {
+                        result.Add( keyValue.Key, keyValue.Value.LiquidizeChildren( levelsDeep, rockContext, keyValue.Key ) );
+                    }
+                    catch ( Exception ex )
+                    {
+                        result.Add( keyValue.Key, ex.ToString() );
+                    }
+                }
+
+                return result;
+            }
+
+            if ( myObject is Newtonsoft.Json.Linq.JValue )
+            {
+                var jValue = ( myObject as Newtonsoft.Json.Linq.JValue );
+                if (jValue != null && jValue.Value != null)
+                {
+                    return jValue.Value.ToString();
+                }
+                else
+                {
+                    return string.Empty;
+                }
+            }
+
             if ( myObject is IEnumerable )
             {
                 var result = new List<object>();
@@ -529,7 +562,7 @@ namespace Rock
         #region String Extensions
 
         /// <summary>
-        /// Removed special characters from strings.
+        /// Removes special characters from the string so that only Alpha, Numeric, '.' and '_' remain;
         /// </summary>
         /// <param name="str">The identifier.</param>
         /// <returns></returns>
@@ -1757,6 +1790,39 @@ namespace Rock
             return dateTime.ToString( mdp );
         }
 
+        /// <summary>
+        /// Returns the date of the start of the week for the specified date/time
+        /// For example, if Monday is considered the start of the week: "2015-05-13" would return "2015-05-11"
+        /// from http://stackoverflow.com/a/38064/1755417
+        /// </summary>
+        /// <param name="dt">The dt.</param>
+        /// <param name="startOfWeek">The start of week.</param>
+        /// <returns></returns>
+        public static DateTime StartOfWeek( this DateTime dt, DayOfWeek startOfWeek )
+        {
+            int diff = dt.DayOfWeek - startOfWeek;
+            if ( diff < 0 )
+            {
+                diff += 7;
+            }
+
+            return dt.AddDays( -1 * diff ).Date;
+        }
+
+        /// <summary>
+        /// Returns the date of the last day of the week for the specified date/time
+        /// For example, if Monday is considered the start of the week: "2015-05-13" would return "2015-05-17"
+        /// from http://stackoverflow.com/a/38064/1755417
+        /// </summary>
+        /// <param name="dt">The dt.</param>
+        /// <param name="startOfWeek">The start of week.</param>
+        /// <returns></returns>
+        public static DateTime EndOfWeek( this DateTime dt, DayOfWeek startOfWeek )
+        {
+            return dt.StartOfWeek( startOfWeek ).AddDays( 6 );
+        }
+
+
         #endregion DateTime Extensions
 
         #region TimeSpan Extensions
@@ -2492,6 +2558,28 @@ namespace Rock
         public static IOrderedQueryable<T> OrderBy<T>( this IQueryable<T> source, string property )
         {
             return ApplyOrder<T>( source, property, "OrderBy" );
+        }
+
+        /// <summary>
+        /// Distincts the by.
+        /// </summary>
+        /// <typeparam name="TSource">The type of the source.</typeparam>
+        /// <typeparam name="TKey">The type of the key.</typeparam>
+        /// <param name="source">The source.</param>
+        /// <param name="keySelector">The key selector.</param>
+        /// <returns></returns>
+        /// http://stackoverflow.com/questions/489258/linq-distinct-on-a-particular-property
+        public static IEnumerable<TSource> DistinctBy<TSource, TKey>
+            (this IEnumerable<TSource> source, Func<TSource, TKey> keySelector)
+        {
+            HashSet<TKey> seenKeys = new HashSet<TKey>();
+            foreach (TSource element in source)
+            {
+                if (seenKeys.Add(keySelector(element)))
+                {
+                    yield return element;
+                }
+            }
         }
 
         /// <summary>
