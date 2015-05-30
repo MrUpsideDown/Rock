@@ -368,7 +368,7 @@ namespace Rock.Web.UI.Controls
         /// <value>
         /// The merge page route.
         /// </value>
-        [Obsolete("Use PersonMergePageRoute instead")]
+        [Obsolete( "Use PersonMergePageRoute instead" )]
         public virtual string MergePageRoute
         {
             get
@@ -1376,16 +1376,16 @@ namespace Rock.Web.UI.Controls
                     var selectedKeys = SelectedKeys.ToList();
                     foreach ( var dataItem in dataItems )
                     {
-                        if (selectedKeys.Any() && this.DataKeyNames.Count() == 1)
+                        if ( selectedKeys.Any() && this.DataKeyNames.Count() == 1 )
                         {
                             var dataKeyValue = dataItem.GetPropertyValue( this.DataKeyNames[0] );
-                            if (!selectedKeys.Contains(dataKeyValue))
+                            if ( !selectedKeys.Contains( dataKeyValue ) )
                             {
                                 // if there are specific rows selected, skip over rows that aren't selected
                                 continue;
                             }
                         }
-                        
+
                         GridViewRowEventArgs args = new GridViewRowEventArgs( gridViewRow );
                         gridViewRow.DataItem = dataItem;
                         this.OnRowDataBound( args );
@@ -1503,10 +1503,10 @@ namespace Rock.Web.UI.Controls
                     var selectedKeys = SelectedKeys.ToList();
                     foreach ( var item in data )
                     {
-                        if (selectedKeys.Any() && this.DataKeyNames.Count() == 1)
+                        if ( selectedKeys.Any() && this.DataKeyNames.Count() == 1 )
                         {
                             var dataKeyValue = item.GetPropertyValue( this.DataKeyNames[0] );
-                            if (!selectedKeys.Contains(dataKeyValue))
+                            if ( !selectedKeys.Contains( dataKeyValue ) )
                             {
                                 // if there are specific rows selected, skip over rows that aren't selected
                                 continue;
@@ -2251,7 +2251,7 @@ namespace Rock.Web.UI.Controls
                 {
                     // since Reporting fieldnames are dynamic and can have special internal names, use the header text instead of the datafield name
                     bool useHeaderNamesIfAvailable = item.GetType().Assembly.IsDynamic;
-                    
+
                     var idVal = idProp.GetValue( item ) as int?;
                     if ( idVal.HasValue && selectedKeys.Contains( idVal.Value ) )
                     {
