@@ -15,8 +15,7 @@
 // </copyright>
 //
 using System;
-using System.Data.Entity;
-using System.Linq;
+using System.Runtime.Caching;
 
 using Newtonsoft.Json;
 
@@ -166,24 +165,37 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static PersonBadgeCache Read( int id, RockContext rockContext = null )
         {
-            return GetOrAddExisting( PersonBadgeCache.CacheKey( id ),
-                () => LoadById( id, rockContext ) );
+            string cacheKey = PersonBadgeCache.CacheKey( id );
+
+            ObjectCache cache = RockMemoryCache.Default;
+            PersonBadgeCache personBadge = cache[cacheKey] as PersonBadgeCache;
+
+            if ( personBadge == null )
+            {
+                if ( rockContext != null )
+                {
+                    personBadge = LoadById( id, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        personBadge = LoadById( id, myRockContext );
+                    }
+                }
+
+                if ( personBadge != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, personBadge, cachePolicy );
+                    cache.Set( personBadge.Guid.ToString(), personBadge.Id, cachePolicy );
+                }
+            }
+
+            return personBadge;
         }
 
         private static PersonBadgeCache LoadById( int id, RockContext rockContext )
-        {
-            if ( rockContext != null )
-            {
-                return LoadById2( id, rockContext );
-            }
-
-            using ( var rockContext2 = new RockContext() )
-            {
-                return LoadById2( id, rockContext2 );
-            }
-        }
-
-        private static PersonBadgeCache LoadById2( int id, RockContext rockContext )
         {
             var personBadgeService = new PersonBadgeService( rockContext );
             var personBadgeModel = personBadgeService.Get( id );
@@ -204,33 +216,51 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static PersonBadgeCache Read( Guid guid, RockContext rockContext = null )
         {
-            int id = GetOrAddExisting( guid.ToString(),
-                () => LoadByGuid( guid, rockContext ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            object cacheObj = cache[guid.ToString()];
 
-            return Read( id, rockContext );
-        }
-
-        private static int LoadByGuid( Guid guid, RockContext rockContext )
-        {
-            if ( rockContext != null )
+            PersonBadgeCache personBadge = null;
+            if ( cacheObj != null )
             {
-                return LoadByGuid2( guid, rockContext );
+                personBadge = Read( (int)cacheObj, rockContext );
             }
 
-            using ( var rockContext2 = new RockContext() )
+            if ( personBadge == null )
             {
-                return LoadByGuid2( guid, rockContext2 );
+                if ( rockContext != null )
+                {
+                    personBadge = LoadByGuid( guid, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        personBadge = LoadByGuid( guid, myRockContext );
+                    }
+                }
+
+                if ( personBadge != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( PersonBadgeCache.CacheKey( personBadge.Id ), personBadge, cachePolicy );
+                    cache.Set( personBadge.Guid.ToString(), personBadge.Id, cachePolicy );
+                }
             }
+
+            return personBadge;
         }
 
-        private static int LoadByGuid2( Guid guid, RockContext rockContext )
+        private static PersonBadgeCache LoadByGuid( Guid guid, RockContext rockContext )
         {
             var personBadgeService = new PersonBadgeService( rockContext );
-            return personBadgeService
-                .Queryable().AsNoTracking()
-                .Where( c => c.Guid.Equals( guid ) )
-                .Select( c => c.Id )
-                .FirstOrDefault();
+            var personBadgeModel = personBadgeService.Get( guid );
+            if ( personBadgeModel != null )
+            {
+                personBadgeModel.LoadAttributes( rockContext );
+                return new PersonBadgeCache( personBadgeModel );
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -240,17 +270,23 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static PersonBadgeCache Read( PersonBadge personBadgeModel )
         {
-            return GetOrAddExisting( PersonBadgeCache.CacheKey( personBadgeModel.Id ),
-                () => LoadByModel( personBadgeModel ) );
-        }
+            string cacheKey = PersonBadgeCache.CacheKey( personBadgeModel.Id );
+            ObjectCache cache = RockMemoryCache.Default;
+            PersonBadgeCache personBadge = cache[cacheKey] as PersonBadgeCache;
 
-        private static PersonBadgeCache LoadByModel( PersonBadge personBadgeModel )
-        {
-            if ( personBadgeModel != null )
+            if ( personBadge != null )
             {
-                return new PersonBadgeCache( personBadgeModel );
+                personBadge.CopyFromModel( personBadgeModel );
             }
-            return null;
+            else
+            {
+                personBadge = new PersonBadgeCache( personBadgeModel );
+                var cachePolicy = new CacheItemPolicy();
+                cache.Set( cacheKey, personBadge, cachePolicy );
+                cache.Set( personBadge.Guid.ToString(), personBadge.Id, cachePolicy );
+            }
+
+            return personBadge;
         }
 
         /// <summary>
@@ -259,7 +295,8 @@ namespace Rock.Web.Cache
         /// <param name="id"></param>
         public static void Flush( int id )
         {
-            FlushCache( PersonBadgeCache.CacheKey( id ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            cache.Remove( PersonBadgeCache.CacheKey( id ) );
         }
 
         /// <summary>

@@ -19,8 +19,6 @@
                 if (Page_IsValid) {
                     $(btn).button('loading');
                 }
-
-                return true;
             }
         };
 

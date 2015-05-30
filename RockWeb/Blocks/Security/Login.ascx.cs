@@ -153,7 +153,6 @@ Sorry, your account has been locked.  Please contact our office at {{ GlobalAttr
 
         /// <summary>
         /// Handles the Click event of the btnLogin control.
-        /// NOTE: This is the btnLogin for Internal Auth
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="System.EventArgs"/> instance containing the event data.</param>
@@ -220,7 +219,6 @@ Sorry, your account has been locked.  Please contact our office at {{ GlobalAttr
 
         /// <summary>
         /// Handles the Click event of the lbLogin control.
-        /// NOTE: This is the lbLogin for External/Remote logins
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
@@ -240,16 +238,9 @@ Sorry, your account has been locked.  Please contact our office at {{ GlobalAttr
                         if ( lb.ID == "lb" + loginTypeName + "Login" )
                         {
                             Uri uri = component.GenerateLoginUrl( Request );
-                            if ( uri != null )
-                            {
-                                Response.Redirect( uri.AbsoluteUri, false );
-                                Context.ApplicationInstance.CompleteRequest();
-                                return;
-                            }
-                            else
-                            {
-                                DisplayError( string.Format("ERROR: {0} does not have a remote login URL", loginTypeName ));
-                            }
+                            Response.Redirect( uri.AbsoluteUri, false );
+                            Context.ApplicationInstance.CompleteRequest();
+                            return;
                         }
                     }
                 }

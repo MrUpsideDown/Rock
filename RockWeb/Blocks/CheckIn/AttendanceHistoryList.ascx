@@ -20,11 +20,16 @@
                     </Rock:GridFilter>
                     <Rock:Grid ID="gHistory" runat="server" DisplayType="Full" AllowSorting="true" EmptyDataText="No Attendance Found" OnRowDataBound="gHistory_RowDataBound" >
                         <Columns>
-                            <Rock:RockLiteralField HeaderText="Location" ID="lLocationName" SortExpression="LocationName" />
+                            <Rock:RockBoundField DataField="LocationName" HeaderText="Location" SortExpression="LocationName" />
                             <Rock:CampusField DataField="CampusId" HeaderText="Campus" SortExpression="CampusName" />
                             <Rock:RockBoundField DataField="ScheduleName" HeaderText="Schedule" SortExpression="ScheduleName" />
                             <Rock:PersonField DataField="Person" HeaderText="Person" SortExpression="Person.LastName, Person.NickName" />
-                            <Rock:RockLiteralField HeaderText="Group" ID="lGroupName" SortExpression="GroupName" />
+                            <Rock:RockTemplateField HeaderText="Group" SortExpression="GroupName" >
+                                <ItemTemplate>
+                                    <asp:Literal ID="lGroupName" runat="server" />
+                                        
+                                </ItemTemplate>
+                            </Rock:RockTemplateField>
                             <Rock:DateTimeField DataField="StartDateTime" HeaderText="Start Date Time" SortExpression="StartDateTime" />
                             <Rock:DateTimeField DataField="EndDateTime" HeaderText="End Date Time" SortExpression="EndDateTime" />
                         </Columns>

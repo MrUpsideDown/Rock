@@ -131,10 +131,8 @@ namespace Rock.Data
                 }
             }
 
-            bool enableAuditing = Rock.Web.Cache.GlobalAttributesCache.Value( "EnableAuditing" ).AsBoolean();
-
             // Evaluate the current context for items that have changes
-            var updatedItems = RockPreSave( this, personAlias, enableAuditing );
+            var updatedItems = RockPreSave( this, personAlias );
 
             // If update was not cancelled by triggered workflow
             if ( updatedItems != null )
@@ -161,7 +159,7 @@ namespace Rock.Data
                 // If any items changed process audit and triggers
                 if ( updatedItems.Any() )
                 {
-                    RockPostSave( updatedItems, personAlias, enableAuditing );
+                    RockPostSave( updatedItems, personAlias );
                 }
             }
 
@@ -173,9 +171,8 @@ namespace Rock.Data
         /// </summary>
         /// <param name="dbContext">The database context.</param>
         /// <param name="personAlias">The person alias.</param>
-        /// <param name="enableAuditing">if set to <c>true</c> [enable auditing].</param>
         /// <returns></returns>
-        protected virtual List<ContextItem> RockPreSave( DbContext dbContext, PersonAlias personAlias, bool enableAuditing = false )
+        protected virtual List<ContextItem> RockPreSave( DbContext dbContext, PersonAlias personAlias )
         {
             int? personAliasId = null;
             if ( personAlias != null )
@@ -268,16 +265,13 @@ namespace Rock.Data
                     }
                 }
 
-                if ( enableAuditing )
+                try
                 {
-                    try
-                    {
-                            GetAuditDetails( dbContext, contextItem, personAliasId );
-                    }
-                    catch ( SystemException ex )
-                    {
-                        ExceptionLogService.LogException( ex, null );
-                    }
+                    GetAuditDetails( dbContext, contextItem, personAliasId );
+                }
+                catch ( SystemException ex )
+                {
+                    ExceptionLogService.LogException( ex, null );
                 }
 
                 updatedItems.Add( contextItem );
@@ -291,25 +285,21 @@ namespace Rock.Data
         /// </summary>
         /// <param name="updatedItems">The updated items.</param>
         /// <param name="personAlias">The person alias.</param>
-        /// <param name="enableAuditing">if set to <c>true</c> [enable auditing].</param>
-        protected virtual void RockPostSave( List<ContextItem> updatedItems, PersonAlias personAlias, bool enableAuditing = false )
+        protected virtual void RockPostSave( List<ContextItem> updatedItems, PersonAlias personAlias )
         {
-            if ( enableAuditing )
+            try
             {
-                try
+                var audits = updatedItems.Select( i => i.Audit ).ToList();
+                if ( audits.Any( a => a.Details.Any() ) )
                 {
-                    var audits = updatedItems.Select( i => i.Audit ).ToList();
-                    if ( audits.Any( a => a.Details.Any() ) )
-                    {
-                        var transaction = new Rock.Transactions.AuditTransaction();
-                        transaction.Audits = audits;
-                        Rock.Transactions.RockQueue.TransactionQueue.Enqueue( transaction );
-                    }
+                    var transaction = new Rock.Transactions.AuditTransaction();
+                    transaction.Audits = audits;
+                    Rock.Transactions.RockQueue.TransactionQueue.Enqueue( transaction );
                 }
-                catch ( SystemException ex )
-                {
-                    ExceptionLogService.LogException( ex, null );
-                }
+            }
+            catch ( SystemException ex )
+            {
+                ExceptionLogService.LogException( ex, null );
             }
 
             foreach ( var item in updatedItems )

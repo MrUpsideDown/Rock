@@ -80,12 +80,6 @@ namespace Rock.Web.UI.Controls
         /// </returns>
         protected override string FormatDataValue( object dataValue, bool encode )
         {
-            // if the dataValue is a string, try to convert it to a DateTime
-            if ( dataValue is string )
-            {
-                dataValue = ( dataValue as string ).AsDateTime();
-            }
-
             if ( FormatAsElapsedTime )
             {
                 DateTime dateValue = DateTime.MinValue;

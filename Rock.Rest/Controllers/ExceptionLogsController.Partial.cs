@@ -20,11 +20,14 @@
 // limitations under the License.
 // </copyright>
 //
+
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
+using System.Web.Http;
+using System.Web.Routing;
 
-using Rock.Chart;
+using Rock.Data;
 using Rock.Rest.Filters;
 
 namespace Rock.Rest.Controllers

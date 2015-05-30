@@ -783,8 +783,6 @@ namespace RockWeb.Blocks.Cms
                 attr.Order = newOrder++;
                 Rock.Attribute.Helper.SaveAttributeEdits( attr, entityTypeId, qualifierColumn, qualifierValue, rockContext );
             }
-
-            AttributeCache.FlushEntityAttributes();
         }
 
         /// <summary>

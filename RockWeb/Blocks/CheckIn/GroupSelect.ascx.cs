@@ -50,7 +50,7 @@ namespace RockWeb.Blocks.CheckIn
                     ClearSelection();
 
                     CheckInPerson person = null;
-                    List<CheckInGroupType> groupTypes = null;
+                    CheckInGroupType groupType = null;
 
                     person = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
                         .SelectMany( f => f.People.Where( p => p.Selected ) )
@@ -58,22 +58,19 @@ namespace RockWeb.Blocks.CheckIn
 
                     if ( person != null )
                     {
-                        groupTypes = person.GroupTypes.Where( t => t.Selected ).ToList();
+                        groupType = person.GroupTypes.Where( t => t.Selected )
+                                .FirstOrDefault();
                     }
 
-                    if ( groupTypes == null || !groupTypes.Any() )
+                    if ( groupType == null )
                     {
                         GoBack();
                     }
 
                     lTitle.Text = person.ToString();
-                    lSubTitle.Text = groupTypes
-                        .Where( t => t.GroupType != null )
-                        .Select( t => t.GroupType.Name )
-                        .ToList().AsDelimited( ", " );
+                    lSubTitle.Text = groupType.ToString();
 
-                    var availGroups = groupTypes
-                        .SelectMany( t => t.Groups.Where( g => !g.ExcludedByFilter) ).ToList();
+                    var availGroups = groupType.Groups.Where( g => !g.ExcludedByFilter).ToList();
                     if ( availGroups.Count == 1 )
                     {
                         if ( UserBackedUp )
@@ -122,16 +119,15 @@ namespace RockWeb.Blocks.CheckIn
         {
             if ( KioskCurrentlyActive )
             {
-                var groupTypes = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
-                    .SelectMany( f => f.People.Where( p => p.Selected )
+                var groupType = CurrentCheckInState.CheckIn.Families.Where( f => f.Selected )
+                    .SelectMany( f => f.People.Where( p => p.Selected ) 
                         .SelectMany( p => p.GroupTypes.Where( t => t.Selected ) ) )
-                            .ToList();
+                    .FirstOrDefault();
 
-                if ( groupTypes != null && groupTypes.Any() )
+                if ( groupType != null )
                 {
                     int id = Int32.Parse( e.CommandArgument.ToString() );
-                    var group = groupTypes.SelectMany( t => t.Groups)
-                        .Where( g => g.Group.Id == id ).FirstOrDefault();
+                    var group = groupType.Groups.Where( g => g.Group.Id == id ).FirstOrDefault();
                     if ( group != null )
                     {
                         group.Selected = true;

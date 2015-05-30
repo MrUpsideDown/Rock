@@ -16,7 +16,6 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
@@ -102,14 +101,15 @@ namespace RockWeb.Blocks.CheckIn
         {
             using ( var rockContext = new RockContext() )
             {
+                GroupTypeService groupTypeService = new GroupTypeService( rockContext );
+                SortProperty sortProperty = gGroupType.SortProperty;
+
+                var qry = groupTypeService.Queryable();
+
                 // limit to show only GroupTypes that have a group type purpose of Checkin Template
                 int groupTypePurposeCheckInTemplateId = DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.GROUPTYPE_PURPOSE_CHECKIN_TEMPLATE ) ).Id;
+                qry = qry.Where( a => a.GroupTypePurposeValueId == groupTypePurposeCheckInTemplateId );
 
-                var qry = new GroupTypeService( rockContext )
-                    .Queryable().AsNoTracking()
-                    .Where( a => a.GroupTypePurposeValueId == groupTypePurposeCheckInTemplateId );
-
-                SortProperty sortProperty = gGroupType.SortProperty;
                 if ( sortProperty != null )
                 {
                     gGroupType.DataSource = qry.Sort( sortProperty ).ToList();

@@ -49,7 +49,7 @@ namespace Rock.Reporting
         /// </value>
         public virtual string Section
         {
-            get { return "Advanced"; }
+            get { return "Other"; }
         }
 
         /// <summary>
@@ -75,17 +75,6 @@ namespace Rock.Reporting
         /// The name of the column property.
         /// </value>
         public abstract string ColumnPropertyName { get; }
-
-        /// <summary>
-        /// Comma-delimited list of the Entity properties that should be used for Sorting. Normally, you should leave this as null which will make it sort on the returned field 
-        /// </summary>
-        /// <value>
-        /// The sort expression.
-        /// </value>
-        public virtual string SortProperties ( string selection )
-        {
-            return null;
-        }
 
         /// <summary>
         /// Gets the type of the column field.

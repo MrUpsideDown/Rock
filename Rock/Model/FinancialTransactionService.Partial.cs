@@ -15,7 +15,10 @@
 // </copyright>
 //
 using System;
+using System.Collections.Generic;
 using System.Linq;
+
+using Rock.Data;
 
 namespace Rock.Model
 {
@@ -24,7 +27,6 @@ namespace Rock.Model
     /// </summary>
     public partial class FinancialTransactionService 
     {
-
         /// <summary>
         /// Gets a transaction by it's transaction code.
         /// </summary>
@@ -40,6 +42,5 @@ namespace Rock.Model
             }
             return null;
         }
-
     }
 }

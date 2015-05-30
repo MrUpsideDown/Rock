@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
-VisualStudioVersion = 12.0.31101.0
+VisualStudioVersion = 12.0.30501.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rock", "Rock\Rock.csproj", "{8F8C2A79-24F4-4157-8B99-45F75FA85799}"
 EndProject
@@ -41,8 +41,6 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rock.PayFlowPro", "Rock.PayFlowPro\Rock.PayFlowPro.csproj", "{05F3587D-86DD-4CF3-A80A-D8CF598E1FD1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotLiquid", "DotLiquid\DotLiquid.csproj", "{CB9372CD-9C1D-47AB-92D8-702D4D68324F}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "church.citylife.RockExtensions", "..\CityLifeExtensions\church.citylife.RockExtensions.csproj", "{496EC024-71ED-4AD1-B677-2A3FA60CCD05}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -124,18 +122,6 @@ Global
 		{CB9372CD-9C1D-47AB-92D8-702D4D68324F}.Release|Mixed Platforms.ActiveCfg = Release|Any CPU
 		{CB9372CD-9C1D-47AB-92D8-702D4D68324F}.Release|Mixed Platforms.Build.0 = Release|Any CPU
 		{CB9372CD-9C1D-47AB-92D8-702D4D68324F}.Release|x86.ActiveCfg = Release|Any CPU
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Debug|Mixed Platforms.ActiveCfg = Debug|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Debug|Mixed Platforms.Build.0 = Debug|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Debug|x86.ActiveCfg = Debug|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Debug|x86.Build.0 = Debug|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Release|Any CPU.Build.0 = Release|Any CPU
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Release|Mixed Platforms.ActiveCfg = Release|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Release|Mixed Platforms.Build.0 = Release|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Release|x86.ActiveCfg = Release|x86
-		{496EC024-71ED-4AD1-B677-2A3FA60CCD05}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

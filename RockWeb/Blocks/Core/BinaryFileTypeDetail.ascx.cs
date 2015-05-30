@@ -328,7 +328,6 @@ namespace RockWeb.Blocks.Core
 
             } );
 
-            AttributeCache.FlushEntityAttributes();
 
             NavigateToParentPage();
         }

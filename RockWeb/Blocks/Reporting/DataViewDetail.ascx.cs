@@ -594,8 +594,7 @@ $(document).ready(function() {
 
                         try
                         {
-                            grid.SetLinqDataSource( qry.AsNoTracking() );
-                            grid.DataBind();
+                            grid.DataSource = qry.AsNoTracking().ToList();
                         }
                         catch ( Exception ex )
                         {
@@ -643,6 +642,7 @@ $(document).ready(function() {
             if ( grid.DataSource != null )
             {
                 grid.ExportFilename = dataView.Name;
+                grid.DataBind();
                 return true;
             }
 

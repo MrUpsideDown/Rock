@@ -94,7 +94,6 @@ namespace Rock.Web
             var attributeService = new AttributeService( rockContext );
             var attribute = attributeService.GetSystemSetting( key );
 
-            bool isNew = false;
             if ( attribute == null )
             {
                 attribute = new Rock.Model.Attribute();
@@ -105,7 +104,6 @@ namespace Rock.Web
                 attribute.Name = key.SplitCase();
                 attribute.DefaultValue = value;
                 attributeService.Add( attribute );
-                isNew = true;
             }
             else
             {
@@ -115,10 +113,6 @@ namespace Rock.Web
             rockContext.SaveChanges();
 
             AttributeCache.Flush( attribute.Id );
-            if ( isNew )
-            {
-                AttributeCache.FlushEntityAttributes();
-            }
 
             var settings = SystemSettings.Read();
             var attributeCache = settings.Attributes.FirstOrDefault( a => a.Key.Equals( key, StringComparison.OrdinalIgnoreCase ) );
@@ -141,7 +135,7 @@ namespace Rock.Web
         {
             string cacheKey = SystemSettings.CacheKey();
 
-            RockMemoryCache cache = RockMemoryCache.Default;
+            ObjectCache cache = RockMemoryCache.Default;
             SystemSettings systemSettings = cache[cacheKey] as SystemSettings;
 
             if ( systemSettings != null )
@@ -173,7 +167,7 @@ namespace Rock.Web
         /// </summary>
         public static void Flush()
         {
-            RockMemoryCache cache = RockMemoryCache.Default;
+            ObjectCache cache = RockMemoryCache.Default;
             cache.Remove( SystemSettings.CacheKey() );
         }
 

@@ -22,15 +22,10 @@
 		                    <Rock:RockTemplateField HeaderText="Group" SortExpression="Group.Name">
 		                        <ItemTemplate>
 		                            <%#Eval("GroupName")%><br />
-		                            <small><%#Eval("GroupPath")%></small>
+		                            <small><%#Eval("Path")%></small>
 		                        </ItemTemplate>
 		                    </Rock:RockTemplateField>
-		                    <Rock:RockTemplateField HeaderText="Location" SortExpression="Location.Name">
-		                        <ItemTemplate>
-		                            <%#Eval("LocationName")%><br />
-		                            <small><%#Eval("LocationPath")%></small>
-		                        </ItemTemplate>
-		                    </Rock:RockTemplateField>
+                            <Rock:RockBoundField DataField="LocationName" HeaderText="Location" SortExpression="Location.Name" />
                         </Columns>
                     </Rock:Grid>
                 </div>

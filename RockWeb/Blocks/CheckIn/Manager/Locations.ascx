@@ -1,14 +1,5 @@
 ﻿<%@ Control Language="C#" AutoEventWireup="true" CodeFile="Locations.ascx.cs" Inherits="RockWeb.Blocks.CheckIn.Manager.Locations" %>
 
-<script type="text/javascript">
-    Sys.Application.add_load(function () {
-        $('.js-cancel-checkin').click(function (event) {
-            event.stopImmediatePropagation();
-            var personName = $(this).closest(".list-group-item").find(".js-checkin-person-name").first().text();
-            return Rock.dialogs.confirmDelete(event, 'Checkin for ' + personName);
-        });
-    });
-</script>
 <Rock:RockUpdatePanel ID="upnlContent" runat="server">
     <ContentTemplate>
 
@@ -61,19 +52,17 @@
                         </ItemTemplate>
                     </asp:Repeater>
 
-                    <asp:Repeater ID="rptPeople" runat="server" OnItemCommand="rptPeople_ItemCommand">
+                    <asp:Repeater ID="rptPeople" runat="server">
                         <ItemTemplate>
                             <li id="liNavItem" runat="server" class="list-group-item clickable clearfix" >
                                 <asp:PlaceHolder runat="server">
                                     <div class="photoframe pull-left margin-r-md"><asp:Literal ID="imgPerson" runat="server" /></div>
                                     <div class="pull-left margin-t-sm">
-                                        <span class="js-checkin-person-name"><%# Eval("Name") %></span> <br /> 
+                                        <%# Eval("Name") %> <br /> 
                                         <asp:Literal ID="lAge" runat="server" />
                                     </div>
                                     <span class="pull-right margin-t-md">
-                                        <%# Eval("GroupName") %><asp:Literal ID="lStatus" runat="server" /><br />
-                                        <asp:LinkButton ID="lbRemoveAttendance" runat="server" Text="Cancel Checkin" CssClass="js-cancel-checkin btn btn-xs btn-default" 
-                                            CommandArgument='<%# Eval("Id") %>' CommandName="Delete" />
+                                        <%# Eval("GroupName") %><asp:Literal ID="lStatus" runat="server" />
                                     </span>
                                 </asp:PlaceHolder>
                             </li>

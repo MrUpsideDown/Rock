@@ -326,19 +326,6 @@ namespace Rock.Model
         private ICollection<GroupTypeRole> _roles;
 
         /// <summary>
-        /// Gets or sets the group member workflow triggers.
-        /// </summary>
-        /// <value>
-        /// The group member workflow triggers.
-        /// </value>
-        public virtual ICollection<GroupMemberWorkflowTrigger> GroupMemberWorkflowTriggers
-        {
-            get { return _triggers ?? ( _triggers = new Collection<GroupMemberWorkflowTrigger>() ); }
-            set { _triggers = value; }
-        }
-        private ICollection<GroupMemberWorkflowTrigger> _triggers;
-        
-        /// <summary>
         /// Gets or sets the group schedule exclusions.
         /// </summary>
         /// <value>

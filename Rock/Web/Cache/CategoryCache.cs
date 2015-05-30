@@ -16,8 +16,8 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Data.Entity;
 using System.Linq;
+using System.Runtime.Caching;
 using System.Runtime.Serialization;
 
 using Rock.Data;
@@ -41,8 +41,6 @@ namespace Rock.Web.Cache
         #endregion
 
         #region Properties
-
-        private object _obj = new object();
 
         /// <summary>
         /// Gets or sets a value indicating whether this instance is system.
@@ -166,26 +164,31 @@ namespace Rock.Web.Cache
             {
                 var categories = new List<CategoryCache>();
 
-                lock ( _obj )
+                if ( categoryIds != null )
                 {
-                    if ( categoryIds == null )
+                    foreach ( int id in categoryIds )
                     {
-                        using ( var rockContext = new RockContext() )
+                        var category = CategoryCache.Read( id );
+                        if ( category != null )
                         {
-                            categoryIds = new Model.CategoryService( rockContext )
-                                .Get( this.Id, this.EntityTypeId )
-                                .Select( c => c.Id )
-                                .ToList();
+                            categories.Add( category );
                         }
                     }
                 }
-
-                foreach ( int id in categoryIds )
+                else
                 {
-                    var category = CategoryCache.Read( id );
-                    if ( category != null )
+                    using ( var rockContext = new RockContext() )
                     {
-                        categories.Add( category );
+                        var categoryModels = new Model.CategoryService( rockContext )
+                            .Get( this.Id, this.EntityTypeId )
+                            .ToList();
+
+                        categoryIds = categoryModels.Select( c => c.Id ).ToList();
+
+                        foreach( var category in categoryModels )
+                        {
+                            categories.Add( CategoryCache.Read( category ) );
+                        }
                     }
                 }
 
@@ -251,24 +254,36 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static CategoryCache Read( int id, RockContext rockContext = null )
         {
-            return GetOrAddExisting( CategoryCache.CacheKey( id ),
-                () => LoadById( id, rockContext ) );
+            string cacheKey = CategoryCache.CacheKey( id );
+            ObjectCache cache = RockMemoryCache.Default;
+            CategoryCache category = cache[cacheKey] as CategoryCache;
+
+            if ( category == null )
+            {
+                if ( rockContext != null )
+                {
+                    category = LoadById( id, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        category = LoadById( id, myRockContext );
+                    }
+                }
+
+                if ( category != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, category, cachePolicy );
+                    cache.Set( category.Guid.ToString(), category.Id, cachePolicy );
+                }
+            }
+
+            return category;
         }
 
         private static CategoryCache LoadById( int id, RockContext rockContext )
-        {
-            if ( rockContext != null )
-            {
-                return LoadById2( id, rockContext );
-            }
-
-            using ( var rockContext2 = new RockContext() )
-            {
-                return LoadById2( id, rockContext2 );
-            }
-        }
-
-        private static CategoryCache LoadById2( int id, RockContext rockContext )
         {
             var categoryService = new Rock.Model.CategoryService( rockContext );
             var categoryModel = categoryService.Get( id );
@@ -289,33 +304,52 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static CategoryCache Read( Guid guid, RockContext rockContext = null )
         {
-            int id = GetOrAddExisting( guid.ToString(),
-                () => LoadByGuid( guid, rockContext ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            object cacheObj = cache[guid.ToString()];
 
-            return Read( id, rockContext );
-        }
-
-        private static int LoadByGuid( Guid guid, RockContext rockContext )
-        {
-            if ( rockContext != null )
+            CategoryCache category = null;
+            if ( cacheObj != null )
             {
-                return LoadByGuid2( guid, rockContext );
+                category = Read( (int)cacheObj );
             }
 
-            using ( var rockContext2 = new RockContext() )
+            if ( category == null )
             {
-                return LoadByGuid2( guid, rockContext2 );
+                if ( rockContext != null )
+                {
+                    category = LoadByGuid( guid, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        category = LoadByGuid( guid, myRockContext );
+                    }
+                }
+
+                if ( category != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( CategoryCache.CacheKey( category.Id ), category, cachePolicy );
+                    cache.Set( category.Guid.ToString(), category.Id, cachePolicy );
+                }
             }
+
+            return category;
         }
 
-        private static int LoadByGuid2( Guid guid, RockContext rockContext )
+        private static CategoryCache LoadByGuid( Guid guid, RockContext rockContext )
         {
             var categoryService = new CategoryService( rockContext );
-            return categoryService
-                .Queryable().AsNoTracking()
-                .Where( c => c.Guid.Equals( guid ) )
-                .Select( c => c.Id )
-                .FirstOrDefault();
+            var categoryModel = categoryService.Get( guid );
+
+            if ( categoryModel != null )
+            {
+                categoryModel.LoadAttributes( rockContext );
+                return new CategoryCache( categoryModel );
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -325,17 +359,23 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static CategoryCache Read( Rock.Model.Category categoryModel )
         {
-            return GetOrAddExisting( CampusCache.CacheKey( categoryModel.Id ),
-                () => LoadByModel( categoryModel ) );
-        }
+            string cacheKey = CategoryCache.CacheKey( categoryModel.Id );
+            ObjectCache cache = RockMemoryCache.Default;
+            CategoryCache category = cache[cacheKey] as CategoryCache;
 
-        private static CategoryCache LoadByModel( Rock.Model.Category categoryModel )
-        {
-            if ( categoryModel != null )
+            if ( category != null )
             {
-                return new CategoryCache( categoryModel );
+                category.CopyFromModel( categoryModel );
             }
-            return null;
+            else
+            {
+                category = new CategoryCache( categoryModel );
+                var cachePolicy = new CacheItemPolicy();
+                cache.Set( cacheKey, category, cachePolicy );
+                cache.Set( category.Guid.ToString(), category.Id, cachePolicy );
+            }
+
+            return category;
         }
 
         /// <summary>
@@ -344,7 +384,8 @@ namespace Rock.Web.Cache
         /// <param name="id">The id of the category to remove from cache</param>
         public static void Flush( int id )
         {
-            FlushCache( CategoryCache.CacheKey( id ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            cache.Remove( CategoryCache.CacheKey( id ) );
         }
 
         #endregion

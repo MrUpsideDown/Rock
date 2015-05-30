@@ -78,9 +78,6 @@ namespace Rock.Client
         public ICollection<WorkflowActivity> Activities { get; set; }
 
         /// <summary />
-        public PersonAlias InitiatorPersonAlias { get; set; }
-
-        /// <summary />
         public DateTime? CreatedDateTime { get; set; }
 
         /// <summary />

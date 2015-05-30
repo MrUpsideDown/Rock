@@ -16,12 +16,12 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Data.Entity;
-using System.Linq;
+using System.Runtime.Caching;
 using System.Runtime.Serialization;
+using System.Linq;
 
-using Rock.Data;
 using Rock.Model;
+using Rock.Data;
 
 namespace Rock.Web.Cache
 {
@@ -139,6 +139,34 @@ namespace Rock.Web.Cache
 
         #region Static Methods
 
+        /// <summary>
+        /// All the field types
+        /// </summary>
+        /// <returns></returns>
+        public static List<FieldTypeCache> All()
+        {
+            string cacheKey = "Rock:FieldType:All";
+
+            ObjectCache cache = RockMemoryCache.Default;
+            var allfieldTypes = cache[cacheKey] as List<FieldTypeCache>;
+            if ( allfieldTypes == null )
+            {
+                allfieldTypes = new List<FieldTypeCache>();
+                using ( var rockContext = new RockContext() )
+                {
+                    foreach ( var fieldType in new FieldTypeService( rockContext ).Queryable()
+                        .OrderBy( f => f.Name ) )
+                    {
+                        allfieldTypes.Add( Read( fieldType ) );
+                    }
+                }
+
+                var cachePolicy = new CacheItemPolicy();
+                cache.Set( cacheKey, allfieldTypes, cachePolicy );
+            }
+
+            return allfieldTypes;
+        }
 
         private static string CacheKey( int id )
         {
@@ -154,24 +182,37 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static FieldTypeCache Read( int id, RockContext rockContext = null )
         {
-            return GetOrAddExisting( FieldTypeCache.CacheKey( id ),
-                () => LoadById( id, rockContext ) );
+            string cacheKey = FieldTypeCache.CacheKey( id );
+
+            ObjectCache cache = RockMemoryCache.Default;
+            FieldTypeCache fieldType = cache[cacheKey] as FieldTypeCache;
+
+            if ( fieldType == null )
+            {
+                if ( rockContext != null )
+                {
+                    fieldType = LoadById( id, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        fieldType = LoadById( id, myRockContext );
+                    }
+                }
+
+                if ( fieldType != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, fieldType, cachePolicy );
+                    cache.Set( fieldType.Guid.ToString(), fieldType.Id, cachePolicy );
+                }
+            }
+
+            return fieldType;
         }
 
         private static FieldTypeCache LoadById( int id, RockContext rockContext )
-        {
-            if ( rockContext != null )
-            {
-                return LoadById2( id, rockContext );
-            }
-
-            using ( var rockContext2 = new RockContext() )
-            {
-                return LoadById2( id, rockContext2 );
-            }
-        }
-
-        private static FieldTypeCache LoadById2( int id, RockContext rockContext )
         {
             var fieldTypeService = new FieldTypeService( rockContext );
             var fieldTypeModel = fieldTypeService.Get( id );
@@ -202,34 +243,50 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static FieldTypeCache Read( Guid guid, RockContext rockContext = null )
         {
-            int id = GetOrAddExisting( guid.ToString(),
-                () => LoadByGuid( guid, rockContext ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            object cacheObj = cache[guid.ToString()];
 
-            return Read( id, rockContext );
-
-        }
-
-        private static int LoadByGuid( Guid guid, RockContext rockContext )
-        {
-            if ( rockContext != null )
+            FieldTypeCache fieldType = null;
+            if ( cacheObj != null )
             {
-                return LoadByGuid2( guid, rockContext );
+                fieldType = Read( (int)cacheObj, rockContext );
             }
 
-            using ( var rockContext2 = new RockContext() )
+            if ( fieldType == null )
             {
-                return LoadByGuid2( guid, rockContext2 );
+                if ( rockContext != null )
+                {
+                    fieldType = LoadByGuid( guid, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        fieldType = LoadByGuid( guid, myRockContext );
+                    }
+                }
+
+                if ( fieldType != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( FieldTypeCache.CacheKey( fieldType.Id ), fieldType, cachePolicy );
+                    cache.Set( fieldType.Guid.ToString(), fieldType.Id, cachePolicy );
+                }
             }
+
+            return fieldType;
         }
 
-        private static int LoadByGuid2( Guid guid, RockContext rockContext )
+        private static FieldTypeCache LoadByGuid( Guid guid, RockContext rockContext )
         {
             var fieldTypeService = new FieldTypeService( rockContext );
-            return fieldTypeService
-                .Queryable().AsNoTracking()
-                .Where( c => c.Guid.Equals( guid ))
-                .Select( c => c.Id )
-                .FirstOrDefault();
+            var fieldTypeModel = fieldTypeService.Get( guid );
+            if ( fieldTypeModel != null )
+            {
+                return new FieldTypeCache( fieldTypeModel );
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -239,47 +296,23 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static FieldTypeCache Read( FieldType fieldTypeModel )
         {
-            return GetOrAddExisting( FieldTypeCache.CacheKey( fieldTypeModel.Id ),
-                () => LoadByModel( fieldTypeModel ) );
-        }
+            string cacheKey = FieldTypeCache.CacheKey( fieldTypeModel.Id );
+            ObjectCache cache = RockMemoryCache.Default;
+            FieldTypeCache fieldType = cache[cacheKey] as FieldTypeCache;
 
-        private static FieldTypeCache LoadByModel( FieldType fieldTypeModel )
-        {
-            if ( fieldTypeModel != null )
+            if ( fieldType != null )
             {
-                return new FieldTypeCache( fieldTypeModel );
+                fieldType.CopyFromModel( fieldTypeModel );
             }
-            return null; 
-        }
+            else
+            {
+                fieldType = new FieldTypeCache( fieldTypeModel );
+                var cachePolicy = new CacheItemPolicy();
+                cache.Set( cacheKey, fieldType, cachePolicy );
+                cache.Set( fieldType.Guid.ToString(), fieldType.Id, cachePolicy );
+            }
 
-        /// <summary>
-        /// All the field types
-        /// </summary>
-        /// <returns></returns>
-        public static List<FieldTypeCache> All()
-        {
-            var allfieldTypes = new List<FieldTypeCache>();
-            var fieldTypeIds = GetOrAddExisting( "Rock:FieldType:All", () => LoadAll() );
-            if ( fieldTypeIds != null )
-            {
-                foreach ( int fieldTypeId in fieldTypeIds )
-                {
-                    allfieldTypes.Add( FieldTypeCache.Read( fieldTypeId ) );
-                }
-            }
-            return allfieldTypes;
-        }
-
-        private static List<int> LoadAll()
-        {
-            using ( var rockContext = new RockContext() )
-            {
-                return new FieldTypeService( rockContext )
-                    .Queryable().AsNoTracking()
-                    .OrderBy( f => f.Name )
-                    .Select( f => f.Id )
-                    .ToList();
-            }
+            return fieldType;
         }
 
         /// <summary>
@@ -288,8 +321,9 @@ namespace Rock.Web.Cache
         /// <param name="id"></param>
         public static void Flush( int id )
         {
-            FlushCache( FieldTypeCache.CacheKey( id ) );
-            FlushCache( "Rock:FieldType:All" );
+            ObjectCache cache = RockMemoryCache.Default;
+            cache.Remove( FieldTypeCache.CacheKey( id ) );
+            cache.Remove( "Rock:FieldType:All" );
         }
 
         /// <summary>

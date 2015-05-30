@@ -16,7 +16,6 @@
 //
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
 using Quartz;
@@ -116,7 +115,7 @@ namespace Rock.Jobs
                 rockCleanupExceptions.Add( new Exception( "Exception in PersonCleanup", ex ) );
             }
 
-            if ( rockCleanupExceptions.Count > 0 )
+            if (rockCleanupExceptions.Count > 0)
             {
                 throw new AggregateException( "One or more exceptions occurred in RockCleanup.", rockCleanupExceptions );
             }
@@ -191,9 +190,10 @@ namespace Rock.Jobs
                 if ( binaryFile.ModifiedDateTime < RockDateTime.Now.AddDays( -1 ) )
                 {
                     binaryFileService.Delete( binaryFile );
-                    binaryFileRockContext.SaveChanges();
                 }
             }
+
+            binaryFileRockContext.SaveChanges();
         }
 
         /// <summary>
@@ -237,22 +237,9 @@ namespace Rock.Jobs
             {
                 var auditLogRockContext = new Rock.Data.RockContext();
                 DateTime auditExpireDate = RockDateTime.Now.Add( new TimeSpan( auditExpireDays.Value * -1, 0, 0, 0 ) );
+                AuditService auditService = new AuditService( auditLogRockContext );
 
-                // delete in chunks (see http://dba.stackexchange.com/questions/1750/methods-of-speeding-up-a-huge-delete-from-table-with-no-clauses)
-                bool keepDeleting = true;
-                while ( keepDeleting )
-                {
-                    var dbTransaction = auditLogRockContext.Database.BeginTransaction();
-                    try
-                    {
-                        int rowsDeleted = auditLogRockContext.Database.ExecuteSqlCommand( @"DELETE TOP (1000) FROM [Audit] WHERE [DateTime] < @auditExpireDate", new SqlParameter( "auditExpireDate", auditExpireDate ) );
-                        keepDeleting = rowsDeleted > 0;
-                    }
-                    finally
-                    {
-                        dbTransaction.Commit();
-                    }
-                }
+                auditService.DeleteRange( auditService.Queryable().Where( a => a.DateTime < auditExpireDate ).ToList() );
 
                 auditLogRockContext.SaveChanges();
             }
@@ -270,21 +257,9 @@ namespace Rock.Jobs
                 var exceptionLogRockContext = new Rock.Data.RockContext();
                 DateTime exceptionExpireDate = RockDateTime.Now.Add( new TimeSpan( exceptionExpireDays.Value * -1, 0, 0, 0 ) );
 
-                // delete in chunks (see http://dba.stackexchange.com/questions/1750/methods-of-speeding-up-a-huge-delete-from-table-with-no-clauses)
-                bool keepDeleting = true;
-                while ( keepDeleting )
-                {
-                    var dbTransaction = exceptionLogRockContext.Database.BeginTransaction();
-                    try
-                    {
-                        int rowsDeleted = exceptionLogRockContext.Database.ExecuteSqlCommand( @"DELETE TOP (1000) FROM [ExceptionLog] WHERE [CreatedDateTime] < @createdDateTime", new SqlParameter( "createdDateTime", exceptionExpireDate ) );
-                        keepDeleting = rowsDeleted > 0;
-                    }
-                    finally
-                    {
-                        dbTransaction.Commit();
-                    }
-                }
+                ExceptionLogService exceptionLogService = new ExceptionLogService( exceptionLogRockContext );
+                exceptionLogService.DeleteRange( exceptionLogService.Queryable().Where( e => e.CreatedDateTime.HasValue && e.CreatedDateTime < exceptionExpireDate ).ToList() );
+                exceptionLogRockContext.SaveChanges();
             }
         }
 
@@ -300,21 +275,9 @@ namespace Rock.Jobs
                 var userLoginRockContext = new Rock.Data.RockContext();
                 DateTime userAccountExpireDate = RockDateTime.Now.Add( new TimeSpan( userExpireHours.Value * -1, 0, 0 ) );
 
-                // delete in chunks (see http://dba.stackexchange.com/questions/1750/methods-of-speeding-up-a-huge-delete-from-table-with-no-clauses)
-                bool keepDeleting = true;
-                while ( keepDeleting )
-                {
-                    var dbTransaction = userLoginRockContext.Database.BeginTransaction();
-                    try
-                    {
-                        int rowsDeleted = userLoginRockContext.Database.ExecuteSqlCommand( @"DELETE TOP (1000) FROM [UserLogin] WHERE [IsConfirmed] = 0 AND ([CreatedDateTime] is null OR [CreatedDateTime] < @createdDateTime )", new SqlParameter( "createdDateTime", userAccountExpireDate ) );
-                        keepDeleting = rowsDeleted > 0;
-                    }
-                    finally
-                    {
-                        dbTransaction.Commit();
-                    }
-                }
+                var userLoginService = new UserLoginService( userLoginRockContext );
+                userLoginService.DeleteRange( userLoginService.Queryable().Where( u => u.IsConfirmed == false && ( u.CreatedDateTime ?? DateTime.MinValue ) < userAccountExpireDate ).ToList() );
+                userLoginRockContext.SaveChanges();
             }
         }
 

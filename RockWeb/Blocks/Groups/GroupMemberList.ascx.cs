@@ -180,18 +180,19 @@ namespace RockWeb.Blocks.Groups
         {
             if ( e.Row.RowType == DataControlRowType.DataRow )
             {
-                dynamic  groupMember = e.Row.DataItem;
-
-                if ( groupMember != null )
+                var groupMember = e.Row.DataItem as GroupMember;
+                if ( groupMember != null && groupMember.Person != null )
                 {
-                    if ( groupMember != null && groupMember.IsDeceased )
-                    {
-                        e.Row.AddCssClass( "deceased" );
-                    }
-
-                    if ( _inactiveStatus != null && groupMember.RecordStatusValueId == _inactiveStatus.Id )
+                    if ( _inactiveStatus != null &&
+                        groupMember.Person.RecordStatusValueId.HasValue &&
+                        groupMember.Person.RecordStatusValueId == _inactiveStatus.Id )
                     {
                         e.Row.AddCssClass( "inactive" );
+                    }
+
+                    if ( groupMember.Person.IsDeceased ?? false )
+                    {
+                        e.Row.AddCssClass( "deceased" );
                     }
                 }
             }
@@ -598,6 +599,7 @@ namespace RockWeb.Blocks.Groups
                         }
                     }
 
+
                     _inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE );
 
                     SortProperty sortProperty = gGroupMembers.SortProperty;
@@ -626,10 +628,7 @@ namespace RockWeb.Blocks.Groups
                         m.PersonId,
                         Name = m.Person.NickName + " " + m.Person.LastName,
                         GroupRole = m.GroupRole.Name,
-                        m.GroupMemberStatus,
-                        RecordStatusValueId = m.Person.RecordStatusValueId,
-                        IsDeceased = m.Person.IsDeceased,
-
+                        m.GroupMemberStatus
                     } ).ToList();
 
                     gGroupMembers.DataBind();

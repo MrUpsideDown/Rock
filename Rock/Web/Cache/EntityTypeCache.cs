@@ -16,9 +16,8 @@
 //
 using System;
 using System.Collections.Concurrent;
-using System.Data.Entity;
-using System.Linq;
-
+using System.Collections.Generic;
+using System.Runtime.Caching;
 using Rock.Data;
 using Rock.Model;
 
@@ -29,11 +28,11 @@ namespace Rock.Web.Cache
     /// This information will be cached by the engine
     /// </summary>
     [Serializable]
-    public class EntityTypeCache : CachedEntity<EntityType>
+    public class EntityTypeCache
     {
         #region Static Fields
 
-        private static ConcurrentDictionary<string, int> _entityTypes = new ConcurrentDictionary<string, int>();
+        private static ConcurrentDictionary<string, int> entityTypes = new ConcurrentDictionary<string, int>();
 
         #endregion
 
@@ -51,6 +50,22 @@ namespace Rock.Web.Cache
         #endregion
 
         #region Properties
+
+        /// <summary>
+        /// Gets or sets the id.
+        /// </summary>
+        /// <value>
+        /// The id.
+        /// </value>
+        public virtual int Id { get; set; }
+
+        /// <summary>
+        /// Gets or sets the GUID.
+        /// </summary>
+        /// <value>
+        /// The GUID.
+        /// </value>
+        public virtual Guid Guid { get; set; }
 
         /// <summary>
         /// Gets or sets the name.
@@ -110,12 +125,7 @@ namespace Rock.Web.Cache
         {
             get
             {
-                if ( SingleValueFieldTypeId.HasValue )
-                {
-                    return FieldTypeCache.Read( SingleValueFieldTypeId.Value );
-                }
-
-                return null;
+                return FieldTypeCache.Read( this.SingleValueFieldTypeId ?? 0 );
             }
         }
 
@@ -137,12 +147,7 @@ namespace Rock.Web.Cache
         {
             get
             {
-                if ( MultiValueFieldTypeId.HasValue )
-                {
-                    return FieldTypeCache.Read( MultiValueFieldTypeId.Value );
-                }
-
-                return null;
+                return FieldTypeCache.Read( this.MultiValueFieldTypeId ?? 0 );
             }
         }
 
@@ -167,24 +172,20 @@ namespace Rock.Web.Cache
         /// <summary>
         /// Copies from model.
         /// </summary>
-        /// <param name="model">The model.</param>
-        public override void CopyFromModel( Data.IEntity model )
+        /// <param name="entityType">Type of the entity.</param>
+        public void CopyFromModel( EntityType entityType )
         {
-            base.CopyFromModel( model );
+            this.Id = entityType.Id;
+            this.Guid = entityType.Guid;
+            this.Name = entityType.Name;
+            this.AssemblyName = entityType.AssemblyName;
+            this.FriendlyName = entityType.FriendlyName;
+            this.IsEntity = entityType.IsEntity;
+            this.IsSecured = entityType.IsSecured;
+            this.SingleValueFieldTypeId = entityType.SingleValueFieldTypeId;
+            this.MultiValueFieldTypeId = entityType.MultiValueFieldTypeId;
 
-            if ( model is EntityType )
-            {
-                var entityType = (EntityType)model;
-                this.Name = entityType.Name;
-                this.AssemblyName = entityType.AssemblyName;
-                this.FriendlyName = entityType.FriendlyName;
-                this.IsEntity = entityType.IsEntity;
-                this.IsSecured = entityType.IsSecured;
-                this.SingleValueFieldTypeId = entityType.SingleValueFieldTypeId;
-                this.MultiValueFieldTypeId = entityType.MultiValueFieldTypeId;
-
-                _entityTypes.AddOrUpdate( entityType.Name, entityType.Id, ( k, v ) => entityType.Id );
-            }
+            entityTypes.AddOrUpdate( entityType.Name, entityType.Id, ( k, v ) => entityType.Id );
         }
 
         /// <summary>
@@ -247,7 +248,7 @@ namespace Rock.Web.Cache
             }
 
             int entityTypeId = 0;
-            if ( _entityTypes.TryGetValue( type.FullName, out entityTypeId ) )
+            if ( entityTypes.TryGetValue( type.FullName, out entityTypeId ) )
             {
                 return Read( entityTypeId );
             }
@@ -308,7 +309,7 @@ namespace Rock.Web.Cache
         public static EntityTypeCache Read( string name, bool createNew, RockContext rockContext = null )
         {
             int entityTypeId = 0;
-            if ( _entityTypes.TryGetValue( name, out entityTypeId ) )
+            if ( entityTypes.TryGetValue( name, out entityTypeId ) )
             {
                 return Read( entityTypeId );
             }
@@ -345,24 +346,36 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static EntityTypeCache Read( int id, RockContext rockContext = null )
         {
-            return GetOrAddExisting( EntityTypeCache.CacheKey( id ),
-                () => LoadById( id, rockContext ) );
+            string cacheKey = EntityTypeCache.CacheKey( id );
+            ObjectCache cache = RockMemoryCache.Default;
+            EntityTypeCache entityType = cache[cacheKey] as EntityTypeCache;
+
+            if ( entityType == null )
+            {
+                if ( rockContext != null )
+                {
+                    entityType = LoadById( id, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        entityType = LoadById( id, myRockContext );
+                    }
+                }
+
+                if ( entityType != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, entityType, cachePolicy );
+                    cache.Set( entityType.Guid.ToString(), entityType.Id, cachePolicy );
+                }
+            }
+
+            return entityType;
         }
 
         private static EntityTypeCache LoadById( int id, RockContext rockContext )
-        {
-            if ( rockContext != null )
-            {
-                return LoadById2( id, rockContext );
-            }
-
-            using ( var rockContext2 = new RockContext() )
-            {
-                return LoadById2( id, rockContext2 );
-            }
-        }
-
-        private static EntityTypeCache LoadById2( int id, RockContext rockContext )
         {
             var entityTypeService = new EntityTypeService( rockContext );
             var entityTypeModel = entityTypeService.Get( id );
@@ -382,33 +395,50 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static EntityTypeCache Read( Guid guid, RockContext rockContext = null )
         {
-            int id = GetOrAddExisting( guid.ToString(),
-                () => LoadByGuid( guid, rockContext ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            object cacheObj = cache[guid.ToString()];
 
-            return Read( id, rockContext );
-        }
-
-        private static int LoadByGuid( Guid guid, RockContext rockContext )
-        {
-            if ( rockContext != null )
+            EntityTypeCache entityType = null;
+            if ( cacheObj != null )
             {
-                return LoadByGuid2( guid, rockContext );
+                entityType = Read( (int)cacheObj, rockContext );
             }
 
-            using ( var rockContext2 = new RockContext() )
+            if ( entityType == null )
             {
-                return LoadByGuid2( guid, rockContext2 );
+                if ( rockContext != null )
+                {
+                    entityType = LoadByGuid( guid, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        entityType = LoadByGuid( guid, myRockContext );
+                    }
+                }
+
+                if ( entityType != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( EntityTypeCache.CacheKey( entityType.Id ), entityType, cachePolicy );
+                    cache.Set( entityType.Guid.ToString(), entityType.Id, cachePolicy );
+                }
             }
+
+            return entityType;
         }
 
-        private static int LoadByGuid2( Guid guid, RockContext rockContext )
+        private static EntityTypeCache LoadByGuid( Guid guid, RockContext rockContext )
         {
             var entityTypeService = new EntityTypeService( rockContext );
-            return entityTypeService
-                .Queryable().AsNoTracking()
-                .Where( c => c.Guid.Equals( guid ) )
-                .Select( c => c.Id )
-                .FirstOrDefault();
+            var entityTypeModel = entityTypeService.Get( guid );
+            if ( entityTypeModel != null )
+            {
+                return new EntityTypeCache( entityTypeModel );
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -418,27 +448,33 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static EntityTypeCache Read( EntityType entityTypeModel )
         {
-            return GetOrAddExisting( EntityTypeCache.CacheKey( entityTypeModel.Id ),
-                () => LoadByModel( entityTypeModel ) );
+            string cacheKey = EntityTypeCache.CacheKey( entityTypeModel.Id );
+            ObjectCache cache = RockMemoryCache.Default;
+            EntityTypeCache entityType = cache[cacheKey] as EntityTypeCache;
+
+            if ( entityType != null )
+            {
+                entityType.CopyFromModel( entityTypeModel );
+            }
+            else
+            {
+                entityType = new EntityTypeCache( entityTypeModel );
+                var cachePolicy = new CacheItemPolicy();
+                cache.Set( cacheKey, entityType, cachePolicy );
+                cache.Set( entityType.Guid.ToString(), entityType.Id, cachePolicy );
+            }
+
+            return entityType;
         }
 
-        private static EntityTypeCache LoadByModel( EntityType entityTypeModel )
-        {
-            if ( entityTypeModel != null )
-            {
-                return new EntityTypeCache( entityTypeModel );
-            }
-            return null;
-        }
-        
         /// <summary>
         /// Removes entityType from cache
         /// </summary>
         /// <param name="id"></param>
         public static void Flush( int id )
         {
-            FlushCache( EntityTypeCache.CacheKey( id ) );
-            _entityTypes = new ConcurrentDictionary<string, int>();
+            ObjectCache cache = RockMemoryCache.Default;
+            cache.Remove( EntityTypeCache.CacheKey( id ) );
         }
 
         #endregion

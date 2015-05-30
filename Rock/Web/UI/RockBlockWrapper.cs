@@ -224,7 +224,7 @@ namespace Rock.Web.UI
                 CacheItemPolicy cacheDuration = new CacheItemPolicy();
                 cacheDuration.AbsoluteExpiration = DateTimeOffset.Now.AddSeconds( blockCache.OutputCacheDuration );
 
-                RockMemoryCache cache = RockMemoryCache.Default;
+                ObjectCache cache = RockMemoryCache.Default;
                 string _blockCacheKey = string.Format( "Rock:BlockOutput:{0}", blockCache.Id );
                 cache.Set( _blockCacheKey, sbOutput.ToString(), cacheDuration );
             }

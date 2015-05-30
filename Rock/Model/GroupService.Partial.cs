@@ -247,7 +247,7 @@ namespace Rock.Model
         #endregion
 
         /// <summary>
-        /// Gets immediate navigation children of a group (id) or a rootGroupId. Specify 0 for both Id and rootGroupId to get top level groups limited 
+        /// Gets the navigation children.
         /// </summary>
         /// <param name="id">The identifier.</param>
         /// <param name="rootGroupId">The root group identifier.</param>
@@ -256,23 +256,7 @@ namespace Rock.Model
         /// <param name="groupTypeExcludedIds">The group type excluded ids.</param>
         /// <param name="includeInactiveGroups">if set to <c>true</c> [include inactive groups].</param>
         /// <returns></returns>
-        public IQueryable<Group> GetNavigationChildren( int id, int rootGroupId, bool limitToSecurityRoleGroups, List<int> groupTypeIncludedIds, List<int> groupTypeExcludedIds, bool includeInactiveGroups = true )
-        {
-            return this.GetChildren( id, rootGroupId, limitToSecurityRoleGroups, groupTypeIncludedIds, groupTypeExcludedIds, includeInactiveGroups, true );
-        }
-
-        /// <summary>
-        /// Gets immediate children of a group (id) or a rootGroupId. Specify 0 for both Id and rootGroupId to get top level groups limited
-        /// </summary>
-        /// <param name="id">The ID of the Group to get the children of (or 0 to use rootGroupId)</param>
-        /// <param name="rootGroupId">The root group ID</param>
-        /// <param name="limitToSecurityRoleGroups">if set to <c>true</c> [limit to security role groups].</param>
-        /// <param name="groupTypeIncludedIds">The group type included ids.</param>
-        /// <param name="groupTypeExcludedIds">The group type excluded ids.</param>
-        /// <param name="includeInactiveGroups">if set to <c>true</c> [include inactive groups].</param>
-        /// <param name="limitToShowInNavigation">if set to <c>true</c> [limit to show in navigation].</param>
-        /// <returns></returns>
-        public IQueryable<Group> GetChildren( int id, int rootGroupId, bool limitToSecurityRoleGroups, List<int> groupTypeIncludedIds, List<int> groupTypeExcludedIds, bool includeInactiveGroups, bool limitToShowInNavigation )
+        public IQueryable<Group> GetNavigationChildren( int id, int rootGroupId, bool limitToSecurityRoleGroups, List<int> groupTypeIncludedIds, List<int> groupTypeExcludedIds, bool includeInactiveGroups )
         {
             var qry = Queryable();
 
@@ -313,10 +297,7 @@ namespace Rock.Model
                 qry = qry.Where( a => !groupTypeExcludedIds.Contains( a.GroupTypeId ) );
             }
 
-            if ( limitToShowInNavigation )
-            {
-                qry = qry.Where( a => a.GroupType.ShowInNavigation == true );
-            }
+            qry = qry.Where( a => a.GroupType.ShowInNavigation == true );
 
             return qry;
         }

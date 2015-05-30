@@ -202,19 +202,7 @@ namespace Rock.Rest
             foreach ( var entityType in entityTypeList )
             {
                 var entityTypeConfig = builder.AddEntity( entityType );
-                
-                var tableAttribute = entityType.GetCustomAttribute<TableAttribute>();
-                string name;
-                if ( tableAttribute != null )
-                {
-                    name = tableAttribute.Name.Pluralize();
-                }
-                else
-                {
-                    name = entityType.Name.Pluralize();
-                }
-
-                var entitySetConfig = builder.AddEntitySet( name, entityTypeConfig );
+                var entitySetConfig = builder.AddEntitySet( entityType.Name.Pluralize(), entityTypeConfig );
             }
 
             config.Routes.MapODataServiceRoute( "api", "api", builder.GetEdmModel() );

@@ -32,8 +32,7 @@ namespace Rock.Workflow.Action.CheckIn
     [Export( typeof( ActionComponent ) )]
     [ExportMetadata( "ComponentName", "Filter By Age" )]
 
-    [BooleanField( "Remove", "Select 'Yes' if group types should be be removed.  Select 'No' if they should just be marked as excluded.", true, "", 0 )]
-    [BooleanField( "Age Required", "Select 'Yes' if groups with an age filter should be removed/excluded when person does not have an age.", true, "", 1 )]
+    [BooleanField( "Remove", "Select 'Yes' if group types should be be removed.  Select 'No' if they should just be marked as excluded.", true )]
     public class FilterByAge : CheckInActionComponent
     {
         /// <summary>
@@ -58,12 +57,6 @@ namespace Rock.Workflow.Action.CheckIn
                     foreach ( var person in family.People )
                     {
                         double? age = person.Person.AgePrecise;
-                        bool ageRequired = GetAttributeValue( action, "AgeRequired" ).AsBoolean( true );
-
-                        if ( age == null && !ageRequired )
-                        {
-                            continue;
-                        }
 
                         foreach ( var groupType in person.GroupTypes.ToList() )
                         {

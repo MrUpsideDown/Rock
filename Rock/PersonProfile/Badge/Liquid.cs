@@ -26,14 +26,14 @@ using Rock.Web.UI.Controls;
 namespace Rock.PersonProfile.Badge
 {
     /// <summary>
-    /// Lava Badge
+    /// Liquid Badge
     /// </summary>
-    [Description( "Lava Badge" )]
+    [Description( "Liquid Badge" )]
     [Export( typeof( BadgeComponent ) )]
-    [ExportMetadata( "ComponentName", "Lava Badge" )]
+    [ExportMetadata( "ComponentName", "Liquid Badge" )]
 
     [CodeEditorField( "Display Text", "The text (or html) to display as a badge", CodeEditorMode.Liquid, CodeEditorTheme.Rock, 200 )]
-    [BooleanField( "Enable Debug", "Outputs the object graph to help create your Lava syntax.", false )]
+    [BooleanField( "Enable Debug", "Outputs the object graph to help create your liquid syntax.", false )]
     public class Liquid : BadgeComponent
     {
         /// <summary>

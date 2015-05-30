@@ -218,8 +218,7 @@ namespace RockWeb.Blocks.Finance
         /// </summary>
         private void BindGrid()
         {
-            var rockContext = new RockContext();
-            var pledgeService = new FinancialPledgeService( rockContext );
+            var pledgeService = new FinancialPledgeService( new RockContext() );
             var sortProperty = gPledges.SortProperty;
             var pledges = pledgeService.Queryable();
 
@@ -227,16 +226,10 @@ namespace RockWeb.Blocks.Finance
 
             if ( personId.HasValue )
             {
-                var person = new PersonService( rockContext ).Get( personId.Value );
-                if ( person != null )
-                {
-                    pledges = pledges.Where( p => p.PersonAlias.PersonId == person.Id );
-                }
+                pledges = pledges.Where( p => p.PersonAlias.PersonId == personId );
             }
 
-            // get the accounts and make sure they still exist by checking the database
             var accountIds = gfPledges.GetUserPreference( "Accounts" ).Split( ',' ).AsIntegerList();
-            accountIds = new FinancialAccountService( rockContext ).GetByIds( accountIds ).Select( a => a.Id ).ToList();
 
             if ( accountIds.Any() )
             {

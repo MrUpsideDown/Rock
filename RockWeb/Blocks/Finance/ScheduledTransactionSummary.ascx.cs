@@ -111,7 +111,7 @@ namespace RockWeb.Blocks.Finance
         {
             List<Dictionary<string, object>> scheduleSummaries = new List<Dictionary<string, object>>();
 
-            // get scheduled transactions for current user
+            // get pledges for current user
             if ( CurrentPerson != null )
             {
                 var rockContext = new RockContext();

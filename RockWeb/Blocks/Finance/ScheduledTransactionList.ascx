@@ -24,7 +24,11 @@
                             <Rock:DateField DataField="StartDate" HeaderText="Starting" />
                             <Rock:DateField DataField="EndDate" HeaderText="Ending" />
                             <Rock:DateField DataField="NextPaymentDate" HeaderText="Next Payment" />
-                            <Rock:DefinedValueField DataField="CurrencyTypeValueId" HeaderText="Currency Type" />
+                            <Rock:RockTemplateField HeaderText="Currency Type" >
+                                <ItemTemplate>
+                                    <asp:Literal ID="lCurrencyType" runat="server" />
+                                </ItemTemplate>
+                            </Rock:RockTemplateField>
                             <Rock:RockBoundField DataField="TransactionCode" HeaderText="Transaction Code" />
                             <Rock:RockBoundField DataField="GatewayScheduleId" HeaderText="Schedule ID" />
                             <Rock:BoolField DataField="IsActive" HeaderText="Active" />

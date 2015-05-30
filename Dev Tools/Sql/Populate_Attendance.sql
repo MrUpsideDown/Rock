@@ -17,11 +17,7 @@ declare
     @DidAttend int,
     @CampusId int,
     @categoryServiceTimes int = (select id from Category where [Guid] = '4FECC91B-83F9-4269-AE03-A006F401C47E'),
-    @randomDateInc decimal = 0.5,
-	@yearsBack int = 10
-
-declare
-  @daysBack int = @yearsBack * 366
+    @randomDateInc decimal = 0.5
 
 declare
     @attendanceGroupIds table ( id Int );
@@ -60,7 +56,8 @@ begin
     insert into @attendanceGroupIds select Id from [Group] where GroupTypeId in (select Id from GroupType where TakesAttendance = 1);
     insert into @personAliasIds select top 10000 Id from PersonAlias
     insert into @attendanceCodeIds select top 10 id from AttendanceCode
-	set @StartDateTime = DATEADD(DAY, -@daysBack, SYSDATETIME())
+
+    set @StartDateTime = SYSDATETIME()
 
     while @attendanceCounter < @maxAttendanceCount
     begin
@@ -77,7 +74,7 @@ begin
             set @ScheduleId = (select top 1 Id from Schedule where CategoryId = @categoryServiceTimes order by newid()) 
         end
 
-		set @StartDateTime = DATEADD(ss, (86000*@daysBack/@maxAttendanceCount), @StartDateTime);
+        set @StartDateTime = DATEADD(ss, -((86000*365/@maxAttendanceCount) * @randomDateInc), @StartDateTime);
         set @DidAttend = (select case when FLOOR(rand() * 50) > 10 then 1 else 0 end) -- select random didattend with ~80% true
         set @CampusId = (select top 1 Id from Campus order by newid()) 
         set @AttendanceCodeId = (select top 1 Id from @attendanceCodeIds order by newid())

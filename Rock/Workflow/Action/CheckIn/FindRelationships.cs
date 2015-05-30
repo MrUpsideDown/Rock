@@ -18,7 +18,6 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
-using System.Data.Entity;
 using System.Linq;
 using System.Runtime.Caching;
 
@@ -56,8 +55,7 @@ namespace Rock.Workflow.Action.CheckIn
             {
                 roles = new List<int>();
 
-                foreach ( var role in new GroupTypeRoleService( rockContext )
-                    .Queryable().AsNoTracking()
+                foreach ( var role in new GroupTypeRoleService( rockContext ).Queryable()
                     .Where( r => r.GroupType.Guid.Equals( new Guid( Rock.SystemGuid.GroupType.GROUPTYPE_KNOWN_RELATIONSHIPS ) ) ) )
                 {
                     role.LoadAttributes( rockContext );
@@ -92,21 +90,20 @@ namespace Rock.Workflow.Action.CheckIn
                     var familyMemberIds = family.People.Select( p => p.Person.Id ).ToList();
 
                     // Get the Known Relationship group id's for each person in the family
-                    var relationshipGroups = service
-                        .Queryable().AsNoTracking()
+                    var relationshipGroups = service.Queryable()
                         .Where( g =>
                             g.GroupRole.Guid.Equals( new Guid( Rock.SystemGuid.GroupRole.GROUPROLE_KNOWN_RELATIONSHIPS_OWNER ) ) &&
                             familyMemberIds.Contains( g.PersonId ) )
-                        .Select( g => g.GroupId );
+                        .Select( g => g.GroupId )
+                        .ToList();
 
                     // Get anyone in any of those groups that has a role with the canCheckIn attribute set
-                    foreach ( var person in service
-                        .Queryable().AsNoTracking()
+                    foreach ( var person in service.Queryable()
                         .Where( g =>
                             relationshipGroups.Contains( g.GroupId ) &&
                             roles.Contains( g.GroupRoleId ) )
                         .Select( g => g.Person )
-                        .ToList() )
+                        .Distinct().ToList() )
                     {
                         if ( !family.People.Any( p => p.Person.Id == person.Id ) )
                         {

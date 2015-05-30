@@ -150,15 +150,6 @@ namespace Rock.CheckIn
                         if ( CurrentWorkflow == null )
                         {
                             CurrentWorkflow = Rock.Model.Workflow.Activate( workflowType, CurrentCheckInState.Kiosk.Device.Name, rockContext );
-                            
-                            if (Request["Override"] != null)
-                            {
-                                if ( Request["Override"].ToString() == "True" )
-                                {
-                                    CurrentWorkflow.SetAttributeValue( "Override", "True" );
-                                }
-                            }
-                            
                         }
 
                         var activityType = workflowType.ActivityTypes.Where( a => a.Name == activityName ).FirstOrDefault();
@@ -322,14 +313,6 @@ namespace Rock.CheckIn
         protected void NavigateToNextPage()
         {
             NavigateToLinkedPage( "NextPage" );
-        }
-
-        /// <summary>
-        /// Navigates to next page.
-        /// </summary>
-        protected void NavigateToNextPage( Dictionary<string, string> queryParams )
-        {
-            NavigateToLinkedPage( "NextPage", queryParams );
         }
 
         /// <summary>

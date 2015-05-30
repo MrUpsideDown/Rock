@@ -25,32 +25,19 @@ namespace Rock.Data
     /// </summary>
     public class DbService
     {
+
         #region Methods
 
         /// <summary>
-        /// Gets a data reader for the default database.
+        /// Gets a data reader.
         /// </summary>
         /// <param name="query">The query.</param>
         /// <param name="commandType">Type of the command.</param>
         /// <param name="parameters">The parameters.</param>
         /// <returns></returns>
-        public static IDataReader GetDataReader(string query, CommandType commandType, Dictionary<string, object> parameters)
+        public static IDataReader GetDataReader( string query, CommandType commandType, Dictionary<string, object> parameters )
         {
-            var connectionString = GetConnectionString();
-
-            return GetDataReader(connectionString, query, commandType, parameters);
-        }
-
-        /// <summary>
-        /// Gets a data reader for a specified database.
-        /// </summary>
-        /// <param name="connectionString">The target database connection string.</param>
-        /// <param name="query">The query.</param>
-        /// <param name="commandType">Type of the command.</param>
-        /// <param name="parameters">The parameters.</param>
-        /// <returns></returns>
-        public static IDataReader GetDataReader( string connectionString, string query, CommandType commandType, Dictionary<string, object> parameters )
-        {
+            string connectionString = GetConnectionString();
             if ( !string.IsNullOrWhiteSpace( connectionString ) )
             {
                 SqlConnection con = new SqlConnection( connectionString );
@@ -137,33 +124,17 @@ namespace Rock.Data
         }
 
         /// <summary>
-        /// Executes the query on the default database, and returns the number of rows affected.
+        /// Executes the query, and returns number of rows affected
         /// </summary>
         /// <param name="query">The query.</param>
         /// <param name="commandType">Type of the command.</param>
         /// <param name="parameters">The parameters.</param>
-        /// <param name="commandTimeout">The command timeout (seconds).</param>
+        /// <param name="commandTimeout">The command timeout (seconds)</param>
         /// <returns></returns>
         /// <exception cref="System.NotImplementedException"></exception>
-        public static int ExecuteCommand(string query, CommandType commandType = CommandType.Text, Dictionary<string, object> parameters = null, int? commandTimeout = null)
+        public static int ExecuteCommand( string query, CommandType commandType = CommandType.Text, Dictionary<string, object> parameters = null, int? commandTimeout = null )
         {
-            var connectionString = GetConnectionString();
-
-            return ExecuteCommand( connectionString, query, commandType, parameters, commandTimeout );
-        }
-
-        /// <summary>
-        /// Executes the query on the specified target database, and returns the number of rows affected.
-        /// </summary>
-        /// <param name="connectionString">The target database connection string.</param>
-        /// <param name="query">The query.</param>
-        /// <param name="commandType">Type of the command.</param>
-        /// <param name="parameters">The parameters.</param>
-        /// <param name="commandTimeout">The command timeout (seconds).</param>
-        /// <returns></returns>
-        /// <exception cref="System.NotImplementedException"></exception>
-        public static int ExecuteCommand( string connectionString, string query, CommandType commandType = CommandType.Text, Dictionary<string, object> parameters = null, int? commandTimeout = null )
-        {
+            string connectionString = GetConnectionString();
             if ( !string.IsNullOrWhiteSpace( connectionString ) )
             {
                 using ( SqlConnection con = new SqlConnection( connectionString ) )

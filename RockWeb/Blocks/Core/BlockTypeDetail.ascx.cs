@@ -17,14 +17,12 @@
 using System;
 using System.ComponentModel;
 using System.Linq;
-using System.Text;
 using System.Web.UI;
 using Rock;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
-using Rock.Web;
 using Rock.Web.Cache;
 using Rock.Web.UI;
 
@@ -111,18 +109,15 @@ namespace RockWeb.Blocks.Core
         /// <returns></returns>
         private string GetFullyQualifiedPageName( Rock.Model.Page page )
         {
-            string result = Server.HtmlEncode( page.InternalName );
-
-            result = string.Format( "<a href='{0}'>{1}</a>", new PageReference( page.Id ).BuildUrl(), result );
-
+            string result = page.InternalName;
             Rock.Model.Page parent = page.ParentPage;
             while ( parent != null )
             {
-                result = string.Format( "<a href='{0}'>{1}</a> / {2}", new PageReference( parent.Id ).BuildUrl(), Server.HtmlEncode( parent.InternalName ), result );
+                result = parent.InternalName + " / " + result;
                 parent = parent.ParentPage;
             }
 
-            return string.Format( "<li>{0}</li>", result );
+            return result;
         }
 
         /// <summary>
@@ -140,7 +135,7 @@ namespace RockWeb.Blocks.Core
             {
                 blockType = new BlockTypeService( new RockContext() ).Get( blockTypeId );
                 lActionTitle.Text = ActionTitle.Edit( BlockType.FriendlyTypeName ).FormatAsHtmlTitle();
-                lPages.Visible = true;
+                lstPages.Visible = true;
                 lblStatus.Visible = true;
             }
             
@@ -148,7 +143,7 @@ namespace RockWeb.Blocks.Core
             {
                 blockType = new BlockType { Id = 0 };
                 lActionTitle.Text = ActionTitle.Add( BlockType.FriendlyTypeName ).FormatAsHtmlTitle();
-                lPages.Visible = false;
+                lstPages.Visible = false;
                 lblStatus.Visible = false;
             }
 
@@ -156,19 +151,14 @@ namespace RockWeb.Blocks.Core
             tbName.Text = blockType.Name;
             tbPath.Text = blockType.Path;
             tbDescription.Text = blockType.Description;
-            StringBuilder sb = new StringBuilder();
             foreach ( var fullPageName in blockType.Blocks.ToList().Where( a => a.Page != null ).Select(a => GetFullyQualifiedPageName(a.Page)).OrderBy(a => a))
             {
-                sb.Append( fullPageName );
+                lstPages.Items.Add( fullPageName );
             }
 
-            if ( sb.Length == 0 )
+            if ( lstPages.Items.Count == 0 )
             {
-                lPages.Text = "<span class='text-muted'><em>No pages are currently using this block</em></muted>";
-            }
-            else
-            {
-                lPages.Text = string.Format( "<ul>{0}</ul>", sb.ToString() );
+                lstPages.Items.Add( "No pages are currently using this block" );
             }
 
             string blockPath = Request.MapPath( blockType.Path );

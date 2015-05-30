@@ -38,9 +38,8 @@ namespace Rock.Reporting
         /// </summary>
         /// <param name="entityType">Type of the entity.</param>
         /// <param name="includeOnlyReportingFields">if set to <c>true</c> [include only reporting fields].</param>
-        /// <param name="limitToFilterableFields">if set to <c>true</c> [limit to filterable fields].</param>
         /// <returns></returns>
-        public static List<EntityField> GetEntityFields( Type entityType, bool includeOnlyReportingFields = true, bool limitToFilterableFields = true )
+        public static List<EntityField> GetEntityFields( Type entityType, bool includeOnlyReportingFields = true )
         {
             List<EntityField> entityFields = null;
 
@@ -181,7 +180,7 @@ namespace Rock.Reporting
 
                     foreach ( var attributeId in attributeIdList )
                     {
-                        AddEntityFieldForAttribute( entityFields, AttributeCache.Read( attributeId ), limitToFilterableFields );
+                        AddEntityFieldForAttribute( entityFields, AttributeCache.Read( attributeId ) );
                     }
                 }
             }
@@ -209,26 +208,23 @@ namespace Rock.Reporting
         /// </summary>
         /// <param name="entityFields">The entity fields.</param>
         /// <param name="attribute">The attribute.</param>
-        /// <param name="limitToFilterableAttributes">if set to <c>true</c> [limit to filterable attributes].</param>
-        public static void AddEntityFieldForAttribute( List<EntityField> entityFields, AttributeCache attribute, bool limitToFilterableAttributes = true )
+        public static void AddEntityFieldForAttribute( List<EntityField> entityFields, AttributeCache attribute )
         {
-            // Ensure prop name only has Alpha, Numeric and underscore chars
-            string propName = attribute.Key.RemoveSpecialCharacters().Replace( ".", "" );
-
             // Ensure prop name is unique
+            string propName = attribute.Key;
             int i = 1;
             while ( entityFields.Any( p => p.Name.Equals( propName, StringComparison.CurrentCultureIgnoreCase ) ) )
             {
                 propName = attribute.Key + ( i++ ).ToString();
             }
 
-            // Make sure that the attributes field type actually renders a filter control if limitToFilterableAttributes
+            // Make sure that the attributes field type actually renders a filter control
             var fieldType = FieldTypeCache.Read( attribute.FieldTypeId );
-            if ( fieldType != null && ( !limitToFilterableAttributes || fieldType.Field.FilterControl( attribute.QualifierValues, propName, true ) != null ) )
+            if ( fieldType != null && fieldType.Field.FilterControl( attribute.QualifierValues, propName, true ) != null )
             {
                 var entityField = new EntityField( propName, FieldKind.Attribute, typeof( string ), attribute.Guid, fieldType );
                 entityField.Title = attribute.Name.SplitCase();
-
+                
                 foreach ( var config in attribute.QualifierValues )
                 {
                     entityField.FieldConfig.Add( config.Key, config.Value );
@@ -357,28 +353,6 @@ namespace Rock.Reporting
         ///   <c>true</c> if [is previewable]; otherwise, <c>false</c>.
         /// </value>
         public bool IsPreviewable { get; set; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="EntityField"/> class.
-        /// </summary>
-        [Obsolete( "Use one of the other EntityField constructors instead" )]
-        public EntityField()
-        {
-            FieldConfig = new Dictionary<string, ConfigurationValue>();
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="EntityField"/> class.
-        /// </summary>
-        /// <param name="name">The name.</param>
-        /// <param name="fieldKind">Kind of the field.</param>
-        /// <param name="propertyType">Type of the property.</param>
-        /// <param name="attributeGuid">The attribute unique identifier.</param>
-        [Obsolete( "Use one of the other EntityField constructors instead" )]
-        public EntityField( string name, FieldKind fieldKind, Type propertyType, Guid? attributeGuid = null )
-            : this( name, fieldKind, propertyType, null, attributeGuid )
-        {
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EntityField" /> class.

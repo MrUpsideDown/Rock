@@ -18,9 +18,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.Caching;
 using System.Runtime.Serialization;
 
+using Rock;
 using Rock.Data;
 using Rock.Model;
 using Rock.Security;
@@ -33,16 +33,35 @@ namespace Rock.Web.Cache
     /// <typeparam name="T"></typeparam>
     [Serializable]
     [DataContract]
-    public abstract class CachedModel<T> : CachedEntity<T>, ISecured, Rock.Attribute.IHasAttributes, Lava.ILiquidizable
+    public abstract class CachedModel<T> : ISecured, Rock.Attribute.IHasAttributes, Lava.ILiquidizable
         where T : Rock.Data.Entity<T>, ISecured, Rock.Attribute.IHasAttributes, new()
     {
+        /// <summary>
+        /// Gets or sets the id.
+        /// </summary>
+        /// <value>
+        /// The id.
+        /// </value>
+        [DataMember]
+        public virtual int Id { get; set; }
+
+        /// <summary>
+        /// Gets or sets the GUID.
+        /// </summary>
+        /// <value>
+        /// The GUID.
+        /// </value>
+        [DataMember]
+        public virtual Guid Guid { get; set; }
+
         /// <summary>
         /// Copies from model.
         /// </summary>
         /// <param name="model">The model.</param>
-        public override void CopyFromModel( Rock.Data.IEntity model )
+        public virtual void CopyFromModel( Rock.Data.IEntity model )
         {
-            base.CopyFromModel( model );
+            this.Id = model.Id;
+            this.Guid = model.Guid;
 
             var secureModel = model as ISecured;
             if ( secureModel != null )
@@ -369,7 +388,7 @@ namespace Rock.Web.Cache
         /// The available keys.
         /// </value>
         [LavaIgnore]
-        public virtual List<string> AvailableKeys
+        public List<string> AvailableKeys
         {
             get
             {
@@ -396,7 +415,7 @@ namespace Rock.Web.Cache
         /// <param name="key">The key.</param>
         /// <returns></returns>
         [LavaIgnore]
-        public virtual object this[object key]
+        public object this[object key]
         {
             get
             {
@@ -478,7 +497,7 @@ namespace Rock.Web.Cache
         /// </remarks>
         /// <param name="key">The key.</param>
         /// <returns></returns>
-        public virtual bool ContainsKey( object key )
+        public bool ContainsKey( object key )
         {
             string attributeKey = key.ToStringSafe();
 

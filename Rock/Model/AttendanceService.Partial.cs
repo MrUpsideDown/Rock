@@ -19,8 +19,7 @@ using System.Collections.Generic;
 using System.Data.Entity;
 using System.Data.Entity.SqlServer;
 using System.Linq;
-
-using Rock.Chart;
+using Rock.Data;
 
 namespace Rock.Model
 {
@@ -85,7 +84,7 @@ namespace Rock.Model
         /// <param name="groupIds">The group ids.</param>
         /// <param name="campusIds">The campus ids.</param>
         /// <returns></returns>
-        public IEnumerable<IChartData> GetChartData( ChartGroupBy groupBy = ChartGroupBy.Week, AttendanceGraphBy graphBy = AttendanceGraphBy.Total, DateTime? startDate = null, DateTime? endDate = null, string groupIds = null, string campusIds = null )
+        public IEnumerable<IChartData> GetChartData( AttendanceGroupBy groupBy = AttendanceGroupBy.Week, AttendanceGraphBy graphBy = AttendanceGraphBy.Total, DateTime? startDate = null, DateTime? endDate = null, string groupIds = null, string campusIds = null )
         {
             var qryAttendance = Queryable().AsNoTracking().Where( a => a.DidAttend.HasValue && a.DidAttend.Value );
 
@@ -133,13 +132,13 @@ namespace Rock.Model
                 }
             } );
 
-            List<SummaryData> result = null;
+            List<AttendanceSummaryData> result = null;
 
             if ( graphBy == AttendanceGraphBy.Total )
             {
                 var groupByQry = summaryQry.GroupBy( a => new { a.SummaryDateTime } ).Select( s => new { s.Key, Count = s.Count() } ).OrderBy( o => o.Key );
 
-                result = groupByQry.ToList().Select( a => new SummaryData
+                result = groupByQry.ToList().Select( a => new AttendanceSummaryData
                 {
                     DateTimeStamp = a.Key.SummaryDateTime.ToJavascriptMilliseconds(),
                     DateTime = a.Key.SummaryDateTime,
@@ -151,7 +150,7 @@ namespace Rock.Model
             {
                 var groupByQry = summaryQry.GroupBy( a => new { a.SummaryDateTime, Series = a.Campus } ).Select( s => new { s.Key, Count = s.Count() } ).OrderBy( o => o.Key );
 
-                result = groupByQry.ToList().Select( a => new SummaryData
+                result = groupByQry.ToList().Select( a => new AttendanceSummaryData
                 {
                     DateTimeStamp = a.Key.SummaryDateTime.ToJavascriptMilliseconds(),
                     DateTime = a.Key.SummaryDateTime,
@@ -163,7 +162,7 @@ namespace Rock.Model
             {
                 var groupByQry = summaryQry.GroupBy( a => new { a.SummaryDateTime, Series = a.Group } ).Select( s => new { s.Key, Count = s.Count() } ).OrderBy( o => o.Key );
 
-                result = groupByQry.ToList().Select( a => new SummaryData
+                result = groupByQry.ToList().Select( a => new AttendanceSummaryData
                 {
                     DateTimeStamp = a.Key.SummaryDateTime.ToJavascriptMilliseconds(),
                     DateTime = a.Key.SummaryDateTime,
@@ -175,7 +174,7 @@ namespace Rock.Model
             {
                 var groupByQry = summaryQry.GroupBy( a => new { a.SummaryDateTime, Series = a.Schedule } ).Select( s => new { s.Key, Count = s.Count() } ).OrderBy( o => o.Key );
 
-                result = groupByQry.ToList().Select( a => new SummaryData
+                result = groupByQry.ToList().Select( a => new AttendanceSummaryData
                 {
                     DateTimeStamp = a.Key.SummaryDateTime.ToJavascriptMilliseconds(),
                     DateTime = a.Key.SummaryDateTime,
@@ -187,7 +186,7 @@ namespace Rock.Model
             if ( result.Count == 1 )
             {
                 var dummyZeroDate = startDate ?? DateTime.MinValue;
-                result.Insert( 0, new SummaryData { DateTime = dummyZeroDate, DateTimeStamp = dummyZeroDate.ToJavascriptMilliseconds(), SeriesId = result[0].SeriesId, YValue = 0 } );
+                result.Insert( 0, new AttendanceSummaryData { DateTime = dummyZeroDate, DateTimeStamp = dummyZeroDate.ToJavascriptMilliseconds(), SeriesId = result[0].SeriesId, YValue = 0 } );
             }
 
             return result;
@@ -214,11 +213,46 @@ namespace Rock.Model
             /// </value>
             public Attendance Attendance { get; set; }
         }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public class AttendanceSummaryData : IChartData
+        {
+            /// <summary>
+            /// Gets the date time stamp.
+            /// </summary>
+            /// <value>
+            /// The date time stamp.
+            /// </value>
+            public long DateTimeStamp { get; set; }
+
+            /// <summary>
+            /// Gets or sets the date time.
+            /// </summary>
+            /// <value>
+            /// The date time.
+            /// </value>
+            public DateTime DateTime { get; set; }
+
+            /// <summary>
+            /// Gets the y value.
+            /// </summary>
+            /// <value>
+            /// The y value.
+            /// </value>
+            public decimal? YValue { get; set; }
+
+            /// <summary>
+            /// Gets the series identifier.
+            /// </summary>
+            /// <value>
+            /// The series identifier.
+            /// </value>
+            public string SeriesId { get; set; }
+        }
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
     public static class AttendanceQryExtensions
     {
         /// <summary>
@@ -227,7 +261,7 @@ namespace Rock.Model
         /// <param name="qryAttendance">The qry attendance.</param>
         /// <param name="summarizeBy">The group by.</param>
         /// <returns></returns>
-        public static IQueryable<AttendanceService.AttendanceWithSummaryDateTime> GetAttendanceWithSummaryDateTime( this IQueryable<Attendance> qryAttendance, ChartGroupBy summarizeBy )
+        public static IQueryable<AttendanceService.AttendanceWithSummaryDateTime> GetAttendanceWithSummaryDateTime( this IQueryable<Attendance> qryAttendance, AttendanceGroupBy summarizeBy )
         {
             //// for Date SQL functions, borrowed some ideas from http://stackoverflow.com/a/1177529/1755417 and http://stackoverflow.com/a/133101/1755417 and http://stackoverflow.com/a/607837/1755417
 
@@ -254,13 +288,13 @@ namespace Rock.Model
                 SummaryDateTime = (DateTime)(
 
                     // GroupBy Week with Monday as FirstDayOfWeek ( +1 ) and Sunday as Summary Date ( +6 )
-                    summarizeBy == ChartGroupBy.Week ? a.SundayDate :
+                    summarizeBy == AttendanceGroupBy.Week ? a.SundayDate :
 
                     // GroupBy Month 
-                    summarizeBy == ChartGroupBy.Month ? SqlFunctions.DateAdd( "day", -SqlFunctions.DatePart( "day", a.SundayDate ) + 1, a.SundayDate ) :
+                    summarizeBy == AttendanceGroupBy.Month ? SqlFunctions.DateAdd( "day", -SqlFunctions.DatePart( "day", a.SundayDate ) + 1, a.SundayDate ) :
 
                     // GroupBy Year
-                    summarizeBy == ChartGroupBy.Year ? SqlFunctions.DateAdd( "day", -SqlFunctions.DatePart( "dayofyear", a.SundayDate ) + 1, a.SundayDate ) :
+                    summarizeBy == AttendanceGroupBy.Year ? SqlFunctions.DateAdd( "day", -SqlFunctions.DatePart( "dayofyear", a.SundayDate ) + 1, a.SundayDate ) :
 
                     // shouldn't happen
                     null
@@ -270,7 +304,19 @@ namespace Rock.Model
 
             return qryAttendanceGroupedBy;
         }
-    }
 
+
+        /// <summary>
+        /// Gets the attendance grouped by a datetime that represents the Year (1st day of year), Week (Sunday as last day of week), or Month (1st day of month)
+        /// </summary>
+        /// <param name="qryAttendance">The qry attendance.</param>
+        /// <param name="groupBy">The group by.</param>
+        /// <returns></returns>
+        public static IQueryable<IGrouping<DateTime, Attendance>> GetAttendanceGroupedBy( this IQueryable<Attendance> qryAttendance, AttendanceGroupBy groupBy )
+        {
+            var qryAttendanceWithSummaryDateTime = qryAttendance.GetAttendanceWithSummaryDateTime( groupBy );
+            return qryAttendanceWithSummaryDateTime.GroupBy( a => a.SummaryDateTime, v => v.Attendance );
+        }
+    }
 
 }

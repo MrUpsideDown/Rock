@@ -18,7 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
-
+using System.Runtime.Caching;
 using Rock.Data;
 using Rock.Model;
 
@@ -148,8 +148,8 @@ namespace Rock.Web.Cache
 
                 if ( !string.IsNullOrWhiteSpace( RawServiceTimes ) )
                 {
-                    string[] KeyValues = RawServiceTimes.Split( new char[] { '|' }, System.StringSplitOptions.RemoveEmptyEntries );
-                    foreach ( string keyValue in KeyValues )
+                    string[] keyValues = RawServiceTimes.Split( new char[] { '|' }, System.StringSplitOptions.RemoveEmptyEntries );
+                    foreach ( string keyValue in keyValues )
                     {
                         var dayTime = keyValue.Split( new char[] { '^' } );
                         if ( dayTime.Length == 2 )
@@ -230,24 +230,36 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static CampusCache Read( int id, RockContext rockContext = null )
         {
-            return GetOrAddExisting( CampusCache.CacheKey( id ), 
-                () => LoadById( id, rockContext ) );
+            string cacheKey = CampusCache.CacheKey( id );
+            ObjectCache cache = RockMemoryCache.Default;
+            CampusCache campus = cache[cacheKey] as CampusCache;
+
+            if ( campus == null )
+            {
+                if ( rockContext != null )
+                {
+                    campus = LoadById( id, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        campus = LoadById( id, myRockContext );
+                    }
+                }
+
+                if ( campus != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, campus, cachePolicy );
+                    cache.Set( campus.Guid.ToString(), campus.Id, cachePolicy );
+                }
+            }
+
+            return campus;
         }
 
         private static CampusCache LoadById( int id, RockContext rockContext )
-        {
-            if ( rockContext != null )
-            {
-                return LoadById2( id, rockContext );
-            }
-
-            using ( var rockContext2 = new RockContext() )
-            {
-                return LoadById2( id, rockContext2 );
-            }
-        }
-
-        private static CampusCache LoadById2( int id, RockContext rockContext )
         {
             var campusService = new CampusService( rockContext );
             var campusModel = campusService
@@ -270,33 +282,53 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static CampusCache Read( Guid guid, RockContext rockContext = null )
         {
-            int id = GetOrAddExisting( guid.ToString(),
-                () => LoadByGuid( guid, rockContext ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            object cacheObj = cache[guid.ToString()];
 
-            return Read( id, rockContext );
-        }
-
-        private static int LoadByGuid( Guid guid, RockContext rockContext )
-        {
-            if ( rockContext != null )
+            CampusCache campus = null;
+            if ( cacheObj != null )
             {
-                return LoadByGuid2( guid, rockContext );
+                campus = Read( (int)cacheObj, rockContext );
             }
 
-            using ( var rockContext2 = new RockContext() )
+            if ( campus == null )
             {
-                return LoadByGuid2( guid, rockContext2 );
+                if ( rockContext != null )
+                {
+                    campus = LoadByGuid( guid, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        campus = LoadByGuid( guid, myRockContext );
+                    }
+                }
+
+                if ( campus != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( CampusCache.CacheKey( campus.Id ), campus, cachePolicy );
+                    cache.Set( campus.Guid.ToString(), campus.Id, cachePolicy );
+                }
             }
+
+            return campus;
         }
 
-        private static int LoadByGuid2( Guid guid, RockContext rockContext )
+        private static CampusCache LoadByGuid( Guid guid, RockContext rockContext )
         {
             var campusService = new CampusService( rockContext );
-            return campusService
-                .Queryable().AsNoTracking()
-                .Where( c => c.Guid.Equals( guid ))
-                .Select( c => c.Id )
-                .FirstOrDefault();
+            var campusModel = campusService
+                .Queryable( "Location" ).AsNoTracking()
+                .FirstOrDefault( c => c.Guid.Equals( guid ) );
+            if ( campusModel != null )
+            {
+                campusModel.LoadAttributes( rockContext );
+                return new CampusCache( campusModel );
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -306,17 +338,23 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static CampusCache Read( Campus campusModel )
         {
-            return GetOrAddExisting( CampusCache.CacheKey( campusModel.Id ),
-                () => LoadByModel( campusModel ) );
-        }
+            string cacheKey = CampusCache.CacheKey( campusModel.Id );
+            ObjectCache cache = RockMemoryCache.Default;
+            CampusCache campus = cache[cacheKey] as CampusCache;
 
-        private static CampusCache LoadByModel( Campus campusModel )
-        {
-            if ( campusModel != null )
+            if ( campus != null )
             {
-                return new CampusCache( campusModel );
+                campus.CopyFromModel( campusModel );
             }
-            return null;
+            else
+            {
+                campus = new CampusCache( campusModel );
+                var cachePolicy = new CacheItemPolicy();
+                cache.Set( cacheKey, campus, cachePolicy );
+                cache.Set( campus.Guid.ToString(), campus.Id, cachePolicy );
+            }
+
+            return campus;
         }
 
         /// <summary>
@@ -337,7 +375,11 @@ namespace Rock.Web.Cache
         public static List<CampusCache> All()
         {
             List<CampusCache> campuses = new List<CampusCache>();
-            var campusIds = GetOrAddExisting( "Rock:Campus:All", () => LoadAll() );
+
+            string allCacheKey = "Rock:Campus:All";
+            ObjectCache cache = RockMemoryCache.Default;
+            List<int> campusIds = cache[allCacheKey] as List<int>;
+
             if ( campusIds != null )
             {
                 foreach ( int campusId in campusIds )
@@ -345,19 +387,41 @@ namespace Rock.Web.Cache
                     campuses.Add( CampusCache.Read( campusId ) );
                 }
             }
-            return campuses;
-        }
-
-        private static List<int> LoadAll()
-        {
-            using ( var rockContext = new RockContext() )
+            else
             {
-                return new CampusService( rockContext )
-                    .Queryable().AsNoTracking()
-                    .OrderBy( c => c.Name )
-                    .Select( c => c.Id )
-                    .ToList();
+                campusIds = new List<int>();
+
+                var cachePolicy = new CacheItemPolicy();
+
+                using ( var rockContext = new RockContext() )
+                {
+                    var campusService = new CampusService( rockContext );
+                    foreach ( var campusModel in campusService
+                        .Queryable( "Location" ).AsNoTracking()
+                        .OrderBy( c => c.Name ) )
+                    {
+                        campusIds.Add( campusModel.Id );
+
+                        string cacheKey = CampusCache.CacheKey( campusModel.Id );
+                        CampusCache campus = cache[cacheKey] as CampusCache;
+
+                        if ( campus == null )
+                        {
+                            campusModel.LoadAttributes( rockContext );
+
+                            campus = new CampusCache( campusModel );
+                            cache.Set( cacheKey, campus, cachePolicy );
+                            cache.Set( campus.Guid.ToString(), campus.Id, cachePolicy );
+                        }
+
+                        campuses.Add( campus );
+                    }
+                }
+
+                cache.Set( allCacheKey, campusIds, cachePolicy );
             }
+
+            return campuses;
         }
 
         /// <summary>
@@ -366,8 +430,9 @@ namespace Rock.Web.Cache
         /// <param name="id"></param>
         public static void Flush( int id )
         {
-            FlushCache( CampusCache.CacheKey( id ) );
-            FlushCache( "Rock:Campus:All" );
+            ObjectCache cache = RockMemoryCache.Default;
+            cache.Remove( CampusCache.CacheKey( id ) );
+            cache.Remove( "Rock:Campus:All" );
         }
 
         #endregion

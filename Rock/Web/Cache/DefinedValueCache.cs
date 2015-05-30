@@ -15,8 +15,7 @@
 // </copyright>
 //
 using System;
-using System.Data.Entity;
-using System.Linq;
+using System.Runtime.Caching;
 using System.Runtime.Serialization;
 
 using Rock.Data;
@@ -170,24 +169,37 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static DefinedValueCache Read( int id, RockContext rockContext = null )
         {
-            return GetOrAddExisting( DefinedValueCache.CacheKey( id ),
-                () => LoadById( id, rockContext ) );
+            string cacheKey = DefinedValueCache.CacheKey( id );
+
+            ObjectCache cache = RockMemoryCache.Default;
+            DefinedValueCache definedValue = cache[cacheKey] as DefinedValueCache;
+
+            if ( definedValue == null )
+            {
+                if ( rockContext != null )
+                {
+                    definedValue = LoadById( id, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        definedValue = LoadById( id, myRockContext );
+                    }
+                }
+
+                if ( definedValue != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, definedValue, cachePolicy );
+                    cache.Set( definedValue.Guid.ToString(), definedValue.Id, cachePolicy );
+                }
+            }
+
+            return definedValue;
         }
 
         private static DefinedValueCache LoadById( int id, RockContext rockContext )
-        {
-            if ( rockContext != null )
-            {
-                return LoadById2( id, rockContext );
-            }
-
-            using ( var rockContext2 = new RockContext() )
-            {
-                return LoadById2( id, rockContext2 );
-            }
-        }
-
-        private static DefinedValueCache LoadById2( int id, RockContext rockContext )
         {
             var definedValueService = new DefinedValueService( rockContext );
             var definedValueModel = definedValueService.Get( id );
@@ -224,34 +236,51 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static DefinedValueCache Read( Guid guid, RockContext rockContext = null )
         {
-            int id = GetOrAddExisting( guid.ToString(),
-                () => LoadByGuid( guid, rockContext ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            object cacheObj = cache[guid.ToString()];
 
-            return Read( id, rockContext );
-        }
-
-        private static int LoadByGuid( Guid guid, RockContext rockContext )
-        {
-            if ( rockContext != null )
+            DefinedValueCache definedValue = null;
+            if ( cacheObj != null )
             {
-                return LoadByGuid2( guid, rockContext );
+                definedValue = Read( (int)cacheObj, rockContext );
             }
 
-            using ( var rockContext2 = new RockContext() )
+            if ( definedValue == null )
             {
-                return LoadByGuid2( guid, rockContext2 );
+                if ( rockContext != null )
+                {
+                    definedValue = LoadByGuid( guid, rockContext );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        definedValue = LoadByGuid( guid, myRockContext );
+                    }
+                }
+
+                if ( definedValue != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( DefinedValueCache.CacheKey( definedValue.Id ), definedValue, cachePolicy );
+                    cache.Set( definedValue.Guid.ToString(), definedValue.Id, cachePolicy );
+                }
             }
+
+            return definedValue;
         }
 
-
-        private static int LoadByGuid2( Guid guid, RockContext rockContext )
+        private static DefinedValueCache LoadByGuid( Guid guid, RockContext rockContext )
         {
             var definedValueService = new DefinedValueService( rockContext );
-            return definedValueService
-                .Queryable().AsNoTracking()
-                .Where( c => c.Guid.Equals( guid ) )
-                .Select( c => c.Id )
-                .FirstOrDefault();
+            var definedValueModel = definedValueService.Get( guid );
+            if ( definedValueModel != null )
+            {
+                definedValueModel.LoadAttributes( rockContext );
+                return new DefinedValueCache( definedValueModel );
+            }
+
+            return null;
         }
 
         /// <summary>
@@ -262,17 +291,39 @@ namespace Rock.Web.Cache
         /// <returns></returns>
         public static DefinedValueCache Read( DefinedValue definedValueModel, RockContext rockContext = null )
         {
-            return GetOrAddExisting( DefinedValueCache.CacheKey( definedValueModel.Id ),
-                () => LoadByModel( definedValueModel ) );
-        }
+            string cacheKey = DefinedValueCache.CacheKey( definedValueModel.Id );
+            ObjectCache cache = RockMemoryCache.Default;
+            DefinedValueCache definedValue = cache[cacheKey] as DefinedValueCache;
 
-        private static DefinedValueCache LoadByModel( DefinedValue definedValueModel )
-        {
-            if ( definedValueModel != null )
+            if ( definedValue != null )
             {
-                return new DefinedValueCache( definedValueModel );
+                definedValue.CopyFromModel( definedValueModel );
             }
-            return null;
+            else
+            {
+                if ( rockContext != null )
+                {
+                    definedValueModel.LoadAttributes( rockContext );
+                    definedValue = new DefinedValueCache( definedValueModel );
+                }
+                else
+                {
+                    using ( var myRockContext = new RockContext() )
+                    {
+                        definedValueModel.LoadAttributes( myRockContext );
+                        definedValue = new DefinedValueCache( definedValueModel );
+                    }
+                }
+
+                if ( definedValue != null )
+                {
+                    var cachePolicy = new CacheItemPolicy();
+                    cache.Set( cacheKey, definedValue, cachePolicy );
+                    cache.Set( definedValue.Guid.ToString(), definedValue.Id, cachePolicy );
+                }
+            }
+
+            return definedValue;
         }
 
         /// <summary>
@@ -281,7 +332,8 @@ namespace Rock.Web.Cache
         /// <param name="id"></param>
         public static void Flush( int id )
         {
-            FlushCache( DefinedValueCache.CacheKey( id ) );
+            ObjectCache cache = RockMemoryCache.Default;
+            cache.Remove( DefinedValueCache.CacheKey( id ) );
         }
 
         /// <summary>

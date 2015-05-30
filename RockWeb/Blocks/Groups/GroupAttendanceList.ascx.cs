@@ -73,7 +73,7 @@ namespace RockWeb.Blocks.Groups
                 _canView = true;
 
                 rFilter.ApplyFilterClick += rFilter_ApplyFilterClick;
-                gOccurrences.DataKeyNames = new string[] { "Date", "ScheduleId", "LocationId" };
+                gOccurrences.DataKeyNames = new string[] { "StartDateTime", "ScheduleId", "LocationId" };
                 gOccurrences.Actions.AddClick += gOccurrences_Add;
                 gOccurrences.GridRebind += gOccurrences_GridRebind;
 
@@ -113,9 +113,9 @@ namespace RockWeb.Blocks.Groups
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         void rFilter_ApplyFilterClick( object sender, EventArgs e )
         {
-            rFilter.SaveUserPreference( MakeKeyUniqueToGroup( "Date Range" ), "Date Range", drpDates.DelimitedValues );
-            rFilter.SaveUserPreference( MakeKeyUniqueToGroup( "Schedule"), "Schedule", ddlSchedule.SelectedValue );
-            rFilter.SaveUserPreference( MakeKeyUniqueToGroup( "Location" ), "Location", ddlLocation.SelectedValue );
+            rFilter.SaveUserPreference( "Date Range", drpDates.DelimitedValues );
+            rFilter.SaveUserPreference( "Schedule", ddlSchedule.SelectedValue );
+            rFilter.SaveUserPreference( "Location", ddlLocation.SelectedValue );
 
             BindGrid();
         }
@@ -127,11 +127,11 @@ namespace RockWeb.Blocks.Groups
         /// <param name="e">The e.</param>
         protected void rFilter_DisplayFilterValue( object sender, GridFilter.DisplayFilterValueArgs e )
         {
-            if ( e.Key == MakeKeyUniqueToGroup( "Date Range" ) )
+            if ( e.Key == "Date Range" )
             {
                 e.Value = DateRangePicker.FormatDelimitedValues( e.Value );
             }
-            else if ( e.Key == MakeKeyUniqueToGroup( "Schedule" ) )
+            else if ( e.Key == "Schedule" )
             {
                 int scheduleId = e.Value.AsInteger();
                 if ( scheduleId != 0 )
@@ -144,15 +144,11 @@ namespace RockWeb.Blocks.Groups
                     e.Value = "";
                 }
             }
-            else if ( e.Key == MakeKeyUniqueToGroup( "Location" ) )
+            else if ( e.Key == "Location" )
             {
-                string locId = e.Value;
-                if ( locId.StartsWith("P"))
-                {
-                    locId = locId.Substring( 1 );
-                }
-                int locationId = locId.AsInteger();
-                e.Value = new LocationService( _rockContext ).GetPath( locationId );
+                int locationId = e.Value.AsInteger();
+                var location = new LocationService( _rockContext ).Get( locationId );
+                e.Value = location != null ? location.Name : "";
             }
             else
             {
@@ -168,7 +164,7 @@ namespace RockWeb.Blocks.Groups
         protected void gOccurrences_Edit( object sender, RowEventArgs e )
         {
             // The iCalendar date format is returned as UTC kind date, so we need to manually format it instead of using 'o'
-            string occurrenceDate = ( (DateTime)e.RowKeyValues["Date"] ).ToString( "yyyy-MM-ddTHH:mm:ss" );
+            string occurrenceDate = ( (DateTime)e.RowKeyValues["StartDateTime"] ).ToString( "yyyy-MM-ddTHH:mm:ss" );
             var qryParams = new Dictionary<string, string> { 
                 { "GroupId", _group.Id.ToString() },
                 { "Date", occurrenceDate },
@@ -206,13 +202,9 @@ namespace RockWeb.Blocks.Groups
                 qryParams.Add( "ScheduleId", ddlSchedule.SelectedValue );
             }
 
-            if ( ddlLocation.Visible )
+            if ( ddlLocation.Visible && ddlLocation.SelectedValue != "0" )
             {
-                int? locId = ddlLocation.SelectedValueAsInt();
-                if ( locId.HasValue && locId.Value != 0 )
-                {
-                    qryParams.Add( "LocationId", locId.Value.ToString() );
-                }
+                qryParams.Add( "LocationId", ddlLocation.SelectedValue );
             }
 
             NavigateToLinkedPage( "DetailPage", qryParams );
@@ -235,16 +227,7 @@ namespace RockWeb.Blocks.Groups
 
         private void BindFilter()
         {
-            string dateRangePreference = rFilter.GetUserPreference( MakeKeyUniqueToGroup( "Date Range" ) );
-            if ( !string.IsNullOrWhiteSpace( dateRangePreference ) )
-            {
-                drpDates.DelimitedValues = dateRangePreference;
-            }
-            else
-            {
-                drpDates.LowerValue = new DateTime( RockDateTime.Today.Year, 1, 1 );
-                drpDates.UpperValue = null;
-            }
+            drpDates.DelimitedValues = rFilter.GetUserPreference( "Date Range" );
 
             if ( _group != null )
             {
@@ -254,35 +237,17 @@ namespace RockWeb.Blocks.Groups
                         l.Location.Name != "" )
                     .ToList();
 
-                var locations = new Dictionary<string, string> { { "", "" } };
-
-                var locationService = new LocationService( _rockContext );
-                foreach ( var location in grouplocations.Select( l => l.Location ) )
-                {
-                    if ( !locations.ContainsKey( location.Id.ToString() ) )
-                    {
-                        locations.Add( location.Id.ToString(), locationService.GetPath( location.Id ) );
-                    }
-
-                    var parentLocation = location.ParentLocation;
-                    while ( parentLocation != null )
-                    {
-                        string key = string.Format( "P{0}", parentLocation.Id );
-                        if ( !locations.ContainsKey( key ) )
-                        {
-                            locations.Add( key, locationService.GetPath( parentLocation.Id ) );
-                        }
-                        parentLocation = parentLocation.ParentLocation;
-                    }
-                }
+                var locations = new Dictionary<int, string> { { 0, "" } };
+                grouplocations.Select( l => l.Location ).OrderBy( l => l.Name ).ToList()
+                    .ForEach( l => locations.AddOrIgnore( l.Id, l.Name ) );
 
                 if ( locations.Any() )
                 {
                     ddlLocation.Visible = true;
                     gOccurrences.Columns[2].Visible = true;
-                    ddlLocation.DataSource = locations.OrderBy( l => l.Value );
+                    ddlLocation.DataSource = locations;
                     ddlLocation.DataBind();
-                    ddlLocation.SetValue( rFilter.GetUserPreference( MakeKeyUniqueToGroup( "Location" ) ) );
+                    ddlLocation.SetValue( rFilter.GetUserPreference( "Location" ) );
                 }
                 else
                 {
@@ -300,7 +265,7 @@ namespace RockWeb.Blocks.Groups
                     gOccurrences.Columns[1].Visible = true;
                     ddlSchedule.DataSource = schedules;
                     ddlSchedule.DataBind();
-                    ddlSchedule.SetValue( rFilter.GetUserPreference( MakeKeyUniqueToGroup( "Schedule" ) ) );
+                    ddlSchedule.SetValue( rFilter.GetUserPreference( "Schedule" ) );
                 }
                 else
                 {
@@ -322,42 +287,22 @@ namespace RockWeb.Blocks.Groups
 
                 DateTime? fromDateTime = drpDates.LowerValue;
                 DateTime? toDateTime = drpDates.UpperValue;
-                List<int> locationIds = new List<int>();
-                List<int> scheduleIds = new List<int>();
+                int? locationId = null;
+                int? scheduleId = null;
 
                 // Location Filter
-
-                if ( ddlLocation.Visible )
+                if ( ddlLocation.Visible && ddlLocation.SelectedValue != "0" )
                 {
-                    string locValue = ddlLocation.SelectedValue;
-                    if ( locValue.StartsWith( "P" ) )
-                    {
-                        int? parentLocationId = locValue.Substring( 1 ).AsIntegerOrNull();
-                        if ( parentLocationId.HasValue )
-                        {
-                            locationIds = new LocationService( _rockContext )
-                                .GetAllDescendents( parentLocationId.Value )
-                                .Select( l => l.Id )
-                                .ToList();
-                        }
-                    }
-                    else
-                    {
-                        int? locationId = locValue.AsIntegerOrNull();
-                        if ( locationId.HasValue )
-                        {
-                            locationIds.Add( locationId.Value );
-                        }
-                    }
+                    locationId = ddlLocation.SelectedValueAsInt();
                 }
 
                 // Schedule Filter
                 if ( ddlSchedule.Visible && ddlSchedule.SelectedValue != "0" )
                 {
-                    scheduleIds.Add( ddlSchedule.SelectedValueAsInt() ?? 0 );
+                    scheduleId = ddlSchedule.SelectedValueAsInt();
                 }
 
-                var qry = new ScheduleService( _rockContext ).GetGroupOccurrences( _group, fromDateTime, toDateTime, locationIds, scheduleIds, true ).AsQueryable();
+                var qry = new ScheduleService( _rockContext ).GetGroupOccurrences( _group, fromDateTime, toDateTime, locationId, scheduleId ).AsQueryable();
 
                 SortProperty sortProperty = gOccurrences.SortProperty;
                 List<ScheduleOccurrence> occurrences = null;
@@ -367,7 +312,7 @@ namespace RockWeb.Blocks.Groups
                 }
                 else
                 {
-                    occurrences = qry.OrderByDescending( a => a.Date ).ThenByDescending( a => a.StartTime ).ToList();
+                    occurrences = qry.OrderByDescending( a => a.StartDateTime ).ToList();
                 }
 
                 gOccurrences.DataSource = occurrences;
@@ -375,14 +320,6 @@ namespace RockWeb.Blocks.Groups
             }
         }
 
-        private string MakeKeyUniqueToGroup( string key )
-        {
-            if ( _group != null )
-            {
-                return string.Format( "{0}-{1}", _group.Id, key );
-            }
-            return key;
-        }
 
         #endregion
 

@@ -1,4 +1,5 @@
-﻿// <copyright>
+﻿#region License
+// <copyright>
 // Copyright 2013 by the Spark Development Network
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,6 +15,8 @@
 // limitations under the License.
 // </copyright>
 //
+#endregion
+
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -47,24 +50,11 @@ namespace Rock.Reporting.DataFilter.Group
 
         #region Properties
 
-        /// <summary>
-        /// Gets the entity type that filter applies to.  Filter should be an empty string
-        /// if it applies to all entities
-        /// </summary>
-        /// <value>
-        /// The entity that filter applies to.
-        /// </value>
         public override string AppliesToEntityType
         {
             get { return typeof( Model.Group ).FullName; }
         }
 
-        /// <summary>
-        /// Gets the section.
-        /// </summary>
-        /// <value>
-        /// The section.
-        /// </value>
         public override string Section
         {
             get { return "Additional Filters"; }
@@ -74,30 +64,11 @@ namespace Rock.Reporting.DataFilter.Group
 
         #region Public Methods
 
-        /// <summary>
-        /// Gets the title.
-        /// </summary>
-        /// <param name="entityType"></param>
-        /// <returns></returns>
-        /// <value>
-        /// The title.
-        /// </value>
         public override string GetTitle( Type entityType )
         {
             return "Group Branch";
         }
 
-        /// <summary>
-        /// Formats the selection on the client-side.  When the filter is collapsed by the user, the Filterfield control
-        /// will set the description of the filter to whatever is returned by this property.  If including script, the
-        /// controls parent container can be referenced through a '$content' variable that is set by the control before
-        /// referencing this property.
-        /// </summary>
-        /// <param name="entityType"></param>
-        /// <returns></returns>
-        /// <value>
-        /// The client format script.
-        /// </value>
         public override string GetClientFormatSelection( Type entityType )
         {
             string functionText =
@@ -134,12 +105,6 @@ function()
             return functionText;
         }
 
-        /// <summary>
-        /// Formats the selection.
-        /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="selection">The selection.</param>
-        /// <returns></returns>
         public override string FormatSelection( Type entityType, string selection )
         {
             string result;
@@ -162,12 +127,6 @@ function()
             return result;
         }
 
-        /// <summary>
-        /// Creates the child controls.
-        /// </summary>
-        /// <param name="entityType"></param>
-        /// <param name="filterControl"></param>
-        /// <returns></returns>
         public override Control[] CreateChildControls( Type entityType, FilterField filterControl )
         {
             _GpkParentGroup = new GroupPicker();
@@ -185,12 +144,6 @@ function()
             return new Control[] { _GpkParentGroup, _CboIncludedGroups };
         }
 
-        /// <summary>
-        /// Gets the selection.
-        /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="controls">The controls.</param>
-        /// <returns></returns>
         public override string GetSelection( Type entityType, Control[] controls )
         {
             var settings = new GroupBranchFilterSettings();
@@ -206,12 +159,6 @@ function()
             return settings.ToSelectionString();
         }
 
-        /// <summary>
-        /// Sets the selection.
-        /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="controls">The controls.</param>
-        /// <param name="selection">The selection.</param>
         public override void SetSelection( Type entityType, Control[] controls, string selection )
         {
             var settings = new GroupBranchFilterSettings( selection );
@@ -257,14 +204,6 @@ function()
             return groupKeys;
         }
 
-        /// <summary>
-        /// Gets the expression.
-        /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="serviceInstance">The service instance.</param>
-        /// <param name="parameterExpression">The parameter expression.</param>
-        /// <param name="selection">The selection.</param>
-        /// <returns></returns>
         public override Expression GetExpression( Type entityType, IService serviceInstance, ParameterExpression parameterExpression, string selection )
         {
             var settings = new GroupBranchFilterSettings( selection );

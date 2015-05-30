@@ -107,7 +107,7 @@ namespace Rock.Reporting.DataSelect.Person
         /// </value>
         public override string GetTitle( Type entityType )
         {
-            return "In Group of Group Type";
+            return "Group Type";
         }
 
         /// <summary>

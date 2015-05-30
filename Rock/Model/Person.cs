@@ -296,30 +296,6 @@ namespace Rock.Model
         public int? GivingGroupId { get; set; }
 
         /// <summary>
-        /// Gets the giver identifier.
-        /// </summary>
-        /// <value>
-        /// The giver identifier.
-        /// </value>
-        [DataMember]
-        [DatabaseGenerated( DatabaseGeneratedOption.Computed )]
-        public string GivingId
-        {
-            get
-            {
-                // NOTE: This is the In-Memory get, LinqToSql will get the value from the database
-                return GivingGroupId.HasValue ?
-                    string.Format( "G{0}", GivingGroupId.Value ) :
-                    string.Format( "P{0}", Id );
-            }
-
-            private set
-            {
-                // don't do anthing here since EF uses this for loading 
-            }
-        }
-
-        /// <summary>
         /// Gets or sets the Person's email address.
         /// </summary>
         /// <value>
@@ -1727,12 +1703,11 @@ namespace Rock.Model
         /// Gets the home location.
         /// </summary>
         /// <param name="person">The person.</param>
-        /// <param name="rockContext">The rock context.</param>
         /// <returns></returns>
-        public static Location GetHomeLocation( this Person person, RockContext rockContext = null )
+        public static Location GetHomeLocation( this Person person )
         {
             Guid homeAddressGuid = Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME.AsGuid();
-            foreach ( var family in person.GetFamilies( rockContext ) )
+            foreach ( var family in person.GetFamilies() )
             {
                 var loc = family.GroupLocations
                     .Where( l =>
@@ -1811,7 +1786,7 @@ namespace Rock.Model
             {
                 if ( minAge.HasValue )
                 {
-                    qryWithAge = qryWithAge.Where( a => !a.Age.HasValue || a.Age >= minAge );
+                    qryWithAge = qryWithAge.Where( a => !a.Age.HasValue || a.Age >= minAge  );
                 }
 
                 if ( maxAge.HasValue )

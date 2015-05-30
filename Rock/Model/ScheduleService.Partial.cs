@@ -35,12 +35,12 @@ namespace Rock.Model
         /// <param name="group">The group.</param>
         /// <param name="fromDateTime">From date time.</param>
         /// <param name="toDateTime">To date time.</param>
-        /// <param name="locationIds">The location ids.</param>
-        /// <param name="scheduleIds">The schedule ids.</param>
-        /// <param name="loadSummaryData">if set to <c>true</c> [load summary data].</param>
+        /// <param name="locationId">The location identifier. Use a value of 0 to limit occurrences to those without a location ( a null value will not filter by location ).</param>
+        /// <param name="scheduleId">The schedule identifier. Use a value of 0 to limit occurrences to those without a schedule ( a null value will not filter by schedule ).</param>
+        /// <param name="loadAttendanceData">if set to <c>true</c> [load attendance data].</param>
         /// <returns></returns>
-        public List<ScheduleOccurrence> GetGroupOccurrences( Group group, DateTime? fromDateTime, DateTime? toDateTime, 
-            List<int> locationIds, List<int> scheduleIds, bool loadSummaryData )
+        public List<ScheduleOccurrence> GetGroupOccurrences( Group group, DateTime? fromDateTime = null, DateTime? toDateTime = null, 
+            int? locationId = null, int? scheduleId = null, bool loadAttendanceData = true )
         {
             var occurrences = new List<ScheduleOccurrence>();
 
@@ -49,161 +49,89 @@ namespace Rock.Model
                 var rockContext = (RockContext)this.Context;
                 var attendanceService = new AttendanceService( rockContext );
                 var scheduleService = new ScheduleService( rockContext );
-                var locationService = new LocationService( rockContext );
 
-                // Set up an 'occurrences' query for the group
+                // Get existing 'occurrences'
                 var qry = attendanceService
                     .Queryable().AsNoTracking()
                     .Where( a => a.GroupId == group.Id );
 
-                // Filter by date range
                 if ( fromDateTime.HasValue )
                 {
                     var fromDate = fromDateTime.Value.Date;
                     qry = qry.Where( a => DbFunctions.TruncateTime( a.StartDateTime ) >= ( fromDate ) );
                 }
+
                 if ( toDateTime.HasValue )
                 {
                     var toDate = toDateTime.Value.Date;
                     qry = qry.Where( a => DbFunctions.TruncateTime( a.StartDateTime ) < ( toDate ) );
                 }
 
-                // Location Filter
-                if ( locationIds.Any()  )
+                if ( locationId.HasValue )
                 {
                     qry = qry.Where( a =>
-                        a.LocationId.HasValue && 
-                        locationIds.Contains( a.LocationId.Value ) );
+                        ( a.LocationId.HasValue && a.LocationId.Value == locationId.Value ) ||
+                        ( !a.LocationId.HasValue && locationId.Value == 0 ) );
                 }
 
-                // Schedule Filter
-                if ( scheduleIds.Any() )
+                if ( scheduleId.HasValue )
                 {
                     qry = qry.Where( a =>
-                        a.ScheduleId.HasValue &&
-                        scheduleIds.Contains( a.ScheduleId.Value ) );
+                        ( a.ScheduleId.HasValue && a.ScheduleId.Value == scheduleId.Value ) ||
+                        ( !a.ScheduleId.HasValue && scheduleId.Value == 0 ) );
                 }
 
-                // Get the unique combination of location/schedule/date for the selected group
-                var occurrenceDates = qry
+                foreach ( var occurrence in qry
                     .Select( a => new
                     {
                         a.LocationId,
+                        LocationName = a.Location != null ? a.Location.Name : "",
                         a.ScheduleId,
+                        ScheduleName = a.Schedule != null ? a.Schedule.Name : "",
                         Date = DbFunctions.TruncateTime( a.StartDateTime )
                     } )
                     .Distinct()
-                    .ToList();
-
-                // Get the locations for each unique location id
-                var selectedlocationIds = occurrenceDates.Select( o => o.LocationId ).Distinct().ToList();
-                var locations = locationService
-                    .Queryable().AsNoTracking()
-                    .Where( l => selectedlocationIds.Contains( l.Id ) )
-                    .Select( l => new { l.Id, l.ParentLocationId, l.Name } )
-                    .ToList();
-                var locationNames = new Dictionary<int, string>();
-                locations.ForEach( l => locationNames.Add( l.Id, l.Name ) );
-
-                // Get the parent location path for each unique location
-                var parentlocationPaths = new Dictionary<int, string>();
-                locations
-                    .Where( l => l.ParentLocationId.HasValue )
-                    .Select( l => l.ParentLocationId.Value )
-                    .Distinct()
-                    .ToList()
-                    .ForEach( l => parentlocationPaths.Add( l, locationService.GetPath( l ) ) );
-                var locationPaths = new Dictionary<int, string>();
-                locations
-                    .Where( l => l.ParentLocationId.HasValue )
-                    .ToList()
-                    .ForEach( l => locationPaths.Add( l.Id, parentlocationPaths[l.ParentLocationId.Value] ) );
-
-                // Get the schedules for each unique schedule id
-                var selectedScheduleIds = occurrenceDates.Select( o => o.ScheduleId ).Distinct().ToList();
-                var schedules = scheduleService
-                    .Queryable().AsNoTracking()
-                    .Where( s => selectedScheduleIds.Contains( s.Id ) )
-                    .ToList();
-                var scheduleNames = new Dictionary<int, string>();
-                var scheduleStartTimes = new Dictionary<int, TimeSpan>();
-                schedules
-                    .ForEach( s => {
-                        scheduleNames.Add( s.Id, s.Name );
-                        scheduleStartTimes.Add( s.Id, s.StartTimeOfDay );
-                    });
-
-                foreach ( var occurrence in occurrenceDates.Where( o => o.Date.HasValue ) )
+                    .ToList() )
                 {
-                    occurrences.Add(
-                        new ScheduleOccurrence(
-                            occurrence.Date.Value,
-                            occurrence.ScheduleId.HasValue && scheduleStartTimes.ContainsKey( occurrence.ScheduleId.Value ) ?
-                                scheduleStartTimes[occurrence.ScheduleId.Value] : new TimeSpan(),
-                            occurrence.ScheduleId,
-                            occurrence.ScheduleId.HasValue && scheduleNames.ContainsKey( occurrence.ScheduleId.Value ) ?
-                                scheduleNames[occurrence.ScheduleId.Value] : string.Empty,
-                            occurrence.LocationId,
-                            occurrence.LocationId.HasValue && locationNames.ContainsKey( occurrence.LocationId.Value ) ?
-                                locationNames[occurrence.LocationId.Value] : string.Empty,
-                            occurrence.LocationId.HasValue && locationPaths.ContainsKey( occurrence.LocationId.Value ) ?
-                                locationPaths[occurrence.LocationId.Value] : string.Empty
-                        ) );
+                    if ( occurrence.Date.HasValue )
+                    {
+                        occurrences.Add(
+                            new ScheduleOccurrence(
+                                occurrence.Date.Value,
+                                occurrence.Date.Value.AddDays( 1 ),
+                                occurrence.ScheduleId,
+                                occurrence.ScheduleName,
+                                occurrence.LocationId, 
+                                occurrence.LocationName ) );
+                    }
                 }
 
                 // Load the attendance data for each occurrence
-                if ( loadSummaryData && occurrences.Any())
+                if ( loadAttendanceData && occurrences.Any())
                 {
-                    var minDate = occurrences.Min( o => o.Date );
-                    var maxDate = occurrences.Max( o => o.Date ).AddDays( 1 );
+                    var minStartValue = occurrences.Min( o => o.StartDateTime );
+                    var maxEndValue = occurrences.Max( o => o.EndDateTime );
 
-                    foreach( var summary in attendanceService
-                        .Queryable().AsNoTracking()
+                    var attendanceQry = attendanceService
+                        .Queryable( "PersonAlias" ).AsNoTracking()
                         .Where( a =>
-                            a.PersonAliasId.HasValue &&
-                            a.GroupId.HasValue &&
                             a.GroupId == group.Id &&
-                            a.StartDateTime >= minDate &&
-                            a.StartDateTime < maxDate )
-                        .GroupBy( a => new
-                        {
-                            a.LocationId,
-                            a.ScheduleId,
-                            Date = DbFunctions.TruncateTime( a.StartDateTime )
-                        } )
-                        .Select( a => new
-                        {
-                            a.Key.LocationId,
-                            a.Key.ScheduleId,
-                            a.Key.Date,
-                            DidAttendCount = a
-                                .Where( t => t.DidAttend.HasValue && t.DidAttend.Value )
-                                .Select( t => t.PersonAliasId.Value )
-                                .Distinct()
-                                .Count(),
-                            DidNotOccurCount = a
-                                .Where( t => t.DidNotOccur.HasValue && t.DidNotOccur.Value )
-                                .Select( t => t.PersonAliasId.Value )
-                                .Distinct()
-                                .Count(),
-                            TotalCount = a
-                                .Select( t => t.PersonAliasId )
-                                .Distinct()
-                                .Count()
-                        } ) )
+                            a.StartDateTime >= minStartValue &&
+                            a.StartDateTime < maxEndValue );
+
+                    var attendanceData = attendanceQry.ToList();
+
+                    foreach ( var occurrence in occurrences )
                     {
-                        var occurrence = occurrences
-                            .Where( o =>
-                                o.ScheduleId.Equals( summary.ScheduleId ) &&
-                                o.LocationId.Equals( summary.LocationId ) &&
-                                o.Date.Equals( summary.Date ) )
-                            .FirstOrDefault();
-                        if ( occurrence != null )
-                        {
-                            occurrence.DidAttendCount = summary.DidAttendCount;
-                            occurrence.DidNotOccurCount = summary.DidNotOccurCount;
-                            occurrence.TotalCount = summary.TotalCount;
-                        }
+                        occurrence.Attendance = attendanceData
+                            .Where( a =>
+                                a.StartDateTime >= occurrence.StartDateTime &&
+                                a.StartDateTime < occurrence.EndDateTime )
+                            .ToList()
+                            .Where( a => 
+                                a.LocationId.Equals( occurrence.LocationId ) &&
+                                a.ScheduleId.Equals( occurrence.ScheduleId ) )
+                            .ToList();
                     }
                 }
 
@@ -224,7 +152,7 @@ namespace Rock.Model
 
                     var existingDates = occurrences
                         .Where( o => o.ScheduleId.Equals( groupSchedule.Id ) )
-                        .Select( o => o.Date )
+                        .Select( o => o.StartDateTime.Date )
                         .Distinct()
                         .ToList();
 
@@ -237,9 +165,8 @@ namespace Rock.Model
                         // If schedule has an iCal schedule, get all the past occurrences 
                         foreach ( var occurrence in calEvent.GetOccurrences( startDate, endDate ) )
                         {
-                            var scheduleOccurrence = new ScheduleOccurrence(
-                                occurrence.Period.StartTime.Date, occurrence.Period.StartTime.TimeOfDay, groupSchedule.Id, groupSchedule.Name );
-                            if ( !existingDates.Contains( scheduleOccurrence.Date ) )
+                            var scheduleOccurrence = new ScheduleOccurrence( occurrence, groupSchedule.Id, groupSchedule.Name );
+                            if ( !existingDates.Contains( scheduleOccurrence.StartDateTime.Date ) )
                             {
                                 newOccurrences.Add( scheduleOccurrence );
                             }
@@ -275,7 +202,7 @@ namespace Rock.Model
                             {
                                 if ( !existingDates.Contains( startDate.Date ) )
                                 {
-                                    var scheduleOccurrence = new ScheduleOccurrence( startDate.Date, startDate.TimeOfDay, groupSchedule.Id, groupSchedule.Name );
+                                    var scheduleOccurrence = new ScheduleOccurrence( startDate, startDate.AddDays( 1 ), groupSchedule.Id, groupSchedule.Name );
                                     newOccurrences.Add( scheduleOccurrence );
                                 }
 
@@ -294,8 +221,8 @@ namespace Rock.Model
                             {
                                 foreach ( var occurrence in newOccurrences.ToList() )
                                 {
-                                    if ( occurrence.Date >= exclusion.Start.Value &&
-                                        occurrence.Date < exclusion.End.Value.AddDays( 1 ) )
+                                    if ( occurrence.StartDateTime >= exclusion.Start.Value &&
+                                        occurrence.StartDateTime < exclusion.End.Value.AddDays( 1 ) )
                                     {
                                         newOccurrences.Remove( occurrence );
                                     }
@@ -306,6 +233,7 @@ namespace Rock.Model
 
                     foreach( var occurrence in newOccurrences )
                     {
+                        occurrence.Attendance = new List<Attendance>();
                         occurrences.Add( occurrence );
                     }
 
@@ -321,67 +249,24 @@ namespace Rock.Model
         /// </summary>
         /// <param name="group">The group.</param>
         /// <param name="occurrence">The occurrence.</param>
-        public void LoadSummaryData( Group group, ScheduleOccurrence occurrence )
+        public void LoadAttendanceData( Group group, ScheduleOccurrence occurrence )
         {
             if ( group != null && occurrence != null )
             {
-                var attendances = new AttendanceService( (RockContext)this.Context )
-                .Queryable().AsNoTracking()
-                .Where( a =>
-                    a.PersonAliasId.HasValue &&
-                    a.GroupId.HasValue &&
-                    a.GroupId == group.Id &&
-                    a.LocationId.Equals( occurrence.LocationId ) &&
-                    a.ScheduleId.Equals( occurrence.ScheduleId ) &&
-                    DbFunctions.TruncateTime( a.StartDateTime ).Equals( occurrence.Date ) )
-                .ToList();
-
-                if ( attendances.Any() )
-                {
-                    occurrence.DidAttendCount = attendances
-                        .Where( t => t.DidAttend.HasValue && t.DidAttend.Value )
-                        .Select( t => t.PersonAliasId.Value )
-                        .Distinct()
-                        .Count();
-
-                    occurrence.DidNotOccurCount = attendances
-                        .Where( t => t.DidNotOccur.HasValue && t.DidNotOccur.Value )
-                        .Select( t => t.PersonAliasId.Value )
-                        .Distinct()
-                        .Count();
-
-                    occurrence.TotalCount = attendances
-                        .Select( t => t.PersonAliasId )
-                        .Distinct()
-                        .Count();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Gets the attendance.
-        /// </summary>
-        /// <param name="group">The group.</param>
-        /// <param name="occurrence">The occurrence.</param>
-        /// <returns></returns>
-        public IQueryable<Attendance> GetAttendance( Group group, ScheduleOccurrence occurrence )
-        {
-            if ( group != null && occurrence != null )
-            {
-                DateTime startDate = occurrence.Date;
-                DateTime endDate = occurrence.Date.AddDays( 1 );
-
-                return new AttendanceService( (RockContext)this.Context )
+                var attendanceData = new AttendanceService( (RockContext)this.Context )
                     .Queryable( "PersonAlias" ).AsNoTracking()
                     .Where( a =>
                         a.GroupId == group.Id &&
-                        a.LocationId == occurrence.LocationId &&
-                        a.ScheduleId == occurrence.ScheduleId &&
-                        a.StartDateTime >= startDate &&
-                        a.StartDateTime < endDate );
-            }
+                        a.StartDateTime >= occurrence.StartDateTime &&
+                        a.StartDateTime < occurrence.EndDateTime )
+                    .ToList()
+                    .Where( a =>
+                        a.LocationId.Equals( occurrence.LocationId ) &&
+                        a.ScheduleId.Equals( occurrence.ScheduleId ) )
+                    .ToList();
 
-            return null;
+                occurrence.Attendance = attendanceData;
+            }
         }
     }
 }

@@ -721,6 +721,10 @@ namespace Rock.Web.UI
                     // set viewstate on/off
                     this.EnableViewState = _pageCache.EnableViewState;
 
+                    // Cache object used for block output caching
+                    Page.Trace.Warn( "Getting memory cache" );
+                    ObjectCache cache = RockMemoryCache.Default;
+
                     Page.Trace.Warn( "Checking if user can administer" );
                     bool canAdministratePage = _pageCache.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
 
@@ -792,23 +796,16 @@ namespace Rock.Web.UI
 
                             // Load the control and add to the control tree
                             Page.Trace.Warn( "\tLoading control" );
-                            Control control = null;
+                            Control control;
 
                             // Check to see if block is configured to use a "Cache Duration'
-                            if ( block.OutputCacheDuration > 0 )
+                            string blockCacheKey = string.Format( "Rock:BlockOutput:{0}", block.Id );
+                            if ( block.OutputCacheDuration > 0 && cache.Contains( blockCacheKey ) )
                             {
-                                // Cache object used for block output caching
-                                Page.Trace.Warn( "Getting memory cache" );
-                                RockMemoryCache cache = RockMemoryCache.Default;
-                                string blockCacheKey = string.Format( "Rock:BlockOutput:{0}", block.Id );
-                                if ( cache.Contains( blockCacheKey ) )
-                                {
-                                    // If the current block exists in our custom output cache, add the cached output instead of adding the control
-                                    control = new LiteralControl( cache[blockCacheKey] as string );
-                                }
+                                // If the current block exists in our custom output cache, add the cached output instead of adding the control
+                                control = new LiteralControl( cache[blockCacheKey] as string );
                             }
-
-                            if ( control == null )
+                            else
                             {
                                 try
                                 {
@@ -852,7 +849,16 @@ namespace Rock.Web.UI
                                     }
 
                                     // If the blocktype's security actions have not yet been loaded, load them now
-                                    block.BlockType.SetSecurityActions( blockControl );
+                                    if ( !block.BlockType.CheckedSecurityActions )
+                                    {
+                                        Page.Trace.Warn( "\tAdding additional security actions for blcok" );
+                                        block.BlockType.SecurityActions = new ConcurrentDictionary<string, string>();
+                                        foreach ( var action in blockControl.GetSecurityActionAttributes() )
+                                        {
+                                            block.BlockType.SecurityActions.TryAdd( action.Key, action.Value );
+                                        }
+                                        block.BlockType.CheckedSecurityActions = true;
+                                    }
 
                                     // If the block's AttributeProperty values have not yet been verified verify them.
                                     // (This provides a mechanism for block developers to define the needed block
@@ -2152,24 +2158,6 @@ namespace Rock.Web.UI
             if ( CurrentPerson != null )
             {
                 PersonService.SaveUserPreference( CurrentPerson, key, value );
-            }
-        }
-
-        /// <summary>
-        /// Deletes a user preference value for the specified key
-        /// </summary>
-        /// <param name="key">A <see cref="System.String"/> representing the name of the key.</param>
-        public void DeleteUserPreference( string key )
-        {
-            var sessionValues = SessionUserPreferences();
-            if ( sessionValues.ContainsKey( key ) )
-            {
-                sessionValues.Remove( key );
-            }
-
-            if ( CurrentPerson != null )
-            {
-                PersonService.DeleteUserPreference( CurrentPerson, key );
             }
         }
 
