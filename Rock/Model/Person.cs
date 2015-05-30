@@ -402,6 +402,7 @@ namespace Rock.Model
         /// The primary alias.
         /// </value>
         [NotMapped]
+        [LavaInclude]
         public virtual PersonAlias PrimaryAlias
         {
             get
@@ -1063,11 +1064,13 @@ namespace Rock.Model
         /// A <see cref="System.String"/> representing the impersonation parameter.
         /// </value>
         [NotMapped]
+        [LavaInclude]
         public virtual string ImpersonationParameter
         {
             get
             {
-                return "rckipid=" + HttpUtility.UrlEncode( this.EncryptedKey );
+                var encryptedKey = this.EncryptedKey;
+                return "rckipid=" + HttpUtility.UrlEncode( encryptedKey );
             }
         }
 
@@ -1215,9 +1218,10 @@ namespace Rock.Model
         /// </summary>
         /// <param name="action">The action.</param>
         /// <param name="person">The person.</param>
-        /// <param name="rockContext">The rock context.</param>
-        /// <returns></returns>
-        public override bool IsAuthorized( string action, Person person, RockContext rockContext = null )
+        /// <returns>
+        ///   <c>true</c> if the specified action is authorized; otherwise, <c>false</c>.
+        /// </returns>
+        public override bool IsAuthorized( string action, Person person )
         {
             if ( person.Guid.Equals( this.Guid ) )
             {
@@ -1225,7 +1229,7 @@ namespace Rock.Model
             }
             else
             {
-                return base.IsAuthorized( action, person, rockContext );
+                return base.IsAuthorized( action, person );
             }
         }
 
