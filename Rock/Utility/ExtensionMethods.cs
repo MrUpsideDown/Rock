@@ -2335,7 +2335,7 @@ namespace Rock
             List<string> strings = new List<string>();
             foreach ( T item in items )
             {
-                strings.Add( item.ToString() );
+                strings.Add( item.ToStringSafe() );
             }
 
             if ( finalDelimiter != null && strings.Count > 1 )
