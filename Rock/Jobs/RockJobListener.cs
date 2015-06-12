@@ -117,9 +117,20 @@ namespace Rock.Jobs
             {
                 job.LastSuccessfulRunDateTime = job.LastRunDateTime;
                 job.LastStatus = "Success";
-                job.LastStatusMessage = string.Empty;
 
-                message.Append( "Result: Success" );
+                // If the job returned a result, store the text summary as the last status message.
+                var resultDescription = context.Result.ToStringSafe();
+
+                if (!string.IsNullOrWhiteSpace(resultDescription))
+                {
+                    job.LastStatusMessage = resultDescription;
+
+                    message.Append(resultDescription);
+                }
+                else
+                {
+                    message.Append( "Result: Success" );    
+                }
 
                 // determine if message should be sent
                 if ( job.NotificationStatus == JobNotificationStatus.Success )

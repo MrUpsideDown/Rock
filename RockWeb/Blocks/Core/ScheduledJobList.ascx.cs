@@ -128,7 +128,14 @@ namespace RockWeb.Blocks.Administration
                             break;
                     }
                 }
-                    
+
+                // Format Last Status Message
+                if ( e.Row.DataItem.GetPropertyValue( "LastStatusMessage" ) != null )
+                {
+                    string lastMessage = e.Row.DataItem.GetPropertyValue( "LastStatusMessage" ).ToString().Replace("\n", "<br/>");
+
+                    e.Row.Cells[5].Text = lastMessage;
+                }    
 
             }
         }
