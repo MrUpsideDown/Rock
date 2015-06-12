@@ -19,6 +19,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -1324,6 +1325,9 @@ namespace Rock.Web.UI.Controls
 
                 // print data
                 int dataIndex = 0;
+
+                var dataKeyName = DataKeyNames.FirstOrDefault();
+
                 foreach ( var item in data )
                 {
                     columnCounter = 0;
@@ -1389,11 +1393,14 @@ namespace Rock.Web.UI.Controls
                         if ( dataItem == null )
                         {
                             // If the DataItem does not have attributes, check to see if there is an object list
-                            if ( ObjectList != null )
+                            if ( ObjectList != null
+                                 && dataKeyName != null )
                             {
                                 // If an object list exists, check to see if the associated object has attributes
-                                string key = DataKeys[dataIndex].Value.ToString();
-                                if ( !string.IsNullOrWhiteSpace( key ) && ObjectList.ContainsKey( key ) )
+                                string key = item.GetPropertyValue( dataKeyName ).ToString();
+                                
+                                if ( !string.IsNullOrWhiteSpace( key )
+                                     && ObjectList.ContainsKey( key ) )
                                 {
                                     dataItem = ObjectList[key] as Rock.Attribute.IHasAttributes;
                                 }
