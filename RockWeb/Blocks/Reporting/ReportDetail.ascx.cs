@@ -608,7 +608,7 @@ namespace RockWeb.Blocks.Reporting
                         listItem.Attributes["optiongroup"] = "Other";
                     }
 
-                    if ( entityField.FieldKind == FieldKind.Attribute && entityField.AttributeGuid.HasValue)
+                    if ( entityField.FieldKind == FieldKind.Attribute && entityField.AttributeGuid.HasValue )
                     {
                         var attribute = AttributeCache.Read( entityField.AttributeGuid.Value );
                         if ( attribute != null )
@@ -1002,6 +1002,10 @@ namespace RockWeb.Blocks.Reporting
                                 {
                                     boundField = new BoolField();
                                 }
+                                else if ( attribute.FieldType.Guid.Equals( Rock.SystemGuid.FieldType.DEFINED_VALUE.AsGuid() ) )
+                                {
+                                    boundField = new DefinedValueField();
+                                }
                                 else
                                 {
                                     boundField = new BoundField();
@@ -1081,8 +1085,8 @@ namespace RockWeb.Blocks.Reporting
                         boundField.Visible = showAllColumns || entityField.IsPreviewable;
                         gReport.Columns.Add( boundField );
                     }
-                } 
-                   
+                }
+
                 try
                 {
                     gReport.Visible = true;
