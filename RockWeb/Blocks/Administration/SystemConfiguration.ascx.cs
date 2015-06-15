@@ -118,20 +118,35 @@ namespace RockWeb.Blocks.Administration
             nbMessage.Visible = true;
 
             Configuration rockWebConfig = System.Web.Configuration.WebConfigurationManager.OpenWebConfiguration( "~" );
+            
             rockWebConfig.AppSettings.Settings["OrgTimeZone"].Value = ddTimeZone.SelectedValue;
             rockWebConfig.AppSettings.Settings["RunJobsInIISContext"].Value = cbRunJobsInIISContext.Checked.ToString();
 
             var section = (System.Web.Configuration.SystemWebSectionGroup)rockWebConfig.GetSectionGroup("system.web");
             section.HttpRuntime.MaxRequestLength = int.Parse( numbMaxSize.Text ) * 1024;
 
-            rockWebConfig.Save();
+            string errorMessage = null;
 
-            if ( ! SaveMaxAllowedContentLength() )
+            try
+            {
+                rockWebConfig.Save();
+
+                if (!SaveMaxAllowedContentLength())
+                {
+                    errorMessage = "An error occurred which prevented the 'MaxAllowedContentLength' to be saved in the web.config";
+                }
+            }
+            catch (Exception ex)
+            {
+                errorMessage = ex.Message;
+            }
+
+            if (!string.IsNullOrEmpty(errorMessage))
             {
                 nbMessage.NotificationBoxType = NotificationBoxType.Danger;
                 nbMessage.Title = "Error";
-                nbMessage.Text = "An error occurred which prevented the 'MaxAllowedContentLength' to be saved in the web.config";
-            }
+                nbMessage.Text = @"A server configuration error prevented these changes from being saved. Please consult your system administrator for further information.\n" + errorMessage;                
+            }            
             else
             {
                 nbMessage.NotificationBoxType = NotificationBoxType.Success;
