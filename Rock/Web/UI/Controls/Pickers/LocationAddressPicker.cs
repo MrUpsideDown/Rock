@@ -411,6 +411,14 @@ namespace Rock.Web.UI.Controls
         }
 
         /// <summary>
+        /// Gets or sets the select dbGeography.
+        /// </summary>
+        /// <value>
+        /// The select dbGeography.
+        /// </value>
+        public event EventHandler SelectGeography;
+
+        /// <summary>
         /// Handles the Click event of the _btnSelect control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
@@ -422,6 +430,11 @@ namespace Rock.Web.UI.Controls
             Location = location;
             _btnPickerLabel.InnerHtml = string.Format( "<i class='fa fa-user'></i>{0}<b class='fa fa-caret-down pull-right'></b>", this.AddressSummaryText );
             ShowDropDown = false;
+
+            if ( SelectGeography != null )
+            {
+                SelectGeography( sender, e );
+            }
         }
 
         /// <summary>
