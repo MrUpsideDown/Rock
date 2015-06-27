@@ -53,7 +53,6 @@ namespace Rock.Model
         /// </value>
         [Required]
         [MaxLength( 100 )]
-        [Index( IsUnique = true )]
         [DataMember( IsRequired = true )]
         public string Name { get; set; }
 
@@ -72,6 +71,7 @@ namespace Rock.Model
         /// <value>
         /// A <see cref="System.String"/> representing the CSS class that is used for a vector/CSS based icon.
         /// </value>
+        [MaxLength( 100 )]
         [DataMember]
         public string IconCssClass { get; set; }
 

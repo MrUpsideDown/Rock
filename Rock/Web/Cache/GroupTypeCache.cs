@@ -513,7 +513,7 @@ namespace Rock.Web.Cache
         private static GroupTypeCache LoadById( int id, RockContext rockContext )
         {
             var groupTypeService = new GroupTypeService( rockContext );
-            var groupTypeModel = groupTypeService.Get( id );
+            var groupTypeModel = groupTypeService.Queryable().Include(a => a.Roles).FirstOrDefault(a => a.Id == id );
             if ( groupTypeModel != null )
             {
                 groupTypeModel.LoadAttributes( rockContext );
@@ -738,6 +738,17 @@ namespace Rock.Web.Cache
             IsLeader = role.IsLeader;
             CanView = role.CanView;
             CanEdit = role.CanEdit;
+        }
+
+        /// <summary>
+        /// Returns a <see cref="System.String" /> that represents this instance.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="System.String" /> that represents this instance.
+        /// </returns>
+        public override string ToString()
+        {
+            return this.Name;
         }
     }
 }

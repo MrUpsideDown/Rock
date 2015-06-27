@@ -15,6 +15,7 @@
 // </copyright>
 //
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data.Entity;
 using System.Linq;
@@ -22,12 +23,9 @@ using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.UI.HtmlControls;
-
 using DotLiquid;
 using DotLiquid.Util;
-
 using Humanizer;
-
 using Rock;
 using Rock.Attribute;
 using Rock.Data;
@@ -379,6 +377,21 @@ namespace Rock.Lava
         }
 
         /// <summary>
+        /// Trims the specified input.
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <returns></returns>
+        public static string Trim( object input )
+        {
+            if ( input == null )
+            {
+                return string.Empty;
+            }
+
+            return input.ToString().Trim();
+        }
+
+        /// <summary>
         /// Remove the first occurrence of a substring - this is a Rock version on this filter which takes any object
         /// </summary>
         /// <param name="input"></param>
@@ -509,6 +522,59 @@ namespace Rock.Lava
             return DateTime.TryParse( input.ToString(), out date )
                 ? Liquid.UseRubyDateFormat ? date.ToStrFTime( format ).Trim() : date.ToString( format ).Trim()
                 : input.ToString().Trim();
+        }
+
+        /// <summary>
+        /// Adds a time interval to a date
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <param name="amount">The amount.</param>
+        /// <param name="interval">The interval.</param>
+        /// <returns></returns>
+        public static DateTime? DateAdd( object input, int amount, string interval = "d" )
+        {
+            DateTime? date = null;
+            
+            if ( input == null )
+                return null;
+
+            if ( input.ToString() == "Now" )
+            {
+                date = RockDateTime.Now;
+            }
+            else
+            {
+                DateTime d;
+                bool success = DateTime.TryParse( input.ToString(), out d );
+                if ( success )
+                {
+                    date = d;
+                }
+            }
+
+            if ( date.HasValue )
+            {
+                TimeSpan timeInterval = new TimeSpan();
+                switch ( interval )
+                {
+                    case "d":
+                        timeInterval = new TimeSpan(amount, 0, 0, 0);
+                        break;
+                    case "h":
+                        timeInterval = new TimeSpan( 0, amount, 0, 0 );
+                        break;
+                    case "m":
+                        timeInterval = new TimeSpan(0, 0, amount, 0);
+                        break;
+                    case "s":
+                        timeInterval = new TimeSpan(0, 0, 0, amount);
+                        break;
+                }
+                
+                date = date.Value.Add(timeInterval);
+            }
+
+            return date;
         }
 
         /// <summary>
@@ -722,6 +788,37 @@ namespace Rock.Lava
             return string.Format( "{0:" + format + "}", input );
         }
 
+
+        /// <summary>
+        /// Divideds the by.
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <param name="operand">The operand.</param>
+        /// <param name="precision">The precision.</param>
+        /// <returns></returns>
+        public static object DividedBy( object input, object operand, int precision = 2 )
+        {
+            if ( input == null || operand == null )
+                return null;
+
+            try
+            {
+                decimal dInput = 0;
+                decimal dOperand = 0;
+
+                if ( decimal.TryParse( input.ToString(), out dInput ) && decimal.TryParse( operand.ToString(), out dOperand ) )
+                {
+                    decimal result = ( dInput / dOperand );
+                    return decimal.Round( result, precision );
+                }
+
+                return "Could not convert input to number";
+                
+            } catch (Exception ex){
+                return ex.Message;
+            }
+        }
+
         #endregion
 
         #region Attribute Filters
@@ -736,6 +833,8 @@ namespace Rock.Lava
         /// <returns></returns>
         public static object Attribute( DotLiquid.Context context, object input, string attributeKey, string qualifier = "" )
         {
+            IHasAttributes item = null;
+            
             if ( input == null || attributeKey == null )
             {
                 return string.Empty;
@@ -769,19 +868,31 @@ namespace Rock.Lava
                 }
             }
 
-            // If input is an object that has attributes, find it's attribute value
-            else if ( input is IHasAttributes)
-            {
-                var item = (IHasAttributes)input;
-                if ( item.Attributes == null)
+            // If input is an object that has attributes, find its attribute value
+            else
+            { 
+                
+                if ( input is IHasAttributes)
                 {
-                    item.LoadAttributes( rockContext );
+                    item = (IHasAttributes)input;
+                }
+                else if ( input is IHasAttributesWrapper )  
+                {
+                    item = ((IHasAttributesWrapper)input).HasAttributesEntity;
                 }
 
-                if ( item.Attributes.ContainsKey(attributeKey))
+                if ( item != null )
                 {
-                    attribute = item.Attributes[attributeKey];
-                    rawValue = item.AttributeValues[attributeKey].Value;
+                    if ( item.Attributes == null )
+                    {
+                        item.LoadAttributes( rockContext );
+                    }
+
+                    if ( item.Attributes.ContainsKey( attributeKey ) )
+                    {
+                        attribute = item.Attributes[attributeKey];
+                        rawValue = item.AttributeValues[attributeKey].Value;
+                    }
                 }
             }
 
@@ -824,6 +935,14 @@ namespace Rock.Lava
                     if ( qualifier.Equals( "Url", StringComparison.OrdinalIgnoreCase ) && field is Rock.Field.ILinkableFieldType )
                     {
                         return ( (Rock.Field.ILinkableFieldType)field ).UrlLink( rawValue, attribute.QualifierValues );
+                    }
+
+                    // check if attribute is a key value list and return a collection of key/value pairs
+                    if ( field is Rock.Field.Types.KeyValueListFieldType )
+                    {
+                        var keyValueField = (Rock.Field.Types.KeyValueListFieldType)field;
+
+                        return keyValueField.GetValuesFromString( null, rawValue, attribute.QualifierValues, false );
                     }
 
                     // If qualifier was specified, and the attribute field type is an IEntityFieldType, try to find a property on the entity
@@ -1025,18 +1144,17 @@ namespace Rock.Lava
         /// <param name="context">The context.</param>
         /// <param name="input">The input.</param>
         /// <param name="groupTypeId">The group type identifier.</param>
+        /// <param name="status">The status.</param>
         /// <returns></returns>
         public static List<Rock.Model.GroupMember> Groups( DotLiquid.Context context, object input, string groupTypeId, string status = "Active" )
         {
             var person = GetPerson( input );
             int? numericalGroupTypeId = groupTypeId.AsIntegerOrNull();
 
-            
-
             if ( person != null && numericalGroupTypeId.HasValue )
             {
                 var groupQuery =  new GroupMemberService( GetRockContext( context ) )
-                    .Queryable("Group").AsNoTracking()
+                    .Queryable("Group, GroupRole").AsNoTracking()
                     .Where( m =>
                         m.PersonId == person.Id &&
                         m.Group.GroupTypeId == numericalGroupTypeId.Value &&
@@ -1070,10 +1188,36 @@ namespace Rock.Lava
 
             if ( person != null && numericalGroupTypeId.HasValue )
             {
-                return new AttendanceService( GetRockContext( context ) ).Queryable().AsNoTracking().Where(a => a.Group.GroupTypeId == numericalGroupTypeId && a.PersonAlias.PersonId == person.Id).Select(a => a.Group).Distinct().ToList();
+                return new AttendanceService( GetRockContext( context ) ).Queryable().AsNoTracking()
+                    .Where(a => a.Group.GroupTypeId == numericalGroupTypeId && a.PersonAlias.PersonId == person.Id && a.DidAttend == true)
+                    .Select(a => a.Group).Distinct().ToList();
             }
 
             return new List<Model.Group>();
+        }
+
+        /// <summary>
+        /// Gets the last attendance item for a given person in a group of type provided
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="input">The input.</param>
+        /// <param name="groupTypeId">The group type identifier.</param>
+        /// <returns></returns>
+        public static Attendance LastAttendedGroupOfType( DotLiquid.Context context, object input, string groupTypeId )
+        {
+            var person = GetPerson( input );
+            int? numericalGroupTypeId = groupTypeId.AsIntegerOrNull();
+
+            if ( person != null && numericalGroupTypeId.HasValue )
+            {
+                var attendance =  new AttendanceService( GetRockContext( context ) ).Queryable("Group").AsNoTracking()
+                    .Where( a => a.Group.GroupTypeId == numericalGroupTypeId && a.PersonAlias.PersonId == person.Id && a.DidAttend == true )
+                    .OrderByDescending( a => a.StartDateTime ).FirstOrDefault();
+
+                return attendance;
+            }
+
+            return new Attendance();
         }
 
         /// <summary>
@@ -1256,6 +1400,153 @@ namespace Rock.Lava
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// adds a link tag to the head of the document
+        /// </summary>
+        /// <param name="input">The input to use for the href of the tag.</param>
+        /// <returns></returns>
+        public static string SetPageTitle( string input )
+        {
+            RockPage page = HttpContext.Current.Handler as RockPage;
+
+            if ( page != null )
+            {
+                page.BrowserTitle = input;
+                page.PageTitle = input;
+                page.Header.Title = input;
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Converts a lava property to a key value pair
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <returns></returns>
+        public static Dictionary<string, object> PropertyToKeyValue(object input)
+        {
+            Dictionary<string, object> result = new Dictionary<string, object>();
+            var type = input.GetType();
+
+            if ( type == typeof(KeyValuePair<string,object>) )
+            {
+                var key = type.GetProperty("Key");
+                var value = type.GetProperty("Value");
+
+                result.Add("Key", key.GetValue(input, null).ToString());
+                result.Add("Value", value.GetValue(input, null));
+            }
+
+            return result;
+        }
+
+        #endregion
+
+        #region Array Filters
+
+        /// <summary>
+        /// Rearranges an array in a random order
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        public static object Shuffle( object input )
+        {
+            if ( input == null )
+            {
+                return input;
+            }
+
+            if ( !(input is IList) )
+            {
+                return input;
+            }
+
+            var inputList = input as IList;
+            Random rng = new Random();
+            int n = inputList.Count;
+            while ( n > 1 )
+            {
+                n--;
+                int k = rng.Next( n + 1 );
+                var value = inputList[k];
+                inputList[k] = inputList[n];
+                inputList[n] = value;
+            }
+
+            return inputList;
+        }
+
+        /// <summary>
+        /// Wheres the specified input.
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <param name="filterKey">The filter key.</param>
+        /// <param name="filterValue">The filter value.</param>
+        /// <returns></returns>
+        public static object Where( object input, string filterKey, object filterValue )
+        {
+            if ( input == null )
+            {
+                return input;
+            }
+
+            if ( input is IEnumerable )
+            {
+                var result = new List<object>();
+                
+                foreach ( var value in ( (IEnumerable)input ) )
+                {
+                    if ( value is ILiquidizable )
+                    {
+                        var liquidObject = value as ILiquidizable;
+                        if (liquidObject.ContainsKey(filterKey) && liquidObject[filterKey].Equals(filterValue)) {
+                            result.Add(liquidObject);
+                        }
+                    }
+                }
+
+                return result;
+            }
+
+            return input;
+        }
+
+        /// <summary>
+        /// Selects the specified input.
+        /// </summary>
+        /// <param name="input">The input.</param>
+        /// <param name="selectKey">The select key.</param>
+        /// <returns></returns>
+        public static object Select( object input, string selectKey )
+        {
+            if ( input == null )
+            {
+                return input;
+            }
+
+            if ( input is IEnumerable )
+            {
+                var result = new List<object>();
+
+                foreach ( var value in ( (IEnumerable)input ) )
+                {
+                    if ( value is ILiquidizable )
+                    {
+                        var liquidObject = value as ILiquidizable;
+                        if ( liquidObject.ContainsKey( selectKey ) )
+                        {
+                            result.Add( liquidObject );
+                        }
+                    }
+                }
+
+                return result;
+            }
+
+            return input;
         }
 
         #endregion

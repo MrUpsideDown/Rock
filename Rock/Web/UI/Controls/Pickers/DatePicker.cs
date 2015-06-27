@@ -106,7 +106,7 @@ namespace Rock.Web.UI.Controls
         protected override void OnInit( EventArgs e )
         {
             base.OnInit( e );
-            this.AddCssClass( "input-width-md" );
+            this.AddCssClass( "input-width-md js-date-picker" );
             this.AppendText = "<i class='fa fa-calendar'></i>";
 
             if ( string.IsNullOrWhiteSpace( this.SourceTypeName ) )
@@ -115,6 +115,18 @@ namespace Rock.Web.UI.Controls
                 this.SourceTypeName = "Rock.Web.UI.Controls.DatePicker, Rock";
                 this.PropertyName = "SelectedDate";
             }
+        }
+
+        /// <summary>
+        /// Raises the <see cref="E:System.Web.UI.Control.Load" /> event.
+        /// </summary>
+        /// <param name="e">The <see cref="T:System.EventArgs" /> object that contains the event data.</param>
+        protected override void OnLoad( EventArgs e )
+        {
+            base.OnLoad( e );
+
+            // make sure the input's value matches the text on PostBack (DatePicker relies on "value" of input and text)
+            this.Attributes["value"] = this.Text;
         }
 
         /// <summary>
@@ -219,6 +231,7 @@ namespace Rock.Web.UI.Controls
                     this.Text = string.Empty;
                 }
 
+                // set value to equal text when date is set (DatePicker relies on "value" of input and text)
                 this.Attributes["value"] = this.Text;
             }
         }

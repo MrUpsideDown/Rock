@@ -600,7 +600,7 @@ namespace Rock.Web.UI
                 PageTitle = _pageCache.PageTitle;
                 PageIcon = _pageCache.IconCssClass;
 
-                // If there's a master page, update it's reference to Current Page
+                // If there's a master page, update its reference to Current Page
                 if ( this.Master is RockMasterPage )
                 {
                     ( (RockMasterPage)this.Master ).SetPage( _pageCache );
@@ -721,10 +721,6 @@ namespace Rock.Web.UI
                     // set viewstate on/off
                     this.EnableViewState = _pageCache.EnableViewState;
 
-                    // Cache object used for block output caching
-                    Page.Trace.Warn( "Getting memory cache" );
-                    ObjectCache cache = RockMemoryCache.Default;
-
                     Page.Trace.Warn( "Checking if user can administer" );
                     bool canAdministratePage = _pageCache.IsAuthorized( Authorization.ADMINISTRATE, CurrentPerson );
 
@@ -796,16 +792,23 @@ namespace Rock.Web.UI
 
                             // Load the control and add to the control tree
                             Page.Trace.Warn( "\tLoading control" );
-                            Control control;
+                            Control control = null;
 
                             // Check to see if block is configured to use a "Cache Duration'
-                            string blockCacheKey = string.Format( "Rock:BlockOutput:{0}", block.Id );
-                            if ( block.OutputCacheDuration > 0 && cache.Contains( blockCacheKey ) )
+                            if ( block.OutputCacheDuration > 0 )
                             {
-                                // If the current block exists in our custom output cache, add the cached output instead of adding the control
-                                control = new LiteralControl( cache[blockCacheKey] as string );
+                                // Cache object used for block output caching
+                                Page.Trace.Warn( "Getting memory cache" );
+                                RockMemoryCache cache = RockMemoryCache.Default;
+                                string blockCacheKey = string.Format( "Rock:BlockOutput:{0}", block.Id );
+                                if ( cache.Contains( blockCacheKey ) )
+                                {
+                                    // If the current block exists in our custom output cache, add the cached output instead of adding the control
+                                    control = new LiteralControl( cache[blockCacheKey] as string );
+                                }
                             }
-                            else
+
+                            if ( control == null )
                             {
                                 try
                                 {
@@ -833,7 +836,7 @@ namespace Rock.Web.UI
 
                             if ( control != null )
                             {
-                                // If the current control is a block, set it's properties
+                                // If the current control is a block, set its properties
                                 var blockControl = control as RockBlock;
                                 if ( blockControl != null )
                                 {
@@ -849,16 +852,7 @@ namespace Rock.Web.UI
                                     }
 
                                     // If the blocktype's security actions have not yet been loaded, load them now
-                                    if ( !block.BlockType.CheckedSecurityActions )
-                                    {
-                                        Page.Trace.Warn( "\tAdding additional security actions for blcok" );
-                                        block.BlockType.SecurityActions = new ConcurrentDictionary<string, string>();
-                                        foreach ( var action in blockControl.GetSecurityActionAttributes() )
-                                        {
-                                            block.BlockType.SecurityActions.TryAdd( action.Key, action.Value );
-                                        }
-                                        block.BlockType.CheckedSecurityActions = true;
-                                    }
+                                    block.BlockType.SetSecurityActions( blockControl );
 
                                     // If the block's AttributeProperty values have not yet been verified verify them.
                                     // (This provides a mechanism for block developers to define the needed block
@@ -2139,11 +2133,12 @@ namespace Rock.Web.UI
 
         /// <summary>
         /// Sets a user preference value for the specified key. If the key already exists, the value will be updated,
-        /// if it is a new key it will be added.
+        /// if it is a new key it will be added. Value is then optionally saved to database.
         /// </summary>
-        /// <param name="key">A <see cref="System.String"/> representing the name of the key.</param>
-        /// <param name="value">A <see cref="System.String"/> representing the preference value.</param>
-        public void SetUserPreference( string key, string value )
+        /// <param name="key">A <see cref="System.String" /> representing the name of the key.</param>
+        /// <param name="value">A <see cref="System.String" /> representing the preference value.</param>
+        /// <param name="saveValue">if set to <c>true</c> [save value].</param>
+        public void SetUserPreference( string key, string value, bool saveValue = true )
         {
             var sessionValues = SessionUserPreferences();
             if ( sessionValues.ContainsKey( key ) )
@@ -2155,9 +2150,45 @@ namespace Rock.Web.UI
                 sessionValues.Add( key, value );
             }
 
-            if ( CurrentPerson != null )
+            if ( saveValue && CurrentPerson != null )
             {
                 PersonService.SaveUserPreference( CurrentPerson, key, value );
+            }
+        }
+
+        /// <summary>
+        /// Saves the user preferences.
+        /// </summary>
+        /// <param name="keyPrefix">The key prefix.</param>
+        public void SaveUserPreferences( string keyPrefix )
+        {
+            if ( CurrentPerson != null )
+            {
+                var values = new Dictionary<string, string>();
+                SessionUserPreferences()
+                    .Where( p => p.Key.StartsWith( keyPrefix ) )
+                    .ToList()
+                    .ForEach( kv => values.Add( kv.Key, kv.Value ) );
+
+                PersonService.SaveUserPreferences( CurrentPerson, values );
+            }
+        }
+
+        /// <summary>
+        /// Deletes a user preference value for the specified key
+        /// </summary>
+        /// <param name="key">A <see cref="System.String"/> representing the name of the key.</param>
+        public void DeleteUserPreference( string key )
+        {
+            var sessionValues = SessionUserPreferences();
+            if ( sessionValues.ContainsKey( key ) )
+            {
+                sessionValues.Remove( key );
+            }
+
+            if ( CurrentPerson != null )
+            {
+                PersonService.DeleteUserPreference( CurrentPerson, key );
             }
         }
 

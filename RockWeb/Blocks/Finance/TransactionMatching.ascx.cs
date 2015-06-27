@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Data.Entity;
 using System.Linq;
 using System.Web.UI;
 using System.Web.UI.WebControls;
@@ -536,6 +537,8 @@ namespace RockWeb.Blocks.Finance
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void btnNext_Click( object sender, EventArgs e )
         {
+            var changes = new List<string>();
+
             var rockContext = new RockContext();
             var financialTransactionService = new FinancialTransactionService( rockContext );
             var financialTransactionDetailService = new FinancialTransactionDetailService( rockContext );
@@ -565,8 +568,23 @@ namespace RockWeb.Blocks.Finance
                 financialTransaction.AuthorizedPersonAliasId = null;
                 foreach ( var detail in financialTransaction.TransactionDetails )
                 {
+                    History.EvaluateChange( changes, detail.Account != null ? detail.Account.Name : "Unknown", detail.Amount.ToString( "C2" ), string.Empty );
                     financialTransactionDetailService.Delete( detail );
                 }
+
+                changes.Add( "Unmatched transaction" );
+
+                HistoryService.SaveChanges(
+                    rockContext,
+                    typeof( FinancialBatch ),
+                    Rock.SystemGuid.Category.HISTORY_FINANCIAL_TRANSACTION.AsGuid(),
+                    financialTransaction.BatchId.Value,
+                    changes,
+                    string.Format( "Transaction Id: {0}", financialTransaction.Id ),
+                    typeof( FinancialTransaction ),
+                    financialTransaction.Id,
+                    false
+                );
 
                 rockContext.SaveChanges();
 
@@ -592,7 +610,8 @@ namespace RockWeb.Blocks.Finance
                     return;
                 }
 
-                int? personAliasId = new PersonAliasService( rockContext ).GetPrimaryAliasId( authorizedPersonId.Value );
+                var personAlias = new PersonAliasService( rockContext ).GetPrimaryAlias( authorizedPersonId.Value );
+                int? personAliasId = personAlias != null ? personAlias.Id : (int?)null;
 
                 // if this transaction has an accountnumber associated with it (in other words, it's a scanned check), ensure there is a financialPersonBankAccount record
                 if ( !string.IsNullOrWhiteSpace( accountNumberSecured ) )
@@ -618,15 +637,22 @@ namespace RockWeb.Blocks.Finance
                     }
                 }
 
+                string prevPerson = ( financialTransaction.AuthorizedPersonAlias != null && financialTransaction.AuthorizedPersonAlias.Person != null ) ?
+                    financialTransaction.AuthorizedPersonAlias.Person.FullName : string.Empty;
+                string newPerson = string.Empty;
                 if ( personAliasId.HasValue )
                 {
+                    newPerson = personAlias.Person.FullName;
                     financialTransaction.AuthorizedPersonAliasId = personAliasId;
                 }
+
+                History.EvaluateChange( changes, "Person", prevPerson, newPerson );
 
                 // just in case this transaction is getting re-edited either by the same user, or somebody else, clean out any existing TransactionDetail records
                 foreach ( var detail in financialTransaction.TransactionDetails.ToList() )
                 {
                     financialTransactionDetailService.Delete( detail );
+                    History.EvaluateChange( changes, detail.Account != null ? detail.Account.Name : "Unknown", detail.Amount.ToString( "C2" ), string.Empty );
                 }
 
                 foreach ( var accountBox in rptAccounts.ControlsOfTypeRecursive<CurrencyBox>() )
@@ -640,12 +666,29 @@ namespace RockWeb.Blocks.Finance
                         financialTransactionDetail.AccountId = accountBox.Attributes["data-account-id"].AsInteger();
                         financialTransactionDetail.Amount = amount.Value;
                         financialTransactionDetailService.Add( financialTransactionDetail );
+
+                        History.EvaluateChange( changes, accountBox.Label, 0.0M.ToString( "C2" ), amount.Value.ToString( "C2" ) );
+
                     }
                 }
 
                 financialTransaction.ProcessedByPersonAliasId = this.CurrentPersonAlias.Id;
                 financialTransaction.ProcessedDateTime = RockDateTime.Now;
 
+                changes.Add( "Matched transaction" );
+
+                HistoryService.SaveChanges(
+                    rockContext,
+                    typeof( FinancialBatch ),
+                    Rock.SystemGuid.Category.HISTORY_FINANCIAL_TRANSACTION.AsGuid(),
+                    financialTransaction.BatchId.Value,
+                    changes,
+                    personAlias != null && personAlias.Person != null ? personAlias.Person.FullName : string.Format( "Transaction Id: {0}", financialTransaction.Id ),
+                    typeof( FinancialTransaction ),
+                    financialTransaction.Id,
+                    false
+                ); 
+                
                 rockContext.SaveChanges();
             }
             else

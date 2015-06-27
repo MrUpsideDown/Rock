@@ -250,7 +250,7 @@ You can view an online version of this email here:
                         recipient.Status = CommunicationRecipientStatus.Failed;
                         recipient.StatusNote = "Email is not active!";
                     }
-                    if ( person.IsDeceased ?? false )
+                    if ( person.IsDeceased )
                     {
                         recipient.Status = CommunicationRecipientStatus.Failed;
                         recipient.StatusNote = "Person is deceased!";
@@ -267,7 +267,7 @@ You can view an online version of this email here:
                     }
                 }
 
-                // If an unbsubcribe value has been entered, and this is a bulk email, add the text
+                // If an unsubscribe value has been entered, and this is a bulk email, add the text
                 if ( communication.IsBulkCommunication )
                 {
                     string unsubscribeHtml = GetAttributeValue( "UnsubscribeHTML" );

@@ -879,6 +879,14 @@ namespace Rock.Web.UI.Controls
         }
 
         /// <summary>
+        /// Gets the datasource SQL (if the Datasource is an IQueryable)
+        /// </summary>
+        /// <value>
+        /// The datasource SQL.
+        /// </value>
+        public string DatasourceSQL { get; private set; }
+
+        /// <summary>
         /// Sets the linq data source 
         /// The grid will use it to load only the records it needs based on the current page and page size
         /// NOTE: Make sure that your query is sorted/ordered
@@ -897,6 +905,8 @@ namespace Rock.Web.UI.Controls
             {
                 this.DataSource = qry.ToList();
             }
+
+            DatasourceSQL = qry.ToString();
         }
 
         /// <summary>
@@ -976,7 +986,7 @@ namespace Rock.Web.UI.Controls
 
             if ( e.Row.RowType == DataControlRowType.DataRow )
             {
-                // For each select field that is not bound to a DataSelectedField set it's checkbox/radiobox from
+                // For each select field that is not bound to a DataSelectedField set its checkbox/radiobox from
                 // the previously posted back values in the columns SelectedKeys property
                 foreach ( var col in this.Columns.OfType<SelectField>() )
                 {
@@ -1327,6 +1337,8 @@ namespace Rock.Web.UI.Controls
             int rowCounter = 4;
             int columnCounter = 1;
 
+            var gridDataFields = this.Columns.OfType<BoundField>().ToList();
+
             if ( this.DataSourceAsDataTable != null )
             {
                 DataTable data = this.DataSourceAsDataTable;
@@ -1334,7 +1346,8 @@ namespace Rock.Web.UI.Controls
                 // print headings
                 foreach ( DataColumn column in data.Columns )
                 {
-                    worksheet.Cells[3, columnCounter].Value = column.ColumnName.SplitCase();
+                    var gridField = gridDataFields.FirstOrDefault( a => a.DataField == column.ColumnName );
+                    worksheet.Cells[3, columnCounter].Value = gridField != null ? gridField.HeaderText : column.ColumnName.SplitCase();
                     columnCounter++;
                 }
 
@@ -1361,9 +1374,11 @@ namespace Rock.Web.UI.Controls
                 if ( this.ExportGridAsWYSIWYG )
                 {
                     var gridColumns = this.Columns.OfType<DataControlField>().Where( a => a.Visible ).ToList();
+                    columnCounter = 1;
                     foreach ( var col in gridColumns )
                     {
-                        worksheet.Cells[3, columnCounter++].Value = col.HeaderText;
+                        worksheet.Cells[3, columnCounter].Value = col.HeaderText;
+                        columnCounter++;
                     }
 
                     var dataItems = this.DataSourceAsList;
@@ -1389,19 +1404,20 @@ namespace Rock.Web.UI.Controls
                         GridViewRowEventArgs args = new GridViewRowEventArgs( gridViewRow );
                         gridViewRow.DataItem = dataItem;
                         this.OnRowDataBound( args );
-                        int colIndex = 1;
+                        columnCounter = 0;
                         foreach ( var col in gridColumns )
                         {
-                            var cell = gridViewRow.Cells[colIndex - 1] as DataControlFieldCell;
+                            columnCounter++;
+                            var fieldCell = gridViewRow.Cells[columnCounter] as DataControlFieldCell;
 
                             object exportValue = null;
-                            if ( cell.ContainingField is RockBoundField )
+                            if ( fieldCell.ContainingField is RockBoundField )
                             {
-                                exportValue = ( cell.ContainingField as RockBoundField ).GetExportValue( gridViewRow );
+                                exportValue = ( fieldCell.ContainingField as RockBoundField ).GetExportValue( gridViewRow );
                             }
-                            else if ( cell.ContainingField is RockTemplateField )
+                            else if ( fieldCell.ContainingField is RockTemplateField )
                             {
-                                var textControls = cell.ControlsOfTypeRecursive<Control>().OfType<ITextControl>();
+                                var textControls = fieldCell.ControlsOfTypeRecursive<Control>().OfType<ITextControl>();
                                 if ( textControls.Any() )
                                 {
                                     exportValue = textControls.Select( a => a.Text ).Where( t => !string.IsNullOrWhiteSpace( t ) ).ToList().AsDelimited( string.Empty );
@@ -1410,11 +1426,11 @@ namespace Rock.Web.UI.Controls
 
                             if ( exportValue != null )
                             {
-                                worksheet.Cells[rowCounter, colIndex].Value = exportValue.ToString();
+                                worksheet.Cells[rowCounter, columnCounter].Value = exportValue.ToString();
                             }
                             else
                             {
-                                worksheet.Cells[rowCounter, colIndex].Value = cell.Text;
+                                worksheet.Cells[rowCounter, columnCounter].Value = fieldCell.Text;
                             }
 
                             // format background color for alternating rows
@@ -1428,8 +1444,6 @@ namespace Rock.Web.UI.Controls
                             {
                                 worksheet.Cells[rowCounter, columnCounter].Style.Numberformat.Format = "MM/dd/yyyy hh:mm";
                             }
-
-                            colIndex++;
                         }
 
                         rowCounter++;
@@ -1443,8 +1457,6 @@ namespace Rock.Web.UI.Controls
                     IList<PropertyInfo> allprops = new List<PropertyInfo>( oType.GetProperties() );
                     IList<PropertyInfo> props = new List<PropertyInfo>();
 
-                    var gridDataFields = this.Columns.OfType<BoundField>().ToList();
-
                     // Inspect the collection of Fields that appear in the Grid and add the corresponding data item properties to the set of fields to be exported.
                     // The fields are exported in the same order as they appear in the Grid.
                     var orderedProps = new SortedDictionary<int, PropertyInfo>();
@@ -1452,14 +1464,18 @@ namespace Rock.Web.UI.Controls
                     foreach ( PropertyInfo prop in allprops )
                     {
                         // skip over virtual properties that aren't shown in the grid since they are probably lazy loaded and it is too late to get them
-                        if ( prop.GetGetMethod().IsVirtual )
+                        if ( prop.GetGetMethod().IsVirtual &&
+                            prop.GetCustomAttributes( typeof( Rock.Data.PreviewableAttribute ) ).Count() == 0 )
+                        {
                             continue;
+                        }
 
                         // Find a matching field in the Grid and add it to the list of exported properties.
                         var gridField = gridDataFields.FirstOrDefault( a => a.DataField == prop.Name || a.DataField.StartsWith( prop.Name + "." ) );
-
                         if ( gridField == null )
+                        {
                             continue;
+                        }
 
                         int fieldIndex = gridDataFields.IndexOf( gridField );
 
@@ -1524,9 +1540,9 @@ namespace Rock.Web.UI.Controls
 
                             bool isDefinedValue = ( definedValueAttribute != null || definedValueFields.Any( f => f.DataField == prop.Name ) );
 
-                            string value = this.GetExportValue( prop, propValue, isDefinedValue );
-
-                            worksheet.Cells[rowCounter, columnCounter].Value = value.ConvertBrToCrLf();
+                            var cell = worksheet.Cells[rowCounter, columnCounter];
+                            string value = this.GetExportValue( prop, propValue, isDefinedValue, cell );
+                            cell.Value = value.ConvertBrToCrLf();
 
                             // format background color for alternating rows
                             if ( rowCounter % 2 == 1 )
@@ -1679,11 +1695,12 @@ namespace Rock.Web.UI.Controls
         /// <summary>
         /// Formats a raw value from the Grid DataSource so that it is suitable for export to an Excel Worksheet.
         /// </summary>
-        /// <param name="prop"></param>
-        /// <param name="propValue"></param>
-        /// <param name="isDefinedValueField"></param>
+        /// <param name="prop">The property.</param>
+        /// <param name="propValue">The property value.</param>
+        /// <param name="isDefinedValueField">if set to <c>true</c> [is defined value field].</param>
+        /// <param name="cell">The cell.</param>
         /// <returns></returns>
-        private string GetExportValue( PropertyInfo prop, object propValue, bool isDefinedValueField )
+        private string GetExportValue( PropertyInfo prop, object propValue, bool isDefinedValueField, ExcelRange cell )
         {
             // Get the formatted value string for export.
             string value = string.Empty;
@@ -1765,7 +1782,28 @@ namespace Rock.Web.UI.Controls
                 }
                 else
                 {
-                    value = propValue.ToString();
+                    // Is the value a single link field? (such as a PersonLinkSelect field)
+                    if ( propValue.ToString().Split( new string[] { "<a href=" }, StringSplitOptions.None ).Length - 1 == 1 )
+                    {
+                        try
+                        {
+                            System.Xml.XmlDocument htmlSnippet = new System.Xml.XmlDocument();
+                            htmlSnippet.Load( new StringReader( propValue.ToString() ) );
+                            // Select the hyperlink tag
+                            var aNode = htmlSnippet.GetElementsByTagName( "a" ).Item( 0 );
+                            string url = string.Format( "{0}{1}", this.RockBlock().RootPath, aNode.Attributes["href"].Value );
+                            cell.Hyperlink = new Uri( url );
+                            value = aNode.InnerText;
+                        }
+                        catch ( System.Xml.XmlException )
+                        {
+                            value = propValue.ToString();
+                        }
+                    }
+                    else
+                    {
+                        value = propValue.ToString();
+                    }
                 }
             }
 
@@ -2092,7 +2130,7 @@ namespace Rock.Web.UI.Controls
         }
 
         /// <summary>
-        /// Gets the entity set from grid if it's datasource is a data table.
+        /// Gets the entity set from grid if its datasource is a data table.
         /// </summary>
         /// <returns></returns>
         private int? GetEntitySetFromGridSourceDataTable()

@@ -51,6 +51,7 @@ namespace Rock.Model
         /// A <see cref="System.Int32"/> representing the Id of the <see cref="Rock.Model.Campus"/> that was checked in to.
         /// </value>
         [DataMember]
+        [FieldType( Rock.SystemGuid.FieldType.CAMPUS )]
         public int? CampusId { get; set; }
 
         /// <summary>
@@ -368,12 +369,12 @@ namespace Rock.Model
         Group = 1,
 
         /// <summary>
-        /// Each campus (from Attendance.CampusId) is it's own series
+        /// Each campus (from Attendance.CampusId) is its own series
         /// </summary>
         Campus = 2,
 
         /// <summary>
-        /// Each schedule (from Attendance.ScheduleId) is it's own series
+        /// Each schedule (from Attendance.ScheduleId) is its own series
         /// </summary>
         Schedule = 3
     }

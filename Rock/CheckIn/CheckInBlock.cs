@@ -35,6 +35,12 @@ namespace Rock.CheckIn
     [TextField( "Workflow Activity", "The name of the workflow activity to run on selection.", false, "" )]
     public abstract class CheckInBlock : RockBlock
     {
+
+        /// <summary>
+        /// The current theme.
+        /// </summary>
+        protected string CurrentTheme { get; set; }
+
         /// <summary>
         /// The current kiosk id
         /// </summary>
@@ -95,6 +101,39 @@ namespace Rock.CheckIn
                     return true;
                 }
             }
+        }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether [manager logged in].
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if [manager logged in]; otherwise, <c>false</c>.
+        /// </value>
+        protected bool ManagerLoggedIn
+        {
+            get
+            {
+                return this.CurrentCheckInState != null && this.CurrentCheckInState.ManagerLoggedIn;
+            }
+
+            set
+            {
+                if (this.CurrentCheckInState != null)
+                {
+                    this.CurrentCheckInState.ManagerLoggedIn = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns the locations for this Kiosk for the configured group types
+        /// </summary>
+        /// <value>
+        /// The locations.
+        /// </value>
+        protected IEnumerable<Location> GetGroupTypesLocations( RockContext rockContext )
+        {
+            return CurrentCheckInState.Kiosk.Locations( CurrentGroupTypeIds, rockContext );
         }
 
         /// <summary>
@@ -184,6 +223,11 @@ namespace Rock.CheckIn
         /// </summary>
         protected void SaveState()
         {
+            if ( !string.IsNullOrWhiteSpace( CurrentTheme))
+            {
+                Session["CheckInTheme"] = CurrentTheme;
+            }
+
             if ( CurrentKioskId.HasValue )
             {
                 Session["CheckInKioskId"] = CurrentKioskId.Value;
@@ -327,6 +371,11 @@ namespace Rock.CheckIn
 
         private void GetState()
         {
+            if ( Session["CurrentTheme"] != null )
+            {
+                CurrentTheme = Session["CurrentTheme"].ToString();
+            }
+
             if ( Session["CheckInKioskId"] != null )
             {
                 CurrentKioskId = (int)Session["CheckInKioskId"];

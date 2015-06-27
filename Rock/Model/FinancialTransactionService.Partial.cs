@@ -28,7 +28,7 @@ namespace Rock.Model
     public partial class FinancialTransactionService 
     {
         /// <summary>
-        /// Gets a transaction by it's transaction code.
+        /// Gets a transaction by its transaction code.
         /// </summary>
         /// <param name="transactionCode">A <see cref="System.String"/> representing the transaction code for the transaction</param>
         /// <returns>The <see cref="Rock.Model.FinancialTransaction"/> that matches the transaction code, this value will be null if a match is not found.</returns>

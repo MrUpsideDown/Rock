@@ -180,7 +180,7 @@ namespace Rock
                 return string.Empty;
             }
 
-            // If the object is liquidable, get the object return by it's ToLiquid() method.
+            // If the object is liquidable, get the object return by its ToLiquid() method.
             if ( myObject is DotLiquid.ILiquidizable )
             {
                 myObject = ( (DotLiquid.ILiquidizable)myObject ).ToLiquid();
@@ -192,13 +192,13 @@ namespace Rock
                 return string.Empty;
             }
 
-            // If the object is a string, return it's value converted to HTML and truncated
+            // If the object is a string, return its value converted to HTML and truncated
             if ( myObject is string )
             {
                 return myObject.ToString().Truncate( 50 ).EncodeHtml();
             }
 
-            // If the object is a guid, return it's string representation
+            // If the object is a guid, return its string representation
             if ( myObject is Guid )
             {
                 return myObject.ToString();
@@ -871,6 +871,7 @@ namespace Rock
         /// </summary>
         /// <param name="str">The STR.</param>
         /// <returns></returns>
+        [System.Diagnostics.DebuggerStepThrough()] 
         public static Guid AsGuid( this string str )
         {
             return str.AsGuidOrNull() ?? Guid.Empty;
@@ -881,6 +882,7 @@ namespace Rock
         /// </summary>
         /// <param name="str">The string.</param>
         /// <returns></returns>
+        [System.Diagnostics.DebuggerStepThrough()] 
         public static Guid? AsGuidOrNull( this string str )
         {
             Guid value;
@@ -977,6 +979,7 @@ namespace Rock
         /// </summary>
         /// <param name="str">The string.</param>
         /// <returns></returns>
+        [System.Diagnostics.DebuggerStepThrough()]
         public static DateTime? AsDateTime( this string str )
         {
             DateTime value;
@@ -2215,7 +2218,7 @@ namespace Rock
         #region Enum Extensions
 
         /// <summary>
-        /// Converts to the enum value to it's string value.
+        /// Converts to the enum value to its string value.
         /// </summary>
         /// <param name="eff">The eff.</param>
         /// <param name="SplitCase">if set to <c>true</c> [split case].</param>

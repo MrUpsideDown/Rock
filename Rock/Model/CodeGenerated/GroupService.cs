@@ -76,6 +76,12 @@ namespace Rock.Model
                 return false;
             }  
  
+            if ( new Service<Registration>( Context ).Queryable().Any( a => a.GroupId == item.Id ) )
+            {
+                errorMessage = string.Format( "This {0} is assigned to a {1}.", Group.FriendlyTypeName, Registration.FriendlyTypeName );
+                return false;
+            }  
+ 
             if ( new Service<WorkflowActivity>( Context ).Queryable().Any( a => a.AssignedGroupId == item.Id ) )
             {
                 errorMessage = string.Format( "This {0} is assigned to a {1}.", Group.FriendlyTypeName, WorkflowActivity.FriendlyTypeName );
@@ -125,6 +131,7 @@ namespace Rock.Model
             target.ExitSystemEmailId = source.ExitSystemEmailId;
             target.GroupTypeId = source.GroupTypeId;
             target.IsActive = source.IsActive;
+            target.IsPublic = source.IsPublic;
             target.IsSecurityRole = source.IsSecurityRole;
             target.IsSystem = source.IsSystem;
             target.MustMeetRequirementsToAddMember = source.MustMeetRequirementsToAddMember;

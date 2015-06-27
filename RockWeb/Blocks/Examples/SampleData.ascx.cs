@@ -50,7 +50,7 @@ namespace RockWeb.Blocks.Examples
 
     [TextField( "XML Document URL", "The URL for the input sample data XML document.", false, "http://storage.rockrms.com/sampledata/sampledata.xml", "", 1 )]
     [BooleanField( "Fabricate Attendance", "If true, then fake attendance data will be fabricated (if the right parameters are in the xml)", true, "", 2 )]
-    [BooleanField( "Enable Stopwatch", "If true, a stopwatch will be used to time each of the major operations.", false, "", 3 )]
+    [BooleanField( "Enable Stopwatch", "If true, a stopwatch will be used to time each of the major operations.", true, "", 3 )]
     public partial class SampleData : Rock.Web.UI.RockBlock
     {
         #region Fields
@@ -541,6 +541,7 @@ namespace RockWeb.Blocks.Examples
                                       Type = n.Attribute( "type" ).Value,
                                       Text = n.Attribute( "text" ).Value,
                                       IsPrivate = n.Attribute( "isPrivate" ) != null ? n.Attribute( "isPrivate" ).Value : "false",
+                                      IsAlert = n.Attribute( "isAlert" ) != null ? n.Attribute( "isAlert" ).Value : "false",
                                       ByPersonGuid = n.Attribute( "byGuid" ) != null ? n.Attribute( "byGuid" ).Value : null,
                                       Date = n.Attribute( "date" ) != null ? n.Attribute( "date" ).Value : null
                                   };
@@ -548,7 +549,7 @@ namespace RockWeb.Blocks.Examples
 	        foreach ( var r in peopleWithNotes )
 	        {
                 int personId = _peopleDictionary[ r.PersonGuid.AsGuid() ];
-                AddNote( personId, r.Type, r.Text, r.Date, r.ByPersonGuid, r.IsPrivate, rockContext );
+                AddNote( personId, r.Type, r.Text, r.Date, r.ByPersonGuid, r.IsPrivate, r.IsAlert, rockContext );
 	        }
         }
 
@@ -743,7 +744,7 @@ namespace RockWeb.Blocks.Examples
                 // inverseGroupMember relationship because it was already added to the
                 // context.  All we have to do below is save the changes to the context
                 // when we're ready.)
-                var inverseGroupMember = memberService.GetInverseRelationship( groupMember, createGroup: true, personAlias: CurrentPersonAlias );
+                var inverseGroupMember = memberService.GetInverseRelationship( groupMember, createGroup: true );
             }
         }
 
@@ -839,7 +840,7 @@ namespace RockWeb.Blocks.Examples
             AppendFormat( "{0:00}:{1:00}.{2:00} saved attributes for everyone <br/>", _stopwatch.Elapsed.Minutes, _stopwatch.Elapsed.Seconds, _stopwatch.Elapsed.Milliseconds / 10 );
             _stopwatch.Start();
 
-            // Create person alias records for each person
+            // Create person alias records for each person manually since we set disablePrePostProcessing=true on save
             PersonService personService = new PersonService( rockContext );
             foreach ( var person in personService.Queryable( "Aliases" )
                 .Where( p =>
@@ -910,7 +911,9 @@ namespace RockWeb.Blocks.Examples
                 Group group = new Group()
                 {
                     Guid = guid,
-                    Name = elemGroup.Attribute( "name" ).Value.Trim()
+                    Name = elemGroup.Attribute( "name" ).Value.Trim(),
+                    IsActive = true,
+                    IsPublic = true
                 };
 
                 // skip any where there is no group type given -- they are invalid entries.
@@ -1807,38 +1810,42 @@ namespace RockWeb.Blocks.Examples
         /// <param name="noteDate">(optional) The date the note was created</param>
         /// <param name="byPersonGuid">(optional) The guid of the person who created the note</param>
         /// <param name="rockContext"></param>
-        private void AddNote( int personId, string noteTypeName, string noteText, string noteDate, string byPersonGuid, string isPrivate, RockContext rockContext )
+        private void AddNote( int personId, string noteTypeName, string noteText, string noteDate, string byPersonGuid, string isPrivate, string isAlert, RockContext rockContext )
         {
             var service = new NoteTypeService( rockContext );
             var noteType = service.Get( _personEntityTypeId, noteTypeName );
 
-            // Find the person's alias
-            int? createdByPersonAliasId = null;
-            if ( byPersonGuid != null )
+            if ( noteType != null )
             {
-                createdByPersonAliasId = _personCache[byPersonGuid.AsGuid()].PrimaryAliasId;
+
+                // Find the person's alias
+                int? createdByPersonAliasId = null;
+                if ( byPersonGuid != null )
+                {
+                    createdByPersonAliasId = _personCache[byPersonGuid.AsGuid()].PrimaryAliasId;
+                }
+
+                var noteService = new NoteService( rockContext );
+                var note = new Note()
+                {
+                    IsSystem = false,
+                    NoteTypeId = noteType.Id,
+                    EntityId = personId,
+                    Caption = string.Empty,
+                    CreatedByPersonAliasId = createdByPersonAliasId,
+                    Text = noteText,
+                    IsAlert = isAlert.AsBoolean(),
+                    CreatedDateTime = string.IsNullOrWhiteSpace( noteDate ) ? RockDateTime.Now : DateTime.Parse( noteDate, new CultureInfo( "en-US" ) )
+                };
+
+                noteService.Add( note );
+
+                if ( isPrivate.AsBoolean() )
+                {
+                    rockContext.SaveChanges( disablePrePostProcessing: true );
+                    note.MakePrivate( Rock.Security.Authorization.VIEW, _personCache[byPersonGuid.AsGuid()], rockContext );
+                }
             }
-
-            var noteService = new NoteService( rockContext );
-            var note = new Note()
-            {
-                IsSystem = false,
-                NoteTypeId = noteType.Id,
-                EntityId = personId,
-                Caption = string.Empty,
-                CreatedByPersonAliasId = createdByPersonAliasId,
-                Text = noteText,
-                CreatedDateTime = string.IsNullOrWhiteSpace( noteDate ) ? RockDateTime.Now : DateTime.Parse( noteDate, new CultureInfo( "en-US" ) )
-            };
-
-            noteService.Add( note );
-
-            if ( isPrivate.AsBoolean() )
-            {
-                rockContext.SaveChanges( disablePrePostProcessing: true );
-                note.MakePrivate( Rock.Security.Authorization.VIEW, _personCache[byPersonGuid.AsGuid()], rockContext );
-            }
-
         }
 
         /// <summary>
@@ -2063,11 +2070,6 @@ namespace RockWeb.Blocks.Examples
                 foreach ( var groupMember in familyMembers )
                 {
                     var person = groupMember.Person;
-
-                    //if ( !person.Aliases.Any( a => a.AliasPersonId == person.Id ) )
-                    //{
-                    //    person.Aliases.Add( new PersonAlias { AliasPersonId = person.Id, AliasPersonGuid = person.Guid } );
-                    //}
 
                     if ( groupMember.GroupRoleId != _childRoleId )
                     {

@@ -76,7 +76,7 @@ Because the contents of this setting will be rendered inside a &lt;ul&gt; elemen
                     NavigateToLinkedPage( "BusinessDetailPage", parms );
                 }
 
-                if ( Person.IsDeceased ?? false )
+                if ( Person.IsDeceased )
                 {
                     divBio.AddCssClass( "deceased" );
                 }
@@ -188,13 +188,9 @@ Because the contents of this setting will be rendered inside a &lt;ul&gt; elemen
                             "<small>({0} {1})</small>",
                             Person.HasGraduated.Value ? "Graduated " : "Graduates ",
                             Person.GraduationYear.Value );
-
-                        string grade = Person.GradeFormatted;
-                        if ( grade != string.Empty )
-                        {
-                            lGrade.Text = string.Format( "{0}", grade );
-                        }
                     }
+
+                    lGrade.Text = Person.GradeFormatted;
 
                     lMaritalStatus.Text = Person.MaritalStatusValueId.DefinedValue();
                     if ( Person.AnniversaryDate.HasValue )
@@ -259,22 +255,6 @@ Because the contents of this setting will be rendered inside a &lt;ul&gt; elemen
 
                     lActions.Text = sbActions.ToString();
                     ulActions.Visible = !string.IsNullOrWhiteSpace( lActions.Text );
-
-                    // Every person should have an alias record with same id.  If it's missing, create it
-                    if ( !Person.Aliases.Any( a => a.AliasPersonId == Person.Id ) )
-                    {
-                        using ( var rockContext = new RockContext() )
-                        {
-                            var personService = new PersonService( rockContext );
-                            var person = personService.Get( Person.Id );
-                            if ( person != null )
-                            {
-                                person.Aliases.Add( new PersonAlias { AliasPersonId = person.Id, AliasPersonGuid = person.Guid } );
-                                rockContext.SaveChanges();
-                                Person = person;
-                            }
-                        }
-                    }
                 }
                 else
                 {

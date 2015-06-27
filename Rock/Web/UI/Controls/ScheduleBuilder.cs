@@ -53,6 +53,23 @@ namespace Rock.Web.UI.Controls
         }
 
         /// <summary>
+        /// Gets or sets the form group class.
+        /// </summary>
+        /// <value>
+        /// The form group class.
+        /// </value>
+        [
+        Bindable( true ),
+        Category( "Appearance" ),
+        Description( "The CSS class to add to the form-group div." )
+        ]
+        public string FormGroupCssClass
+        {
+            get { return ViewState["FormGroupCssClass"] as string ?? string.Empty; }
+            set { ViewState["FormGroupCssClass"] = value; }
+        }
+
+        /// <summary>
         /// Gets or sets the CSS Icon text.
         /// </summary>
         /// <value>
@@ -847,24 +864,28 @@ END:VCALENDAR
                     cbControl.Checked = false;
                 }
 
-                StringReader stringReader = new StringReader( value ?? iCalendarContentEmptyEvent );
+                StringReader stringReader = new StringReader( string.IsNullOrWhiteSpace( value ) ? iCalendarContentEmptyEvent : value );
                 var calendarList = DDay.iCal.iCalendar.LoadFromStream( stringReader );
                 DDay.iCal.Event calendarEvent = null;
                 DDay.iCal.iCalendar calendar = null;
                 if ( calendarList.Count > 0 )
                 {
                     calendar = calendarList[0] as DDay.iCal.iCalendar;
-                    if ( calendar == null )
+                }
+
+                // just in case we couldn't get a schedule out of it, load the default
+                if ( calendar == null )
+                {
+                    calendarList = DDay.iCal.iCalendar.LoadFromStream( new StringReader( iCalendarContentEmptyEvent ) );
+                    if ( calendarList.Count > 0 )
                     {
-                        _radOneTime.Checked = true;
-                        _iCalendarContent = iCalendarContentEmptyEvent;
-                        return;
+                        calendar = calendarList[0] as DDay.iCal.iCalendar;
                     }
                 }
-                else
+
+                if ( calendar == null )
                 {
-                    _radOneTime.Checked = true;
-                    _iCalendarContent = iCalendarContentEmptyEvent;
+                    // shouldn't happen
                     return;
                 }
 

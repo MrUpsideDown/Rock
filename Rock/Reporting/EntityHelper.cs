@@ -38,8 +38,9 @@ namespace Rock.Reporting
         /// </summary>
         /// <param name="entityType">Type of the entity.</param>
         /// <param name="includeOnlyReportingFields">if set to <c>true</c> [include only reporting fields].</param>
+        /// <param name="limitToFilterableFields">if set to <c>true</c> [limit to filterable fields].</param>
         /// <returns></returns>
-        public static List<EntityField> GetEntityFields( Type entityType, bool includeOnlyReportingFields = true )
+        public static List<EntityField> GetEntityFields( Type entityType, bool includeOnlyReportingFields = true, bool limitToFilterableFields = true )
         {
             List<EntityField> entityFields = null;
 
@@ -75,9 +76,16 @@ namespace Rock.Reporting
 
                     EntityField entityField = new EntityField( property.Name, FieldKind.Property, property );
                     entityField.IsPreviewable = property.GetCustomAttributes( typeof( PreviewableAttribute ), true ).Any();
+                    var fieldTypeAttribute = property.GetCustomAttribute<Rock.Data.FieldTypeAttribute>();
+
+                    // check if we can set it from the fieldTypeAttribute
+                    if ( ( fieldTypeAttribute != null ) && SetEntityFieldFromFieldTypeAttribute( entityField, fieldTypeAttribute ) )
+                    {
+                        // intentially blank, entity field is already setup
+                    }
 
                     // Enum Properties
-                    if ( property.PropertyType.IsEnum )
+                    else if ( property.PropertyType.IsEnum )
                     {
                         entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.SINGLE_SELECT.AsGuid() );
 
@@ -129,7 +137,7 @@ namespace Rock.Reporting
                     {
                         entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.INTEGER.AsGuid() );
 
-                        var definedValueAttribute = property.GetCustomAttributes( typeof( Rock.Data.DefinedValueAttribute ), true ).FirstOrDefault();
+                        var definedValueAttribute = property.GetCustomAttribute<Rock.Data.DefinedValueAttribute>();
                         if ( definedValueAttribute != null )
                         {
                             // Defined Value Properties
@@ -180,7 +188,7 @@ namespace Rock.Reporting
 
                     foreach ( var attributeId in attributeIdList )
                     {
-                        AddEntityFieldForAttribute( entityFields, AttributeCache.Read( attributeId ) );
+                        AddEntityFieldForAttribute( entityFields, AttributeCache.Read( attributeId ), limitToFilterableFields );
                     }
                 }
             }
@@ -204,27 +212,64 @@ namespace Rock.Reporting
         }
 
         /// <summary>
+        /// Sets the entity field from field type attribute.
+        /// </summary>
+        /// <param name="entityField">The entity field.</param>
+        /// <param name="fieldTypeAttribute">The field type attribute.</param>
+        /// <returns></returns>
+        private static bool SetEntityFieldFromFieldTypeAttribute( EntityField entityField, FieldTypeAttribute fieldTypeAttribute )
+        {
+            if ( fieldTypeAttribute != null )
+            {
+                var fieldTypeCache = FieldTypeCache.Read( fieldTypeAttribute.FieldTypeGuid );
+                if ( fieldTypeCache != null && fieldTypeCache.Field != null )
+                {
+                    if ( fieldTypeCache.Field.HasFilterControl() )
+                    {
+                        if ( entityField.Title.EndsWith( " Id" ) )
+                        {
+                            entityField.Title = entityField.Title.ReplaceLastOccurrence( " Id", string.Empty );
+                        }
+
+                        entityField.FieldType = fieldTypeCache;
+                        if ( fieldTypeAttribute.ConfigurationKey != null && fieldTypeAttribute.ConfigurationValue != null )
+                        {
+                            entityField.FieldConfig.Add( fieldTypeAttribute.ConfigurationKey, new ConfigurationValue( fieldTypeAttribute.ConfigurationValue ) );
+                        }
+
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Adds the entity field for attribute.
         /// </summary>
         /// <param name="entityFields">The entity fields.</param>
         /// <param name="attribute">The attribute.</param>
-        public static void AddEntityFieldForAttribute( List<EntityField> entityFields, AttributeCache attribute )
+        /// <param name="limitToFilterableAttributes">if set to <c>true</c> [limit to filterable attributes].</param>
+        public static void AddEntityFieldForAttribute( List<EntityField> entityFields, AttributeCache attribute, bool limitToFilterableAttributes = true )
         {
+            // Ensure prop name only has Alpha, Numeric and underscore chars
+            string propName = attribute.Key.RemoveSpecialCharacters().Replace( ".", "" );
+
             // Ensure prop name is unique
-            string propName = attribute.Key;
             int i = 1;
             while ( entityFields.Any( p => p.Name.Equals( propName, StringComparison.CurrentCultureIgnoreCase ) ) )
             {
                 propName = attribute.Key + ( i++ ).ToString();
             }
 
-            // Make sure that the attributes field type actually renders a filter control
+            // Make sure that the attributes field type actually renders a filter control if limitToFilterableAttributes
             var fieldType = FieldTypeCache.Read( attribute.FieldTypeId );
-            if ( fieldType != null && fieldType.Field.FilterControl( attribute.QualifierValues, propName, true ) != null )
+            if ( fieldType != null && ( !limitToFilterableAttributes || fieldType.Field.HasFilterControl() ) )
             {
                 var entityField = new EntityField( propName, FieldKind.Attribute, typeof( string ), attribute.Guid, fieldType );
                 entityField.Title = attribute.Name.SplitCase();
-                
+
                 foreach ( var config in attribute.QualifierValues )
                 {
                     entityField.FieldConfig.Add( config.Key, config.Value );
@@ -353,6 +398,28 @@ namespace Rock.Reporting
         ///   <c>true</c> if [is previewable]; otherwise, <c>false</c>.
         /// </value>
         public bool IsPreviewable { get; set; }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EntityField"/> class.
+        /// </summary>
+        [Obsolete( "Use one of the other EntityField constructors instead" )]
+        public EntityField()
+        {
+            FieldConfig = new Dictionary<string, ConfigurationValue>();
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="EntityField"/> class.
+        /// </summary>
+        /// <param name="name">The name.</param>
+        /// <param name="fieldKind">Kind of the field.</param>
+        /// <param name="propertyType">Type of the property.</param>
+        /// <param name="attributeGuid">The attribute unique identifier.</param>
+        [Obsolete( "Use one of the other EntityField constructors instead" )]
+        public EntityField( string name, FieldKind fieldKind, Type propertyType, Guid? attributeGuid = null )
+            : this( name, fieldKind, propertyType, null, attributeGuid )
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="EntityField" /> class.

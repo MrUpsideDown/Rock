@@ -53,30 +53,39 @@ namespace Rock.Reporting.DataFilter
         {
             string selectedEntityField = ddlEntityField.SelectedValue;
 
-            writer.AddAttribute( "class", "row js-filter-row" );
+            writer.AddAttribute( "class", "row" );
             writer.RenderBeginTag( HtmlTextWriterTag.Div );
 
             bool entityFieldPickerIsHidden = ddlEntityField.Style[HtmlTextWriterStyle.Display] == "none";
-
-            writer.AddAttribute( "class", "col-md-3" );
-            writer.RenderBeginTag( HtmlTextWriterTag.Div );
             
             if ( !entityFieldPickerIsHidden )
             {
+                writer.AddAttribute( "class", "col-md-3" );
+                writer.RenderBeginTag( HtmlTextWriterTag.Div );
                 ddlEntityField.AddCssClass( "entity-property-selection" );
                 ddlEntityField.RenderControl( writer );
-            }
-            else if ( ddlEntityField.SelectedItem != null )
-            {
-                writer.AddAttribute( "class", "data-view-filter-field-label" );
-                writer.RenderBeginTag( HtmlTextWriterTag.Span );
-                writer.Write( ddlEntityField.SelectedItem.Text );
                 writer.RenderEndTag();
             }
-            writer.RenderEndTag();
 
-            writer.AddAttribute( "class", "col-md-9" );
+            writer.AddAttribute( "class", entityFieldPickerIsHidden ? "col-md-12" : "col-md-9" );
             writer.RenderBeginTag( HtmlTextWriterTag.Div );
+
+            if ( entityFieldPickerIsHidden && ddlEntityField.SelectedItem != null )
+            {
+                if ( filterControl.ShowCheckbox )
+                {
+                    // special case when a filter is a entity field filter: render the checkbox here instead of in FilterField.cs
+                    filterControl.cbIncludeFilter.Text = ddlEntityField.SelectedItem.Text;
+                    filterControl.cbIncludeFilter.RenderControl( writer );
+                }
+                else
+                {
+                    writer.AddAttribute( "class", "data-view-filter-field-label" );
+                    writer.RenderBeginTag( HtmlTextWriterTag.Span );
+                    writer.Write( ddlEntityField.SelectedItem.Text );
+                    writer.RenderEndTag();
+                }
+            }
 
             // generate result for "none"
             StringBuilder sb = new StringBuilder();
@@ -90,7 +99,7 @@ namespace Rock.Reporting.DataFilter
             // render empty row for "none"
             writer.AddAttribute( "class", "row field-criteria" );
             writer.RenderBeginTag( HtmlTextWriterTag.Div );
-            writer.RenderEndTag();  // row
+            writer.RenderEndTag();  // "row field-criteria"
 
             foreach ( var entityField in entityFields )
             {
@@ -129,9 +138,9 @@ namespace Rock.Reporting.DataFilter
                 }
             }
 
-            writer.RenderEndTag();  // col-md-9
+            writer.RenderEndTag();  // col-md-9 or col-md-12
 
-            writer.RenderEndTag();  // row
+            writer.RenderEndTag();  // "row"
 
             string scriptFormat = @"
     function {0}PropertySelection($content){{
@@ -148,16 +157,6 @@ namespace Rock.Reporting.DataFilter
 
             string script = string.Format( scriptFormat, entityType.Name, sb.ToString() );
             ScriptManager.RegisterStartupScript( filterControl, typeof( FilterField ), entityType.Name + "-property-selection", script, true );
-
-            script = @"
-    $('select.entity-property-selection').change(function(){
-        var $parentRow = $(this).closest('.js-filter-row');
-        $parentRow.find('div.field-criteria').hide();
-        $parentRow.find('div.field-criteria').eq($(this).find(':selected').index()).show();
-    });";
-
-            // only need this script once per page
-            ScriptManager.RegisterStartupScript( filterControl.Page, filterControl.Page.GetType(), "entity-property-selection-change-script", script, true );
 
             RegisterFilterCompareChangeScript( filterControl );
         }
@@ -188,7 +187,6 @@ namespace Rock.Reporting.DataFilter
                             entityField.FieldType.Field.SetFilterValues( control, entityField.FieldConfig, FixDelimination( values.Skip( 1 ).ToList() ) );
                         }
                     }
-
                 }
             }
         }
@@ -330,6 +328,7 @@ namespace Rock.Reporting.DataFilter
         /// </summary>
         /// <param name="values">The values.</param>
         /// <returns></returns>
+        [System.Diagnostics.DebuggerStepThrough()] 
         protected internal List<string> FixDelimination( List<string> values )
         {
             if ( values.Count() == 1 && values[0].Contains( "[" ) )

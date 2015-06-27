@@ -17,6 +17,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Data.Entity;
@@ -80,6 +81,7 @@ namespace Rock.Model
         /// </value>
         [HideFromReporting]
         [DataMember]
+        [FieldType( Rock.SystemGuid.FieldType.CAMPUS )]
         public int? CampusId { get; set; }
 
         /// <summary>
@@ -134,12 +136,11 @@ namespace Rock.Model
         [Required]
         [DataMember( IsRequired = true )]
         [Previewable]
-        public bool IsActive
-        {
-            get { return _isActive; }
-            set { _isActive = value; }
-        }
-
+        public bool IsActive		
+        {		
+            get { return _isActive; }		
+            set { _isActive = value; }		
+        }		
         private bool _isActive = true;
 
         /// <summary>
@@ -210,6 +211,21 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         public bool? MustMeetRequirementsToAddMember { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the group should be shown in group finders
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if this instance is public; otherwise, <c>false</c>.
+        /// </value>
+        [Required]
+        [DataMember( IsRequired = true )]
+        public bool IsPublic
+        {
+            get { return _isPublic; }
+            set { _isPublic = value; }
+        }
+        private bool _isPublic = true;
 
         #endregion
 
@@ -289,7 +305,6 @@ namespace Rock.Model
             get { return _groups ?? ( _groups = new Collection<Group>() ); }
             set { _groups = value; }
         }
-
         private ICollection<Group> _groups;
 
         /// <summary>
@@ -304,7 +319,6 @@ namespace Rock.Model
             get { return _members ?? ( _members = new Collection<GroupMember>() ); }
             set { _members = value; }
         }
-
         private ICollection<GroupMember> _members;
 
         /// <summary>
@@ -319,7 +333,6 @@ namespace Rock.Model
             get { return _groupLocations ?? ( _groupLocations = new Collection<GroupLocation>() ); }
             set { _groupLocations = value; }
         }
-
         private ICollection<GroupLocation> _groupLocations;
 
         /// <summary>
@@ -334,9 +347,34 @@ namespace Rock.Model
             get { return _groupsRequirements ?? ( _groupsRequirements = new Collection<GroupRequirement>() ); }
             set { _groupsRequirements = value; }
         }
-
         private ICollection<GroupRequirement> _groupsRequirements;
 
+        /// <summary>
+        /// Gets or sets the group member workflow triggers.
+        /// </summary>
+        /// <value>
+        /// The group member workflow triggers.
+        /// </value>
+        public virtual ICollection<GroupMemberWorkflowTrigger> GroupMemberWorkflowTriggers
+        {
+            get { return _triggers ?? ( _triggers = new Collection<GroupMemberWorkflowTrigger>() ); }
+            set { _triggers = value; }
+        }
+        private ICollection<GroupMemberWorkflowTrigger> _triggers;
+
+        /// <summary>
+        /// Gets or sets the linkages.
+        /// </summary>
+        /// <value>
+        /// The linkages.
+        /// </value>
+        public virtual ICollection<EventItemCampusGroupMap> Linkages
+        {
+            get { return _linkages ?? ( _linkages = new Collection<EventItemCampusGroupMap>() ); }
+            set { _linkages = value; }
+        }
+        private ICollection<EventItemCampusGroupMap> _linkages;
+        
         /// <summary>
         /// Gets the securable object that security permissions should be inherited from.  If block is located on a page
         /// security will be inherited from the page, otherwise it will be inherited from the site.
@@ -435,7 +473,7 @@ namespace Rock.Model
         public IEnumerable<PersonGroupRequirementStatus> PersonMeetsGroupRequirements( int personId, int? groupRoleId )
         {
             var result = new List<PersonGroupRequirementStatus>();
-            foreach ( var groupRequirement in this.GroupRequirements.OrderBy(a => a.GroupRequirementType.Name ))
+            foreach ( var groupRequirement in this.GroupRequirements.OrderBy( a => a.GroupRequirementType.Name ) )
             {
                 var meetsRequirement = groupRequirement.PersonMeetsGroupRequirement( personId, groupRoleId );
                 result.Add( new PersonGroupRequirementStatus { PersonId = personId, GroupRequirement = groupRequirement, MeetsGroupRequirement = meetsRequirement } );
@@ -488,7 +526,7 @@ namespace Rock.Model
     /// Represents a circular reference exception. This occurs when a group is set as a parent of a group that is higher in the group hierarchy. 
     /// </summary>
     /// <remarks>
-    ///  An example of this is when a child group is set as the parent of it's parent group.
+    ///  An example of this is when a child group is set as the parent of its parent group.
     /// </remarks>
     public class GroupParentCircularReferenceException : Exception
     {

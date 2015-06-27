@@ -238,6 +238,22 @@ namespace Rock.Field
             return row;
         }
 
+        /// <summary>
+        /// Determines whether this filter has a filter control
+        /// </summary>
+        /// <returns></returns>
+        public virtual bool HasFilterControl()
+        {
+            try
+            {
+                var filterControl = FilterControl( new Dictionary<string, ConfigurationValue>(), "", true );
+                return filterControl != null;
+            }
+            catch
+            {
+                return false;
+            }
+        }
 
         /// <summary>
         /// Gets the filter compare control.
@@ -459,7 +475,7 @@ namespace Rock.Field
         public virtual string GetFilterFormatScript( Dictionary<string, ConfigurationValue> configurationValues, string title )
         {
             string titleJs = System.Web.HttpUtility.JavaScriptStringEncode( title );
-            return string.Format( "result = '{0} ' + $('select', $selectedContent).find(':selected').text() + ( $('input', $selectedContent).filter(':visible').length ?  (' \\'' +  $('input', $selectedContent).filter(':visible').val()  + '\\'') : '' )", titleJs );
+            return string.Format( "return Rock.reporting.formatFilterDefault('{0}', $selectedContent);", title );
         }
 
         /// <summary>
