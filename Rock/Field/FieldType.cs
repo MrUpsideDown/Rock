@@ -476,24 +476,45 @@ namespace Rock.Field
             if ( filterValues.Count >= 2 )
             {
                 string comparisonValue = filterValues[0];
-                if ( comparisonValue != "0" )
+                if (comparisonValue != "0")
                 {
-                    MemberExpression propertyExpression = Expression.Property( parameterExpression, propertyName );
+                    MemberExpression propertyExpression = Expression.Property(parameterExpression, propertyName);
 
                     var type = propertyType;
-                    bool isNullableType = type.IsGenericType && type.GetGenericTypeDefinition() == typeof( Nullable<> );
-                    if ( isNullableType )
+                    bool isNullableType = type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Nullable<>);
+                    if (isNullableType)
                     {
-                        type = Nullable.GetUnderlyingType( type );
+                        type = Nullable.GetUnderlyingType(type);
                     }
 
-                    object value = ConvertValueToPropertyType( filterValues[1], type );
-                    if ( value != null )
+                    ComparisonType comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
+
+                    // Parse the comparison string for multiple values.
+                    var values = filterValues[1].Split(new string[] {"||"}, StringSplitOptions.None);
+
+                    // Create an Expression with an OR relationship between each value.
+                    Expression comparisonExpression = null;
+
+                    foreach (var value in values)
                     {
-                        ComparisonType comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
-                        ConstantExpression constantExpression = Expression.Constant( value, type );
-                        return ComparisonHelper.ComparisonExpression( comparisonType, propertyExpression, constantExpression );
+                        object typedValue = ConvertValueToPropertyType( value, type );
+
+                        if ( typedValue != null )
+                        {
+                            ConstantExpression constantExpression = Expression.Constant( typedValue, type );
+
+                            if (comparisonExpression == null)
+                            {
+                                comparisonExpression = ComparisonHelper.ComparisonExpression( comparisonType, propertyExpression, constantExpression );
+                            }
+                            else
+                            {
+                                comparisonExpression = Expression.OrElse( comparisonExpression, ComparisonHelper.ComparisonExpression( comparisonType, propertyExpression, constantExpression ) );
+                            }                            
+                        }
                     }
+
+                    return comparisonExpression;
                 }
             }
 
