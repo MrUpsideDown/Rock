@@ -302,8 +302,10 @@
     <Compile Include="Reporting\DataSelect\FinancialTransaction\TotalAmountSelect.cs" />
     <Compile Include="Reporting\DataSelect\Group\MemberCountSelect.cs" />
     <Compile Include="Reporting\DataSelect\Group\ParticipationRateSelect.cs" />
+    <Compile Include="Reporting\DataSelect\Person\GroupParticipationSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\PersonLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\TotalGivingAmountSelect.cs" />
+    <Compile Include="Web\Utilities\WebControlHelper.cs" />
     <Compile Include="Security\Authentication\Facebook.cs">
       <SubType>Code</SubType>
     </Compile>

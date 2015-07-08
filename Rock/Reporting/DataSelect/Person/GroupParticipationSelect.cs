@@ -25,8 +25,10 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 using Rock.Data;
 using Rock.Model;
+using Rock.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
+using Rock.Web.Utilities;
 
 namespace Rock.Reporting.DataSelect.Person
 {
@@ -48,7 +50,7 @@ namespace Rock.Reporting.DataSelect.Person
 
         public override string Section
         {
-            get { return "Summaries"; }
+            get { return "Groups"; }
         }
 
         public override string ColumnPropertyName
@@ -85,61 +87,24 @@ namespace Rock.Reporting.DataSelect.Person
             var settings = new GroupParticipationSelectSettings( selection );
 
             //
-            // Define Candidate Groups
+            // Define Candidate Groups.
             //
-            bool useDefaultGroupsFilter = true;
 
             // Get the Group Data View that defines the set of candidates from which matching Groups can be selected.
-            DataView dataView = null;
-
-            if ( settings.DataViewGuid.HasValue )
-            {
-                var dsService = new DataViewService( context );
-
-                dataView = dsService.Get( settings.DataViewGuid.Value );
-
-                if ( dataView != null )
-                {
-                    if ( dataView.DataViewFilter == null )
-                    {
-                        dataView = null;
-                    }
-                    else
-                    {
-                        // Verify that the Group Data View does not contain any references to this Data View in any of its components.
-                        if ( dsService.IsViewInFilter( dataView.Id, dataView.DataViewFilter ) )
-                        {
-                            throw new Exception( "Filter issue(s): One of the filters contains a circular reference to the Data View itself." );
-                        }
-                    }
-                }
-            }
+            var dataView = DataComponentSettingsHelper.GetDataViewForFilterComponent( settings.DataViewGuid, context );
 
             // Evaluate the Data View that defines the candidate Groups.
             var groupService = new GroupService( context );
 
             var groupQuery = groupService.Queryable();
 
-            if ( dataView != null )
+            if (dataView != null)
             {
-                var paramExpression = groupService.ParameterExpression;
-
-                List<string> errorMessages;
-
-                var whereExpression = dataView.GetExpression( groupService, paramExpression, out errorMessages );
-
-                if ( errorMessages.Any() )
-                {
-                    throw new Exception( "Filter issue(s): " + errorMessages.AsDelimited( "; " ) );
-                }
-
-                groupQuery = groupQuery.Where( paramExpression, whereExpression, null );
-
-                useDefaultGroupsFilter = false;
+                groupQuery = DataComponentSettingsHelper.FilterByDataView( groupQuery, dataView, groupService );
             }
-
-            if ( useDefaultGroupsFilter )
+            else
             {
+                // Apply a default Group filter to only show Groups that would be visible in a Group List.
                 groupQuery = groupQuery.Where( x => x.GroupType.ShowInGroupList );
             }
 
@@ -166,10 +131,14 @@ namespace Rock.Reporting.DataSelect.Person
             }
 
             // Filter by Group Member Status.
-            if (settings.MemberStatus.HasValue)
+            if ( settings.MemberStatus.HasValue )
             {
-                groupMemberQuery = groupMemberQuery.Where(x => x.GroupMemberStatus == settings.MemberStatus.Value);
+                groupMemberQuery = groupMemberQuery.Where( x => x.GroupMemberStatus == settings.MemberStatus.Value );
             }
+
+            //
+            // Create a Select Expression to return the requested values.
+            //
 
             // Set the Output Format of the field.
             Expression<Func<GroupMember, string>> outputExpression;
@@ -179,13 +148,12 @@ namespace Rock.Reporting.DataSelect.Person
                 case ListFormatSpecifier.GroupOnly:
                     outputExpression = ( ( m => m.Group.Name ) );
                     break;
-                case ListFormatSpecifier.GroupAndRole:
-                default:
+                default: // ListFormatSpecifier.GroupAndRole:                    
                     outputExpression = ( ( m => m.Group.Name + " [" + m.GroupRole.Name + "]" ) );
                     break;
             }
 
-            // Define the Select Expression containing the field output.
+            // Define a Query to return the collection of filtered Groups for each Person.
             var personGroupsQuery = new PersonService( context ).Queryable()
                                                                 .Select( p => groupMemberQuery.Where( s => s.PersonId == p.Id )
                                                                                               .OrderBy( x => x.Group.Name )
@@ -206,7 +174,7 @@ namespace Rock.Reporting.DataSelect.Person
         {
             // Define Control: Output Format DropDown List
             var ddlFormat = new RockDropDownList();
-            ddlFormat.ID = GetControlInstanceName(parentControl, _CtlFormat);
+            ddlFormat.ID = parentControl.GetChildControlInstanceName( _CtlFormat );
             ddlFormat.Label = "Output Format";
             ddlFormat.Help = "Specifies the content and format of the items in this field.";
             ddlFormat.Items.Add( new ListItem( "Group Name And Role", ListFormatSpecifier.GroupAndRole.ToString() ) );
@@ -215,15 +183,14 @@ namespace Rock.Reporting.DataSelect.Person
 
             // Define Control: Group Data View Picker
             var ddlDataView = new DataViewPicker();
-            ddlDataView.ID = GetControlInstanceName( parentControl, _CtlDataView );
+            ddlDataView.ID = parentControl.GetChildControlInstanceName( _CtlDataView );
             ddlDataView.Label = "Participates in Groups";
             ddlDataView.Help = "A Data View that filters the Groups included in the result. If no value is selected, any Groups that would be visible in a Group List will be included.";
-
             parentControl.Controls.Add( ddlDataView );
 
             // Define Control: Role Type DropDown List
             var ddlRoleType = new RockDropDownList();
-            ddlRoleType.ID = GetControlInstanceName( parentControl, _CtlRoleType );
+            ddlRoleType.ID = parentControl.GetChildControlInstanceName( _CtlRoleType );
             ddlRoleType.Label = "with Group Role Type";
             ddlRoleType.Help = "Specifies the type of Group Role the Member must have to be included in the result. If no value is selected, Members in every Role will be shown.";
             ddlRoleType.Items.Add( new ListItem( string.Empty, RoleTypeSpecifier.Any.ToString() ) );
@@ -234,7 +201,7 @@ namespace Rock.Reporting.DataSelect.Person
             // Define Control: Group Member Status DropDown List
             var ddlGroupMemberStatus = new RockDropDownList();
             ddlGroupMemberStatus.CssClass = "js-group-member-status";
-            ddlGroupMemberStatus.ID = GetControlInstanceName( parentControl, _CtlGroupStatus );
+            ddlGroupMemberStatus.ID = parentControl.GetChildControlInstanceName( _CtlGroupStatus );
             ddlGroupMemberStatus.Label = "with Group Member Status";
             ddlGroupMemberStatus.Help = "Specifies the Status the Member must have to be included in the result. If no value is selected, Members of every Group Status will be shown.";
             ddlGroupMemberStatus.BindToEnum<GroupMemberStatus>( true );
@@ -248,58 +215,33 @@ namespace Rock.Reporting.DataSelect.Person
             return new Control[] { ddlDataView, ddlRoleType, ddlFormat, ddlGroupMemberStatus };
         }
 
-        private string GetControlInstanceName(Control parentControl, string controlBaseName)
-        {
-            return string.Format("{0}_{1}", parentControl.ID, controlBaseName);
-        }
-
-        private TControl GetControlByName<TControl>(Control[] controls, string controlName)
-            where TControl : class
-        {
-            object control = controls.FirstOrDefault(x => x.ID.EndsWith("_" + controlName));
-
-            if (control == null)
-            {
-                throw new Exception(string.Format("Control \"{0}\" could not be found.", controlName));
-            }
-
-            control = control as TControl;
-
-            if ( control == null )
-            {
-                throw new Exception( "Control \"{0}\" could not be found." );
-            }
-
-            return (TControl)control;
-        }
-
         public override string GetSelection( Control[] controls )
-        {           
-            var ddlDataView = GetControlByName<DataViewPicker>( controls, _CtlDataView );
-            var ddlRoleType = GetControlByName<RockDropDownList>( controls, _CtlRoleType );
-            var ddlFormat = GetControlByName<RockDropDownList>( controls, _CtlFormat );
-            var ddlGroupMemberStatus = GetControlByName<RockDropDownList>( controls, _CtlGroupStatus );
+        {
+            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlRoleType = controls.GetByName<RockDropDownList>( _CtlRoleType );
+            var ddlFormat = controls.GetByName<RockDropDownList>( _CtlFormat );
+            var ddlGroupMemberStatus = controls.GetByName<RockDropDownList>( _CtlGroupStatus );
 
             var settings = new GroupParticipationSelectSettings();
 
-            settings.ParseMemberStatus( ddlGroupMemberStatus.SelectedValue );
-            settings.ParseRoleType( ddlRoleType.SelectedValue );
-            settings.ParseDataViewId(ddlDataView.SelectedValue );
-            settings.ParseListFormatType( ddlFormat.SelectedValue );
-                        
+            settings.MemberStatus = ddlGroupMemberStatus.SelectedValue.ConvertToEnum<GroupMemberStatus>();
+            settings.RoleType = ddlRoleType.SelectedValue.ConvertToEnum<RoleTypeSpecifier>();
+            settings.DataViewGuid = DataComponentSettingsHelper.GetDataViewGuid( ddlDataView.SelectedValue );
+            settings.ListFormat = ddlFormat.SelectedValue.ConvertToEnum<ListFormatSpecifier>( ListFormatSpecifier.GroupAndRole );
+
             return settings.ToSelectionString();
         }
 
         public override void SetSelection( Control[] controls, string selection )
         {
-            var ddlDataView = GetControlByName<DataViewPicker>( controls, _CtlDataView );
-            var ddlRoleType = GetControlByName<RockDropDownList>( controls, _CtlRoleType );
-            var ddlFormat = GetControlByName<RockDropDownList>( controls, _CtlFormat );
-            var ddlGroupMemberStatus = GetControlByName<RockDropDownList>( controls, _CtlGroupStatus );
+            var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
+            var ddlRoleType = controls.GetByName<RockDropDownList>( _CtlRoleType );
+            var ddlFormat = controls.GetByName<RockDropDownList>( _CtlFormat );
+            var ddlGroupMemberStatus = controls.GetByName<RockDropDownList>( _CtlGroupStatus );
 
             var settings = new GroupParticipationSelectSettings( selection );
 
-            if ( !settings.IsValid() )
+            if ( !settings.IsValid )
             {
                 return;
             }
@@ -319,7 +261,7 @@ namespace Rock.Reporting.DataSelect.Person
             }
 
             ddlRoleType.SelectedValue = settings.RoleType.ToStringSafe();
-            ddlGroupMemberStatus.SelectedValue = settings.MemberStatus.ToStringSafe();            
+            ddlGroupMemberStatus.SelectedValue = settings.MemberStatus.ToStringSafe();
         }
 
         #endregion
@@ -342,9 +284,8 @@ namespace Rock.Reporting.DataSelect.Person
         /// <summary>
         ///     Settings for the Data Select Component "Group Participation".
         /// </summary>
-        private class GroupParticipationSelectSettings
+        private class GroupParticipationSelectSettings : SettingsStringBase
         {
-            public const string SettingsVersion = "1";
             public Guid? DataViewGuid;
             public ListFormatSpecifier ListFormat = ListFormatSpecifier.GroupAndRole;
             public GroupMemberStatus? MemberStatus = GroupMemberStatus.Active;
@@ -360,114 +301,24 @@ namespace Rock.Reporting.DataSelect.Person
                 FromSelectionString( settingsString );
             }
 
-            public bool IsValid()
+            protected override void OnSetParameters( int version, IReadOnlyList<string> parameters )
             {
-                return true;
+                ListFormat = DataComponentSettingsHelper.GetParameterAsEnum( parameters, 0, ListFormatSpecifier.GroupAndRole );
+                DataViewGuid = DataComponentSettingsHelper.GetParameterOrDefault( parameters, 1, string.Empty ).AsGuidOrNull();
+                RoleType = DataComponentSettingsHelper.GetParameterAsEnum<RoleTypeSpecifier>( parameters, 2 );
+                MemberStatus = DataComponentSettingsHelper.GetParameterAsEnum<GroupMemberStatus>( parameters, 3 );
             }
 
-            /// <summary>
-            ///     Set values from a string representation of the settings.
-            /// </summary>
-            /// <param name="selectionString"></param>
-            public void FromSelectionString( string selectionString )
-            {
-                var selectionValues = selectionString.Split( '|' );
-
-                // Read the settings string version from the first parameter.
-                // This allows us to cater for any future upgrades to the content and format of the settings string.
-                string version = selectionValues.ElementAtOrDefault( 0 );
-
-                if ( version == SettingsVersion )
-                {
-                    // Parameter 1: Output Format
-                    ParseListFormatType( selectionValues.ElementAtOrDefault( 1 ) );
-
-                    // Parameter 2: Data View
-                    DataViewGuid = selectionValues.ElementAtOrDefault( 2 ).AsGuidOrNull();
-
-                    // Parameter 3: Role Type
-                    ParseRoleType( selectionValues.ElementAtOrDefault( 3 ) );
-
-                    // Parameter 4: Group Member Status
-                    ParseMemberStatus( selectionValues.ElementAtOrDefault( 4 ) );
-                }
-            }
-
-            public void ParseListFormatType( string listFormatName )
-            {
-                ListFormat = ParseEnum( listFormatName, ListFormatSpecifier.GroupAndRole );
-            }
-
-            public void ParseRoleType( string roleTypeName )
-            {
-                RoleType = ParseEnum<RoleTypeSpecifier>( roleTypeName );
-            }
-
-            public void ParseMemberStatus( string memberStatusName )
-            {
-                MemberStatus = ParseEnum<GroupMemberStatus>( memberStatusName );
-            }
-
-            public void ParseDataViewId( string dataViewId )
-            {
-                var id = dataViewId.AsIntegerOrNull();
-
-                if ( id != null )
-                {
-                    var dsService = new DataViewService( new RockContext() );
-
-                    var dataView = dsService.Get( id.Value );
-
-                    DataViewGuid = dataView.Guid;
-                }
-                else
-                {
-                    DataViewGuid = null;
-                }
-            }
-
-            public string ToSelectionString()
+            protected override IEnumerable<string> OnGetParameters()
             {
                 var settings = new List<string>();
 
-                settings.Add( SettingsVersion );
                 settings.Add( ( (int)ListFormat ).ToString() );
                 settings.Add( DataViewGuid.ToStringSafe() );
                 settings.Add( RoleType == null ? string.Empty : ( (int)RoleType ).ToString() );
                 settings.Add( MemberStatus == null ? string.Empty : ( (int)MemberStatus ).ToString() );
 
-                return settings.AsDelimited( "|" );
-            }
-
-            private TEnum ParseEnum<TEnum>( string value, TEnum defaultValue, bool ignoreCase = true )
-                where TEnum : struct, IComparable, IFormattable, IConvertible
-            {
-                TEnum? parsedValue = ParseEnum<TEnum>( value, ignoreCase );
-
-                return parsedValue.GetValueOrDefault( defaultValue );
-            }
-
-            private TEnum? ParseEnum<TEnum>( string value, bool ignoreCase = true )
-                    where TEnum : struct, IComparable, IFormattable, IConvertible
-            {
-                if ( !typeof( TEnum ).IsEnum )
-                {
-                    throw new ArgumentException( "Target is not an Enumerated Type" );
-                }
-
-                if ( string.IsNullOrEmpty( value ) )
-                {
-                    return null;
-                }
-
-                TEnum lResult;
-
-                if ( Enum.TryParse( value, ignoreCase, out lResult ) )
-                {
-                    return lResult;
-                }
-
-                return null;
+                return settings;
             }
         }
 
