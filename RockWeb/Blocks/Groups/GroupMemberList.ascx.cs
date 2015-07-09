@@ -87,13 +87,13 @@ namespace RockWeb.Blocks.Groups
             // if this block has a specific GroupId set, use that, otherwise, determine it from the PageParameters
             Guid groupGuid = GetAttributeValue( "Group" ).AsGuid();
             int groupId = 0;
-            
+
             if ( groupGuid == Guid.Empty )
             {
                 groupId = PageParameter( "GroupId" ).AsInteger();
             }
 
-            if ( !(groupId == 0 && groupGuid == Guid.Empty ))
+            if ( !( groupId == 0 && groupGuid == Guid.Empty ) )
             {
                 string key = string.Format( "Group:{0}", groupId );
                 _group = RockPage.GetSharedItem( key ) as Group;
@@ -126,7 +126,7 @@ namespace RockWeb.Blocks.Groups
                 }
 
                 // if group is being sync'ed remove ability to add/delete members 
-                if ( _group.SyncDataViewId.HasValue )
+                if ( _group != null && _group.SyncDataViewId.HasValue )
                 {
                     gGroupMembers.IsDeleteEnabled = false;
                     gGroupMembers.Actions.ShowAdd = false;
@@ -176,23 +176,22 @@ namespace RockWeb.Blocks.Groups
         /// </summary>
         /// <param name="sender">The source of the event.</param>
         /// <param name="e">The <see cref="System.Web.UI.WebControls.GridViewRowEventArgs"/> instance containing the event data.</param>
-        void gGroupMembers_RowDataBound( object sender, System.Web.UI.WebControls.GridViewRowEventArgs e )
+        protected void gGroupMembers_RowDataBound( object sender, System.Web.UI.WebControls.GridViewRowEventArgs e )
         {
             if ( e.Row.RowType == DataControlRowType.DataRow )
             {
-                var groupMember = e.Row.DataItem as GroupMember;
-                if ( groupMember != null && groupMember.Person != null )
-                {
-                    if ( _inactiveStatus != null &&
-                        groupMember.Person.RecordStatusValueId.HasValue &&
-                        groupMember.Person.RecordStatusValueId == _inactiveStatus.Id )
-                    {
-                        e.Row.AddCssClass( "inactive" );
-                    }
+                dynamic groupMember = e.Row.DataItem;
 
-                    if ( groupMember.Person.IsDeceased ?? false )
+                if ( groupMember != null )
+                {
+                    if ( groupMember != null && groupMember.IsDeceased )
                     {
                         e.Row.AddCssClass( "deceased" );
+                    }
+
+                    if ( _inactiveStatus != null && groupMember.RecordStatusValueId == _inactiveStatus.Id )
+                    {
+                        e.Row.AddCssClass( "inactive" );
                     }
                 }
             }
@@ -212,7 +211,7 @@ namespace RockWeb.Blocks.Groups
 
             if ( AvailableAttributes != null )
             {
-                foreach( var attribute in AvailableAttributes )
+                foreach ( var attribute in AvailableAttributes )
                 {
                     var filterControl = phAttributeFilters.FindControl( "filter_" + attribute.Id.ToString() );
                     if ( filterControl != null )
@@ -222,7 +221,10 @@ namespace RockWeb.Blocks.Groups
                             var values = attribute.FieldType.Field.GetFilterValues( filterControl, attribute.QualifierValues );
                             rFilter.SaveUserPreference( MakeKeyUniqueToGroup( attribute.Key ), attribute.Name, attribute.FieldType.Field.GetFilterValues( filterControl, attribute.QualifierValues ).ToJson() );
                         }
-                        catch { }
+                        catch
+                        {
+                            // intentionally ignore
+                        }
                     }
                 }
             }
@@ -237,7 +239,6 @@ namespace RockWeb.Blocks.Groups
         /// <param name="e">The e.</param>
         protected void rFilter_DisplayFilterValue( object sender, GridFilter.DisplayFilterValueArgs e )
         {
-
             if ( AvailableAttributes != null )
             {
                 var attribute = AvailableAttributes.FirstOrDefault( a => MakeKeyUniqueToGroup( a.Key ) == e.Key );
@@ -249,7 +250,10 @@ namespace RockWeb.Blocks.Groups
                         e.Value = attribute.FieldType.Field.FormatFilterValues( attribute.QualifierValues, values );
                         return;
                     }
-                    catch { }
+                    catch
+                    {
+                        // intentionally ignore
+                    }
                 }
             }
 
@@ -273,7 +277,6 @@ namespace RockWeb.Blocks.Groups
             {
                 e.Value = string.Empty;
             }
-
         }
 
         /// <summary>
@@ -378,9 +381,11 @@ namespace RockWeb.Blocks.Groups
             {
                 cblStatus.SetValues( statusValue.Split( ';' ).ToList() );
             }
-
         }
 
+        /// <summary>
+        /// Binds the attributes.
+        /// </summary>
         private void BindAttributes()
         {
             // Parse the attribute filters 
@@ -421,7 +426,7 @@ namespace RockWeb.Blocks.Groups
 
             if ( AvailableAttributes != null )
             {
-                foreach( var attribute in AvailableAttributes )
+                foreach ( var attribute in AvailableAttributes )
                 {
                     var control = attribute.FieldType.Field.FilterControl( attribute.QualifierValues, "filter_" + attribute.Id.ToString(), false );
                     if ( control != null )
@@ -450,7 +455,10 @@ namespace RockWeb.Blocks.Groups
                                 var values = JsonConvert.DeserializeObject<List<string>>( savedValue );
                                 attribute.FieldType.Field.SetFilterValues( control, attribute.QualifierValues, values );
                             }
-                            catch { }
+                            catch
+                            {
+                                // intentionally ignore
+                            }
                         }
                     }
 
@@ -495,7 +503,7 @@ namespace RockWeb.Blocks.Groups
             hlPersonProfileLink.ItemStyle.HorizontalAlign = HorizontalAlign.Center;
             hlPersonProfileLink.HeaderStyle.CssClass = "grid-columncommand";
             hlPersonProfileLink.ItemStyle.CssClass = "grid-columncommand";
-            hlPersonProfileLink.DataNavigateUrlFields = new String[1] { "PersonId" };
+            hlPersonProfileLink.DataNavigateUrlFields = new string[1] { "PersonId" };
             hlPersonProfileLink.DataNavigateUrlFormatString = LinkedPageUrl( "PersonProfilePage", new Dictionary<string, string> { { "PersonId", "###" } } ).Replace( "###", "{0}" );
             hlPersonProfileLink.DataTextFormatString = "<div class='btn btn-default'><i class='fa fa-user'></i></div>";
             hlPersonProfileLink.DataTextField = "PersonId";
@@ -553,6 +561,7 @@ namespace RockWeb.Blocks.Groups
                             }
                         }
                     }
+
                     if ( roles.Any() )
                     {
                         qry = qry.Where( m => roles.Contains( m.GroupRoleId ) );
@@ -567,6 +576,7 @@ namespace RockWeb.Blocks.Groups
                             statuses.Add( status.ConvertToEnum<GroupMemberStatus>() );
                         }
                     }
+
                     if ( statuses.Any() )
                     {
                         qry = qry.Where( m => statuses.Contains( m.GroupMemberStatus ) );
@@ -599,10 +609,21 @@ namespace RockWeb.Blocks.Groups
                         }
                     }
 
-
                     _inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE );
 
                     SortProperty sortProperty = gGroupMembers.SortProperty;
+
+                    // If there are group requirements that that member doesn't meet, show a warning in the grid
+                    List<int> groupMemberIdsThatLackGroupRequirements = null;
+                    var qryGroupRequirementIds = new GroupRequirementService( rockContext ).Queryable().Where( a => a.GroupId == _group.Id ).Select( a => a.Id );
+                    bool hasGroupRequirements = qryGroupRequirementIds.Any();
+                    if ( hasGroupRequirements )
+                    {
+                        var groupMemberIdsThatLackGroupRequirementsQry = qry.Where(
+                            a => !qryGroupRequirementIds.All( r => a.GroupMemberRequirements.Where( mr => mr.RequirementMetDateTime.HasValue ).Select( x => x.GroupRequirementId ).Contains( r ) ) ).Select( a => a.Id );
+
+                        groupMemberIdsThatLackGroupRequirements = groupMemberIdsThatLackGroupRequirementsQry.ToList();
+                    }
 
                     List<GroupMember> groupMembers = null;
 
@@ -626,9 +647,14 @@ namespace RockWeb.Blocks.Groups
                         m.Id,
                         m.Guid,
                         m.PersonId,
-                        Name = m.Person.NickName + " " + m.Person.LastName,
+                        Name = m.Person.NickName + " " + m.Person.LastName + (
+                            hasGroupRequirements && groupMemberIdsThatLackGroupRequirements.Contains( m.Id )
+                            ? " <i class='fa fa-exclamation-triangle text-warning'></i>"
+                            : string.Empty ),
                         GroupRole = m.GroupRole.Name,
-                        m.GroupMemberStatus
+                        m.GroupMemberStatus,
+                        RecordStatusValueId = m.Person.RecordStatusValueId,
+                        IsDeceased = m.Person.IsDeceased
                     } ).ToList();
 
                     gGroupMembers.DataBind();
@@ -685,6 +711,7 @@ namespace RockWeb.Blocks.Groups
             {
                 return string.Format( "{0}-{1}", _group.Id, key );
             }
+
             return key;
         }
 

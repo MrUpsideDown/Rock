@@ -39,7 +39,7 @@ namespace Rock.Model
         /// <value>
         /// An <see cref="System.Int32"/> representing the Id of the <see cref="Rock.Model.EventItem"/> that the EventItemCampus is associated with.
         /// </value>
-        [DataMember( IsRequired = true )]
+        [DataMember]
         public int? EventItemCampusId { get; set; }
 
         /// <summary>
@@ -114,11 +114,27 @@ namespace Rock.Model
         #endregion
 
         #region Methods
+
+        /// <summary>
+        /// Returns a <see cref="System.String"/> that represents this instance.
+        /// </summary>
+        /// <returns>
+        /// A <see cref="System.String"/> that represents this instance.
+        /// </returns>
         public override string ToString()
         {
             return ToString( false, true, true );
         }
 
+        /// <summary>
+        /// Returns a <see cref="System.String"/> that represents this instance.
+        /// </summary>
+        /// <param name="includeEventItem">if set to <c>true</c> [include event item].</param>
+        /// <param name="includeRegistrationInstance">if set to <c>true</c> [include registration instance].</param>
+        /// <param name="includeGroup">if set to <c>true</c> [include group].</param>
+        /// <returns>
+        /// A <see cref="System.String"/> that represents this instance.
+        /// </returns>
         public string ToString( bool includeEventItem, bool includeRegistrationInstance, bool includeGroup )
         { 
             var parts = new List<string>();

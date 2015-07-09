@@ -90,6 +90,33 @@ namespace Rock.Model
         public string ConfirmationEmail { get; set; }
 
         /// <summary>
+        /// Gets or sets the code.
+        /// </summary>
+        /// <value>
+        /// The code.
+        /// </value>
+        [MaxLength( 100 )]
+        public string DiscountCode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the discount percentage.
+        /// </summary>
+        /// <value>
+        /// The discount percentage.
+        /// </value>
+        [DataMember]
+        public decimal DiscountPercentage { get; set; }
+
+        /// <summary>
+        /// Gets or sets the discount amount.
+        /// </summary>
+        /// <value>
+        /// The discount amount.
+        /// </value>
+        [DataMember]
+        public decimal DiscountAmount { get; set; }
+
+        /// <summary>
         /// Gets or sets the group identifier.
         /// </summary>
         /// <value>
@@ -108,6 +135,7 @@ namespace Rock.Model
         /// <value>
         /// The registration instance.
         /// </value>
+        [DataMember]
         public virtual RegistrationInstance RegistrationInstance { get; set; }
 
         /// <summary>
@@ -132,6 +160,7 @@ namespace Rock.Model
         /// <value>
         /// The registrants.
         /// </value>
+        [DataMember]
         public virtual ICollection<RegistrationRegistrant> Registrants
         {
             get { return _registrants ?? ( _registrants = new Collection<RegistrationRegistrant>() ); }

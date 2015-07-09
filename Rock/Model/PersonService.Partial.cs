@@ -101,14 +101,15 @@ namespace Rock.Model
             var qry = base.Queryable( includes );
             if ( !includeBusinesses )
             {
-                var definedValue = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_BUSINESS.AsGuid() );
-                if ( definedValue != null )
+                var definedValueBusinessType = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_BUSINESS.AsGuid() );
+                if ( definedValueBusinessType != null )
                 {
-                    qry = qry.Where( p => p.RecordTypeValueId != definedValue.Id );
+                    int recordTypeBusiness = definedValueBusinessType.Id;
+                    qry = qry.Where( p => p.RecordTypeValueId != recordTypeBusiness );
                 }
             }
 
-            if (!includeDeceased)
+            if ( !includeDeceased )
             {
                 qry = qry.Where( p => p.IsDeceased == false );
             }
@@ -149,11 +150,15 @@ namespace Rock.Model
         /// </returns>
         public IEnumerable<Person> GetByMatch( string firstName, string lastName, string email, bool includeDeceased = false, bool includeBusinesses = false )
         {
+            firstName = firstName ?? string.Empty;
+            lastName = lastName ?? string.Empty;
+            email = email ?? string.Empty;
+
             return Queryable( includeDeceased, includeBusinesses )
                 .Where( p =>
-                    p.Email == email &&
-                    ( p.FirstName == firstName || p.NickName == firstName ) &&
-                    p.LastName == lastName )
+                    email != "" && p.Email == email &&
+                    firstName != "" && ( p.FirstName == firstName || p.NickName == firstName ) &&
+                    lastName != "" && p.LastName == lastName )
                 .ToList();
         }
 
@@ -362,15 +367,28 @@ namespace Rock.Model
             }
             else
             {
-                int recordTypeBusinessId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_BUSINESS.AsGuid() ).Id;
-
-                return Queryable( includeDeceased, includeBusinesses )
-                    .Where( p =>
-                        ( includeBusinesses && p.RecordTypeValueId.HasValue && p.RecordTypeValueId.Value == recordTypeBusinessId && p.LastName.Contains( fullName ) )
+                var qry = Queryable( includeDeceased, includeBusinesses );
+                if ( includeBusinesses )
+                {
+                    int recordTypeBusinessId = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_BUSINESS.AsGuid() ).Id;
+                    
+                    // if a we are including businesses, compare fullname against the Business Name (Person.LastName)
+                    qry = qry.Where( p =>
+                        ( p.RecordTypeValueId.HasValue && p.RecordTypeValueId.Value == recordTypeBusinessId && p.LastName.Contains( fullName ) )
                         ||
                         ( ( p.LastName.StartsWith( lastName ) || previousNamesQry.Any( a => a.PersonAlias.PersonId == p.Id && a.LastName.StartsWith( lastName ) ) ) &&
                         ( p.FirstName.StartsWith( firstName ) ||
                         p.NickName.StartsWith( firstName ) ) ) );
+                }
+                else
+                {
+                    qry = qry.Where( p =>
+                        ( ( p.LastName.StartsWith( lastName ) || previousNamesQry.Any( a => a.PersonAlias.PersonId == p.Id && a.LastName.StartsWith( lastName ) ) ) &&
+                        ( p.FirstName.StartsWith( firstName ) ||
+                        p.NickName.StartsWith( firstName ) ) ) );
+                }
+
+                return qry;
             }
         }
 
@@ -832,6 +850,117 @@ namespace Rock.Model
         }
 
         /// <summary>
+        /// Special class that holds the result of a GetChildWithParents query
+        /// </summary>
+        public class ParentWithChildren
+        {
+            /// <summary>
+            /// Gets or sets the child.
+            /// </summary>
+            /// <value>
+            /// The child.
+            /// </value>
+            public Person Parent { get; set; }
+
+            /// <summary>
+            /// Gets or sets the parents.
+            /// </summary>
+            /// <value>
+            /// The parents.
+            /// </value>
+            public IEnumerable<Person> Children { get; set; }
+        }
+
+        /// <summary>
+        /// Gets a Queryable of Parents with their Children
+        /// </summary>
+        /// <param name="includeParentsWithoutChildren">if set to <c>true</c> [include parents without children].</param>
+        /// <returns></returns>
+        public IQueryable<ParentWithChildren> GetParentWithChildren( bool includeParentsWithoutChildren )
+        {
+            var groupTypeFamily = GroupTypeCache.Read( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY );
+            int childRoleId = groupTypeFamily.Roles.First( a => a.Guid == Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_CHILD.AsGuid() ).Id;
+            int parentRoleId = groupTypeFamily.Roles.First( a => a.Guid == Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_ADULT.AsGuid() ).Id;
+            int groupTypeFamilyId = groupTypeFamily.Id;
+
+            var qryFamilyGroups = new GroupService( this.Context as RockContext ).Queryable().Where( g => g.GroupTypeId == groupTypeFamilyId && g.Members.Any( a => a.GroupRoleId == parentRoleId ) )
+                .Select( g => new
+                {
+                    AdultsWithKids = g.Members.Where( a => a.GroupRoleId == parentRoleId ).Select( a => new
+                    {
+                        Parent = a.Person,
+                        Children = g.Members.Where( aa => aa.GroupRoleId == childRoleId ).Select( b => b.Person )
+                    } )
+                } )
+                .SelectMany( x => x.AdultsWithKids.Select( xx => new { xx.Parent, xx.Children } ) );
+
+            var qryAdults = this.Queryable();
+
+            var qryParentsWithChildren = qryAdults.Join(
+                qryFamilyGroups,
+                k => k.Id,
+                k2 => k2.Parent.Id,
+                ( k, f ) => new ParentWithChildren
+                {
+                    Parent = f.Parent,
+                    Children = f.Children
+                } );
+
+            if ( !includeParentsWithoutChildren )
+            {
+                qryParentsWithChildren = qryParentsWithChildren.Where( a => a.Children.Any() );
+            }
+
+            return qryParentsWithChildren;
+        }
+
+        /// <summary>
+        /// Special class that holds the result of a ParentWithChild query
+        /// </summary>
+        public class ParentWithChild
+        {
+            /// <summary>
+            /// Gets or sets the parent.
+            /// </summary>
+            /// <value>
+            /// The parent.
+            /// </value>
+            public Person Parent { get; set; }
+
+            /// <summary>
+            /// Gets or sets the child.
+            /// </summary>
+            /// <value>
+            /// The child.
+            /// </value>
+            public Person Child { get; set; }
+        }
+
+        /// <summary>
+        /// Gets a Queryable of Parents with their Children flattened out so each record is a parent with a child (an adult with 2 children would return two records)
+        /// </summary>
+        /// <returns></returns>
+        public IQueryable<ParentWithChild> GetParentWithChild()
+        {
+            var qryParentsWithChildren = this.GetParentWithChildren( false );
+
+            var qryParentWithChild = qryParentsWithChildren.Select( a => new
+            {
+                ChildAdult = a.Children.Select( aa => new
+                {
+                    Child = aa,
+                    Parent = a.Parent
+                } )
+            } ).SelectMany( sm => sm.ChildAdult ).Select( s => new ParentWithChild
+            {
+                Parent = s.Parent,
+                Child = s.Child
+            } );
+
+            return qryParentWithChild;
+        }
+
+        /// <summary>
         /// Gets the family names.
         /// </summary>
         /// <param name="personId">The person identifier.</param>
@@ -1119,11 +1248,20 @@ namespace Rock.Model
                 var adultRole = familyGroupType.Roles
                     .FirstOrDefault( r =>
                         r.Guid.Equals( Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_ADULT.AsGuid() ) );
-                if ( adultRole != null )
+
+                var childRole = familyGroupType.Roles
+                    .FirstOrDefault( r =>
+                        r.Guid.Equals( Rock.SystemGuid.GroupRole.GROUPROLE_FAMILY_MEMBER_CHILD.AsGuid() ) );
+
+                var age = person.Age;
+
+                var familyRole = age.HasValue && age < 18 ? childRole : adultRole;
+
+                if ( familyRole != null )
                 {
                     var groupMember = new GroupMember();
                     groupMember.Person = person;
-                    groupMember.GroupRoleId = adultRole.Id;
+                    groupMember.GroupRoleId = familyRole.Id;
 
                     var groupMembers = new List<GroupMember>();
                     groupMembers.Add( groupMember );

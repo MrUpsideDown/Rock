@@ -480,30 +480,34 @@ namespace RockWeb.Blocks.Event
                 }
 
                 // Set the Cost
-                var lCost = e.Row.FindControl( "lCost" ) as Literal;
-                if ( lCost != null )
+                if ( registration.TotalCost > 0.0M )
                 {
-                    lCost.Text = totalCost.ToString( "C2" );
-                }
-
-                // Set the payment
-                var lblPaid = e.Row.FindControl( "lblPaid" ) as Label;
-                if ( lblPaid != null && RegistrationPayments != null )
-                {
-                    decimal totalPaid = RegistrationPayments
-                        .Where( d => d.EntityId == registration.Id )
-                        .Sum( d => d.Amount );
-                    lblPaid.Text = totalPaid.ToString( "C2" );
-
-                    if ( totalPaid < totalCost )
+                    var lCost = e.Row.FindControl( "lCost" ) as Label;
+                    if ( lCost != null )
                     {
-                        lblPaid.AddCssClass( "label" );
-                        lblPaid.AddCssClass( "label-danger" );
+                        lCost.Visible = registration.TotalCost > 0.0M;
+                        lCost.Text = registration.TotalCost.ToString( "C2" );
                     }
-                    else if ( totalPaid > totalCost )
+
+                    var lBalance = e.Row.FindControl( "lBalance" ) as Label;
+                    if ( lBalance != null )
                     {
-                        lblPaid.AddCssClass( "label" );
-                        lblPaid.AddCssClass( "label-success" );
+                        lBalance.Visible = registration.TotalCost > 0.0M;
+
+                        decimal paid = RegistrationPayments.Where( p => p.EntityId == registration.Id ).Sum( p => p.Amount );
+                        decimal balanceDue = registration.TotalCost - paid;
+
+                        lBalance.Text = balanceDue.ToString( "C2" );
+                        if ( balanceDue > 0 )
+                        {
+                            lBalance.AddCssClass( "label-danger" );
+                            lBalance.RemoveCssClass( "label-success" );
+                        }
+                        else
+                        {
+                            lBalance.RemoveCssClass( "label-danger" );
+                            lBalance.AddCssClass( "label-success" );
+                        }
                     }
                 }
             }
@@ -581,6 +585,28 @@ namespace RockWeb.Blocks.Event
                     {
                         switch ( field.PersonFieldType.Value )
                         {
+                            case RegistrationPersonFieldType.Campus:
+                                {
+                                    var ddlCampus = phRegistrantFormFieldFilters.FindControl( "ddlCampus" ) as RockDropDownList;
+                                    if ( ddlCampus != null )
+                                    {
+                                        fRegistrants.SaveUserPreference( "Home Campus", ddlCampus.SelectedValue );
+                                    }
+
+                                    break;
+                                }
+
+                            case RegistrationPersonFieldType.Email:
+                                {
+                                    var tbEmailFilter = phRegistrantFormFieldFilters.FindControl( "tbEmailFilter" ) as RockTextBox;
+                                    if ( tbEmailFilter != null )
+                                    {
+                                        fRegistrants.SaveUserPreference( "Email", tbEmailFilter.Text );
+                                    }
+
+                                    break;
+                                } 
+                            
                             case RegistrationPersonFieldType.Birthdate:
                                 {
                                     var drpBirthdateFilter = phRegistrantFormFieldFilters.FindControl( "drpBirthdateFilter" ) as DateRangePicker;
@@ -591,16 +617,7 @@ namespace RockWeb.Blocks.Event
 
                                     break;
                                 }
-                            case RegistrationPersonFieldType.Email:
-                                {
-                                    var tbEmailFilter = phRegistrantFormFieldFilters.FindControl( "tbEmailFilter" ) as RockTextBox;
-                                    if ( tbEmailFilter != null )
-                                    {
-                                        fRegistrants.SaveUserPreference( "Email", tbEmailFilter.Text );
-                                    }
 
-                                    break;
-                                }
                             case RegistrationPersonFieldType.Gender:
                                 {
                                     var ddlGenderFilter = phRegistrantFormFieldFilters.FindControl( "ddlGenderFilter" ) as RockDropDownList;
@@ -611,16 +628,7 @@ namespace RockWeb.Blocks.Event
 
                                     break;
                                 }
-                            case RegistrationPersonFieldType.HomeCampus:
-                                {
-                                    var ddlCampus = phRegistrantFormFieldFilters.FindControl( "ddlCampus" ) as RockDropDownList;
-                                    if ( ddlCampus != null )
-                                    {
-                                        fRegistrants.SaveUserPreference( "Home Campus", ddlCampus.SelectedValue );
-                                    }
 
-                                    break;
-                                }
                             case RegistrationPersonFieldType.MaritalStatus:
                                 {
                                     var ddlMaritalStatusFilter = phRegistrantFormFieldFilters.FindControl( "ddlMaritalStatusFilter" ) as RockDropDownList;
@@ -631,7 +639,7 @@ namespace RockWeb.Blocks.Event
 
                                     break;
                                 }
-                            case RegistrationPersonFieldType.Phone:
+                            case RegistrationPersonFieldType.MobilePhone:
                                 {
                                     var tbPhoneFilter = phRegistrantFormFieldFilters.FindControl( "tbPhoneFilter" ) as RockTextBox;
                                     if ( tbPhoneFilter != null )
@@ -1545,54 +1553,7 @@ namespace RockWeb.Blocks.Event
                         {
                             switch ( personFieldType )
                             {
-                                case RegistrationPersonFieldType.Birthdate:
-                                    {
-                                        var drpBirthdateFilter = phRegistrantFormFieldFilters.FindControl( "drpBirthdateFilter" ) as DateRangePicker;
-                                        if ( drpBirthdateFilter != null )
-                                        {
-                                            if ( drpBirthdateFilter.LowerValue.HasValue )
-                                            {
-                                                qry = qry.Where( r =>
-                                                    r.PersonAlias.Person.BirthDate.HasValue &&
-                                                    r.PersonAlias.Person.BirthDate.Value >= drpBirthdateFilter.LowerValue.Value );
-                                            }
-                                            if ( drpBirthdateFilter.UpperValue.HasValue )
-                                            {
-                                                qry = qry.Where( r =>
-                                                    r.PersonAlias.Person.BirthDate.HasValue &&
-                                                    r.PersonAlias.Person.BirthDate.Value <= drpBirthdateFilter.UpperValue.Value );
-                                            }
-                                        }
-                                        break;
-                                    }
-                                case RegistrationPersonFieldType.Email:
-                                    {
-                                        var tbEmailFilter = phRegistrantFormFieldFilters.FindControl( "tbEmailFilter" ) as RockTextBox;
-                                        if ( tbEmailFilter != null && !string.IsNullOrWhiteSpace( tbEmailFilter.Text ) )
-                                        {
-                                            qry = qry.Where( r =>
-                                                r.PersonAlias.Person.Email != null &&
-                                                r.PersonAlias.Person.Email.Contains( tbEmailFilter.Text ) );
-                                        }
-
-                                        break;
-                                    }
-                                case RegistrationPersonFieldType.Gender:
-                                    {
-                                        var ddlGenderFilter = phRegistrantFormFieldFilters.FindControl( "ddlGenderFilter" ) as RockDropDownList;
-                                        if ( ddlGenderFilter != null )
-                                        {
-                                            var gender = ddlGenderFilter.SelectedValue.ConvertToEnumOrNull<Gender>();
-                                            if ( gender.HasValue )
-                                            {
-                                                qry = qry.Where( r =>
-                                                    r.PersonAlias.Person.Gender == gender );
-                                            }
-                                        }
-
-                                        break;
-                                    }
-                                case RegistrationPersonFieldType.HomeCampus:
+                                case RegistrationPersonFieldType.Campus:
                                     {
                                         preloadCampusValues = true;
 
@@ -1614,6 +1575,57 @@ namespace RockWeb.Blocks.Event
 
                                         break;
                                     }
+
+                                case RegistrationPersonFieldType.Email:
+                                    {
+                                        var tbEmailFilter = phRegistrantFormFieldFilters.FindControl( "tbEmailFilter" ) as RockTextBox;
+                                        if ( tbEmailFilter != null && !string.IsNullOrWhiteSpace( tbEmailFilter.Text ) )
+                                        {
+                                            qry = qry.Where( r =>
+                                                r.PersonAlias.Person.Email != null &&
+                                                r.PersonAlias.Person.Email.Contains( tbEmailFilter.Text ) );
+                                        }
+
+                                        break;
+                                    }
+
+                                case RegistrationPersonFieldType.Birthdate:
+                                    {
+                                        var drpBirthdateFilter = phRegistrantFormFieldFilters.FindControl( "drpBirthdateFilter" ) as DateRangePicker;
+                                        if ( drpBirthdateFilter != null )
+                                        {
+                                            if ( drpBirthdateFilter.LowerValue.HasValue )
+                                            {
+                                                qry = qry.Where( r =>
+                                                    r.PersonAlias.Person.BirthDate.HasValue &&
+                                                    r.PersonAlias.Person.BirthDate.Value >= drpBirthdateFilter.LowerValue.Value );
+                                            }
+                                            if ( drpBirthdateFilter.UpperValue.HasValue )
+                                            {
+                                                qry = qry.Where( r =>
+                                                    r.PersonAlias.Person.BirthDate.HasValue &&
+                                                    r.PersonAlias.Person.BirthDate.Value <= drpBirthdateFilter.UpperValue.Value );
+                                            }
+                                        }
+                                        break;
+                                    }
+
+                                case RegistrationPersonFieldType.Gender:
+                                    {
+                                        var ddlGenderFilter = phRegistrantFormFieldFilters.FindControl( "ddlGenderFilter" ) as RockDropDownList;
+                                        if ( ddlGenderFilter != null )
+                                        {
+                                            var gender = ddlGenderFilter.SelectedValue.ConvertToEnumOrNull<Gender>();
+                                            if ( gender.HasValue )
+                                            {
+                                                qry = qry.Where( r =>
+                                                    r.PersonAlias.Person.Gender == gender );
+                                            }
+                                        }
+
+                                        break;
+                                    }
+
                                 case RegistrationPersonFieldType.MaritalStatus:
                                     {
                                         var ddlMaritalStatusFilter = phRegistrantFormFieldFilters.FindControl( "ddlMaritalStatusFilter" ) as RockDropDownList;
@@ -1630,7 +1642,7 @@ namespace RockWeb.Blocks.Event
 
                                         break;
                                     }
-                                case RegistrationPersonFieldType.Phone:
+                                case RegistrationPersonFieldType.MobilePhone:
                                     {
                                         var tbPhoneFilter = phRegistrantFormFieldFilters.FindControl( "tbPhoneFilter" ) as RockTextBox;
                                         if ( tbPhoneFilter != null && !string.IsNullOrWhiteSpace( tbPhoneFilter.Text ) )
@@ -2009,59 +2021,7 @@ namespace RockWeb.Blocks.Event
                     {
                         switch ( field.PersonFieldType.Value )
                         {
-                            case RegistrationPersonFieldType.Birthdate:
-                                {
-                                    var drpBirthdateFilter = new DateRangePicker();
-                                    drpBirthdateFilter.ID = "drpBirthdateFilter";
-                                    drpBirthdateFilter.Label = "Birthdate Range";
-                                    drpBirthdateFilter.DelimitedValues = fRegistrants.GetUserPreference( "Birthdate Range" );
-                                    phRegistrantFormFieldFilters.Controls.Add( drpBirthdateFilter );
-
-                                    string dataFieldExpression = "PersonAlias.Person.BirthDate";
-                                    var birthdateField = new DateField();
-                                    birthdateField.DataField = dataFieldExpression;
-                                    birthdateField.HeaderText = "Birthdate";
-                                    birthdateField.SortExpression = dataFieldExpression;
-                                    gRegistrants.Columns.Add( birthdateField );
-
-                                    break;
-                                }
-                            case RegistrationPersonFieldType.Email:
-                                {
-                                    var tbEmailFilter = new RockTextBox();
-                                    tbEmailFilter.ID = "tbEmailFilter";
-                                    tbEmailFilter.Label = "Email";
-                                    tbEmailFilter.Text = fRegistrants.GetUserPreference( "Email" );
-                                    phRegistrantFormFieldFilters.Controls.Add( tbEmailFilter );
-
-                                    string dataFieldExpression = "PersonAlias.Person.Email";
-                                    var emailField = new BoundField();
-                                    emailField.DataField = dataFieldExpression;
-                                    emailField.HeaderText = "Email";
-                                    emailField.SortExpression = dataFieldExpression;
-                                    gRegistrants.Columns.Add( emailField );
-
-                                    break;
-                                }
-                            case RegistrationPersonFieldType.Gender:
-                                {
-                                    var ddlGenderFilter = new RockDropDownList();
-                                    ddlGenderFilter.BindToEnum<Gender>( true );
-                                    ddlGenderFilter.ID = "ddlGenderFilter";
-                                    ddlGenderFilter.Label = "Gender";
-                                    ddlGenderFilter.SetValue( fRegistrants.GetUserPreference( "Gender" ) );
-                                    phRegistrantFormFieldFilters.Controls.Add( ddlGenderFilter );
-
-                                    string dataFieldExpression = "PersonAlias.Person.Gender";
-                                    var genderField = new EnumField();
-                                    genderField.DataField = dataFieldExpression;
-                                    genderField.HeaderText = "Gender";
-                                    genderField.SortExpression = dataFieldExpression;
-                                    gRegistrants.Columns.Add( genderField );
-
-                                    break;
-                                }
-                            case RegistrationPersonFieldType.HomeCampus:
+                            case RegistrationPersonFieldType.Campus:
                                 {
                                     var ddlCampus = new RockDropDownList();
                                     ddlCampus.ID = "ddlCampus";
@@ -2082,6 +2042,61 @@ namespace RockWeb.Blocks.Event
                                     break;
                                 }
 
+                            case RegistrationPersonFieldType.Email:
+                                {
+                                    var tbEmailFilter = new RockTextBox();
+                                    tbEmailFilter.ID = "tbEmailFilter";
+                                    tbEmailFilter.Label = "Email";
+                                    tbEmailFilter.Text = fRegistrants.GetUserPreference( "Email" );
+                                    phRegistrantFormFieldFilters.Controls.Add( tbEmailFilter );
+
+                                    string dataFieldExpression = "PersonAlias.Person.Email";
+                                    var emailField = new BoundField();
+                                    emailField.DataField = dataFieldExpression;
+                                    emailField.HeaderText = "Email";
+                                    emailField.SortExpression = dataFieldExpression;
+                                    gRegistrants.Columns.Add( emailField );
+
+                                    break;
+                                }
+
+                            case RegistrationPersonFieldType.Birthdate:
+                                {
+                                    var drpBirthdateFilter = new DateRangePicker();
+                                    drpBirthdateFilter.ID = "drpBirthdateFilter";
+                                    drpBirthdateFilter.Label = "Birthdate Range";
+                                    drpBirthdateFilter.DelimitedValues = fRegistrants.GetUserPreference( "Birthdate Range" );
+                                    phRegistrantFormFieldFilters.Controls.Add( drpBirthdateFilter );
+
+                                    string dataFieldExpression = "PersonAlias.Person.BirthDate";
+                                    var birthdateField = new DateField();
+                                    birthdateField.DataField = dataFieldExpression;
+                                    birthdateField.HeaderText = "Birthdate";
+                                    birthdateField.SortExpression = dataFieldExpression;
+                                    gRegistrants.Columns.Add( birthdateField );
+
+                                    break;
+                                }
+                            
+                            case RegistrationPersonFieldType.Gender:
+                                {
+                                    var ddlGenderFilter = new RockDropDownList();
+                                    ddlGenderFilter.BindToEnum<Gender>( true );
+                                    ddlGenderFilter.ID = "ddlGenderFilter";
+                                    ddlGenderFilter.Label = "Gender";
+                                    ddlGenderFilter.SetValue( fRegistrants.GetUserPreference( "Gender" ) );
+                                    phRegistrantFormFieldFilters.Controls.Add( ddlGenderFilter );
+
+                                    string dataFieldExpression = "PersonAlias.Person.Gender";
+                                    var genderField = new EnumField();
+                                    genderField.DataField = dataFieldExpression;
+                                    genderField.HeaderText = "Gender";
+                                    genderField.SortExpression = dataFieldExpression;
+                                    gRegistrants.Columns.Add( genderField );
+
+                                    break;
+                                }
+                            
                             case RegistrationPersonFieldType.MaritalStatus:
                                 {
                                     var ddlMaritalStatusFilter = new RockDropDownList();
@@ -2101,7 +2116,7 @@ namespace RockWeb.Blocks.Event
                                     break;
                                 }
 
-                            case RegistrationPersonFieldType.Phone:
+                            case RegistrationPersonFieldType.MobilePhone:
                                 {
                                     var tbPhoneFilter = new RockTextBox();
                                     tbPhoneFilter.ID = "tbPhoneFilter";

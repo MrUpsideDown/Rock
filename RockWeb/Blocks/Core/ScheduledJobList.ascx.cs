@@ -107,6 +107,12 @@ namespace RockWeb.Blocks.Administration
                     }
                 }
 
+                // format inactive jobs
+                if ( ! e.Row.DataItem.GetPropertyValue( "IsActive" ).ToStringSafe().AsBoolean( false ) )
+                {
+                    e.Row.AddCssClass( "inactive" );
+                }
+
                 // format last status
                 if ( e.Row.DataItem.GetPropertyValue( "LastStatus" ) != null )
                 {
@@ -165,9 +171,11 @@ namespace RockWeb.Blocks.Administration
             if ( job != null )
             {
                 var transaction = new Rock.Transactions.RunJobNowTransaction( job.Id );
-                Rock.Transactions.RockQueue.TransactionQueue.Enqueue( transaction );
 
-                mdGridWarning.Show( string.Format( "The '{0}' job has been triggered to run and will start within the next two minutes ( during the next transaction cycle ).", job.Name ), ModalAlertType.Information );
+                // Process the transaction on another thread
+                System.Threading.Tasks.Task.Run( () => transaction.Execute() );
+
+                mdGridWarning.Show( string.Format( "The '{0}' job has been started.", job.Name ), ModalAlertType.Information );
             }
 
             BindGrid();

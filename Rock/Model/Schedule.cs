@@ -317,6 +317,11 @@ namespace Rock.Model
 
         #region Public Methods
 
+        /// <summary>
+        /// Pres the save changes.
+        /// </summary>
+        /// <param name="dbContext">The database context.</param>
+        /// <param name="state">The state.</param>
         public override void PreSaveChanges( DbContext dbContext, System.Data.Entity.EntityState state )
         {
             var calEvent = GetCalenderEvent();
@@ -392,6 +397,31 @@ namespace Rock.Model
             }
 
             return result;
+        }
+
+
+        /// <summary>
+        /// Gets the first start date time.
+        /// </summary>
+        /// <returns></returns>
+        public virtual DateTime? GetFirstStartDateTime()
+        {
+            DateTime? firstStartTime = null;
+            
+            DDay.iCal.Event calEvent = GetCalenderEvent();
+            if ( calEvent != null )
+            {
+                if ( this.EffectiveStartDate.HasValue )
+                {
+                    var scheduledStartTimes = this.GetScheduledStartTimes( this.EffectiveStartDate.Value, this.EffectiveStartDate.Value.AddMonths( 1 ) );
+                    if ( scheduledStartTimes.Count > 0 )
+                    {
+                        firstStartTime = scheduledStartTimes[0];
+                    }
+                }
+            }
+
+            return firstStartTime;
         }
 
         /// <summary>

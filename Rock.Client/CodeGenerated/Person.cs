@@ -56,13 +56,13 @@ namespace Rock.Client
         public string EmailNote { get; set; }
 
         /// <summary />
-        public int /* EmailPreference*/ EmailPreference { get; set; }
+        public Rock.Client.Enums.EmailPreference EmailPreference { get; set; }
 
         /// <summary />
         public string FirstName { get; set; }
 
         /// <summary />
-        public int /* Gender*/ Gender { get; set; }
+        public Rock.Client.Enums.Gender Gender { get; set; }
 
         /// <summary />
         public int? GivingGroupId { get; set; }
@@ -74,7 +74,7 @@ namespace Rock.Client
         public string InactiveReasonNote { get; set; }
 
         /// <summary />
-        public bool? IsDeceased { get; set; }
+        public bool IsDeceased { get; set; }
 
         /// <summary />
         public bool? IsEmailActive { get; set; }
@@ -151,6 +151,11 @@ namespace Rock.Client
 
         /// <summary />
         public int GivingLeaderId { get; set; }
+
+        /// <summary>
+        /// The Grade Offset of the person, which is the number of years until their graduation date
+        /// </summary>
+        public int? GradeOffset { get; set; }
 
         /// <summary />
         public DefinedValue MaritalStatusValue { get; set; }
