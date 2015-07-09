@@ -100,6 +100,8 @@ namespace RockWeb.Blocks.Groups
             gGroups.Actions.AddClick += gGroups_Add;
             gGroups.GridRebind += gGroups_GridRebind;
 
+            gGroups.RowDataBound += gGroups_RowDataBound;
+
             // set up Grid based on Block Settings and Context
             bool showDescriptionColumn = GetAttributeValue( "DisplayDescriptionColumn" ).AsBoolean();
             bool showActiveStatusColumn = GetAttributeValue( "DisplayActiveStatusColumn" ).AsBoolean();
@@ -142,6 +144,25 @@ namespace RockWeb.Blocks.Groups
                 boundFields["GroupRole"].Visible = false;
                 boundFields["DateAdded"].Visible = false;
                 boundFields["MemberCount"].Visible = GetAttributeValue( "DisplayMemberCountColumn" ).AsBoolean();
+            }
+        }
+
+        /// <summary>
+        /// Handles the RowDataBound event of the rGrid control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="GridViewRowEventArgs"/> instance containing the event data.</param>
+        protected void gGroups_RowDataBound( object sender, GridViewRowEventArgs e )
+        {
+            if ( e.Row.RowType == DataControlRowType.DataRow )
+            {
+                var groupInfo = (GroupListRowInfo)e.Row.DataItem;
+
+                // Show inactive entries in a lighter font.
+                if (!groupInfo.IsActive)
+                {
+                    e.Row.Style.Add( "font-weight", "lighter" );
+                }
             }
         }
 
@@ -413,21 +434,7 @@ namespace RockWeb.Blocks.Groups
                     }
 
                     gGroups.DataSource = qry
-                        .Select( m => new
-                            {
-                                Id = m.Group.Id,
-                                Name = m.Group.Name,
-                                GroupTypeName = m.Group.GroupType.Name,
-                                GroupOrder = m.Group.Order,
-                                GroupTypeOrder = m.Group.GroupType.Order,
-                                Description = m.Group.Description,
-                                IsSystem = m.Group.IsSystem,
-                                GroupRole = m.GroupMember.GroupRole.Name,
-                                DateAdded = m.GroupMember.CreatedDateTime,
-                                IsActive = m.Group.IsActive && ( m.GroupMember.GroupMemberStatus == GroupMemberStatus.Active ),
-                                IsActiveOrder = ( m.Group.IsActive && ( m.GroupMember.GroupMemberStatus == GroupMemberStatus.Active ) ? 1 : 2 ),
-                                MemberCount = 0
-                            } )
+                        .Select( m => new GroupListRowInfo {Id = m.Group.Id, Name = m.Group.Name, GroupTypeName = m.Group.GroupType.Name, GroupOrder = m.Group.Order, GroupTypeOrder = m.Group.GroupType.Order, Description = m.Group.Description, IsSystem = m.Group.IsSystem, GroupRole = m.GroupMember.GroupRole.Name, DateAdded = m.GroupMember.CreatedDateTime, IsActive = m.Group.IsActive && ( m.GroupMember.GroupMemberStatus == GroupMemberStatus.Active ), IsActiveOrder = ( m.Group.IsActive && ( m.GroupMember.GroupMemberStatus == GroupMemberStatus.Active ) ? 1 : 2 ), MemberCount = 0} )
                         .Sort( sortProperty )
                         .ToList();
                 }
@@ -447,21 +454,7 @@ namespace RockWeb.Blocks.Groups
                     qryGroups = qryGroups.Where( x => !x.IsActive );
                 }
 
-                gGroups.DataSource = qryGroups.Select( g => new
-                        {
-                            Id = g.Id,
-                            Name = ( ( useRolePrefix && g.GroupType.Id != roleGroupTypeId ) ? "GROUP - " : "" ) + g.Name,
-                            GroupTypeName = g.GroupType.Name,
-                            GroupOrder = g.Order,
-                            GroupTypeOrder = g.GroupType.Order,
-                            Description = g.Description,
-                            IsSystem = g.IsSystem,
-                            IsActive = g.IsActive,
-                            IsActiveOrder = g.IsActive ? 1 : 2,
-                            GroupRole = string.Empty,
-                            DateAdded = DateTime.MinValue,
-                            MemberCount = g.Members.Count()
-                        } )
+                gGroups.DataSource = qryGroups.Select( g => new GroupListRowInfo { Id = g.Id, Name = ( ( useRolePrefix && g.GroupType.Id != roleGroupTypeId ) ? "GROUP - " : "" ) + g.Name, GroupTypeName = g.GroupType.Name, GroupOrder = g.Order, GroupTypeOrder = g.GroupType.Order, Description = g.Description, IsSystem = g.IsSystem, IsActive = g.IsActive, IsActiveOrder = g.IsActive ? 1 : 2, GroupRole = string.Empty, DateAdded = DateTime.MinValue, MemberCount = g.Members.Count() } )
                     .Sort( sortProperty )
                     .ToList();
             }
@@ -527,5 +520,21 @@ namespace RockWeb.Blocks.Groups
         }
 
         #endregion
+
+        private class GroupListRowInfo
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public string GroupTypeName { get; set; }
+            public int GroupOrder { get; set; }
+            public int GroupTypeOrder { get; set; }
+            public string Description { get; set; }
+            public bool IsSystem { get; set; }
+            public string GroupRole { get; set; }
+            public DateTime? DateAdded { get; set; }
+            public bool IsActive { get; set; }
+            public int IsActiveOrder { get; set; }
+            public int MemberCount { get; set; }
+        }
     }
 }
