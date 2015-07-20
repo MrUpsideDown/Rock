@@ -69,8 +69,19 @@ namespace Rock.Data
         {
             get
             {
-                return Expression.Parameter( typeof( T ), "p" );
+                return GetParameterExpression( "p" );
             }
+        }
+
+        /// <summary>
+        /// Create a named LINQ expression parameter.
+        /// </summary>
+        /// <value>
+        /// The parameter expression.
+        /// </value>
+        public ParameterExpression GetParameterExpression(string name)
+        {
+            return Expression.Parameter( typeof( T ), name );
         }
 
         #endregion

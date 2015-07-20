@@ -239,7 +239,7 @@ namespace Rock.Field.Types
         /// </returns>
         public override Control EditControl( Dictionary<string, ConfigurationValue> configurationValues, string id )
         {
-            var datePicker = new DatePicker { ID = id }; 
+            var datePicker = new DatePicker { ID = id };
             datePicker.DisplayCurrentOption = configurationValues != null &&
                 configurationValues.ContainsKey( "displayCurrentOption" ) &&
                 configurationValues["displayCurrentOption"].Value.AsBoolean();
@@ -331,7 +331,7 @@ namespace Rock.Field.Types
             datePicker.DisplayCurrentOption = true;
             return datePicker;
         }
-        
+
         /// <summary>
         /// Gets the filter format script.
         /// </summary>
@@ -398,23 +398,43 @@ result = '{0} ' + $('select', $selectedContent).find(':selected').text() + ' \''
         /// <returns></returns>
         public override Expression AttributeFilterExpression( Dictionary<string, ConfigurationValue> configurationValues, List<string> filterValues, ParameterExpression parameterExpression )
         {
-            if ( filterValues.Count >= 2 )
+            if ( filterValues.Count < 2 )
             {
-                string comparisonValue = filterValues[0];
-                if ( comparisonValue != "0" )
-                {
-                    filterValues[1] = ParseRelativeValue( filterValues[1] );
-                    DateTime date = filterValues[1].AsDateTime() ?? DateTime.MinValue;
-
-                    ComparisonType comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
-                    MemberExpression propertyExpression = Expression.Property( parameterExpression, "ValueAsDateTime" );
-                    ConstantExpression constantExpression = Expression.Constant( date, typeof( DateTime ) );
-
-                    return ComparisonHelper.ComparisonExpression( comparisonType, propertyExpression, constantExpression );
-                }
+                return null;
             }
 
-            return null;
+            // Get Comparison Type or exit if none specified.
+            string comparisonTypeValue = filterValues[0];
+
+            if ( comparisonTypeValue == "0" )
+            {
+                return null;
+            }
+
+            ComparisonType? comparisonType = comparisonTypeValue.ConvertToEnumOrNull<ComparisonType>();
+
+            // If no comparison has been specified, we cannot form a valid filter expression.
+            if (!comparisonType.HasValue)
+            {
+                return null;
+            }
+
+            // Get Comparison Date. If a date is required but not specified, we cannot form a valid filter expression.
+            string dateValue = filterValues[1];
+
+            if ( string.IsNullOrWhiteSpace( dateValue )
+                 && comparisonType != ComparisonType.IsBlank && comparisonType != ComparisonType.IsNotBlank )
+            {
+                return null;
+            }
+
+            filterValues[1] = ParseRelativeValue( filterValues[1] );
+            DateTime date = filterValues[1].AsDateTime() ?? DateTime.MinValue;
+
+            MemberExpression propertyExpression = Expression.Property( parameterExpression, "ValueAsDateTime" );
+            ConstantExpression constantExpression = Expression.Constant( date, typeof( DateTime ) );
+
+            return ComparisonHelper.ComparisonExpression( comparisonType.Value, propertyExpression, constantExpression );
         }
 
         /// <summary>
