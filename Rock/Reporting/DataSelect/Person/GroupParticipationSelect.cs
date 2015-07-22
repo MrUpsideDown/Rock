@@ -84,7 +84,7 @@ namespace Rock.Reporting.DataSelect.Person
 
         public override Expression GetExpression( RockContext context, MemberExpression entityIdProperty, string selection )
         {
-            var settings = new GroupParticipationSelectSettings( selection );
+            var settings = new SelectSettings( selection );
 
             //
             // Define Candidate Groups.
@@ -222,7 +222,7 @@ namespace Rock.Reporting.DataSelect.Person
             var ddlFormat = controls.GetByName<RockDropDownList>( _CtlFormat );
             var ddlGroupMemberStatus = controls.GetByName<RockDropDownList>( _CtlGroupStatus );
 
-            var settings = new GroupParticipationSelectSettings();
+            var settings = new SelectSettings();
 
             settings.MemberStatus = ddlGroupMemberStatus.SelectedValue.ConvertToEnum<GroupMemberStatus>();
             settings.RoleType = ddlRoleType.SelectedValue.ConvertToEnum<RoleTypeSpecifier>();
@@ -239,7 +239,7 @@ namespace Rock.Reporting.DataSelect.Person
             var ddlFormat = controls.GetByName<RockDropDownList>( _CtlFormat );
             var ddlGroupMemberStatus = controls.GetByName<RockDropDownList>( _CtlGroupStatus );
 
-            var settings = new GroupParticipationSelectSettings( selection );
+            var settings = new SelectSettings( selection );
 
             if ( !settings.IsValid )
             {
@@ -284,19 +284,19 @@ namespace Rock.Reporting.DataSelect.Person
         /// <summary>
         ///     Settings for the Data Select Component "Group Participation".
         /// </summary>
-        private class GroupParticipationSelectSettings : SettingsStringBase
+        private class SelectSettings : SettingsStringBase
         {
             public Guid? DataViewGuid;
             public ListFormatSpecifier ListFormat = ListFormatSpecifier.GroupAndRole;
             public GroupMemberStatus? MemberStatus = GroupMemberStatus.Active;
             public RoleTypeSpecifier? RoleType;
 
-            public GroupParticipationSelectSettings()
+            public SelectSettings()
             {
                 //
             }
 
-            public GroupParticipationSelectSettings( string settingsString )
+            public SelectSettings( string settingsString )
             {
                 FromSelectionString( settingsString );
             }
