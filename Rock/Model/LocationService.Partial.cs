@@ -25,7 +25,7 @@ namespace Rock.Model
     /// <summary>
     /// Data access and service class for <see cref="Rock.Model.Location"/> entities.
     /// </summary>
-    public partial class LocationService 
+    public partial class LocationService
     {
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace Rock.Model
             rockContext.SaveChanges();
 
             // refetch it from the database to make sure we get a valid .Id
-            return Get(newLocation.Guid);
+            return Get( newLocation.Guid );
         }
 
         /// <summary>
@@ -111,11 +111,11 @@ namespace Rock.Model
         {
             // get the first address that has a GeoPoint the value
             var result = Queryable()
-                .Where( a => 
+                .Where( a =>
                     a.GeoPoint != null &&
-                    a.GeoPoint.SpatialEquals(point))
+                    a.GeoPoint.SpatialEquals( point ) )
                 .FirstOrDefault();
-            
+
             if ( result == null )
             {
                 // if the Location can't be found, save the new location to the database
@@ -150,7 +150,7 @@ namespace Rock.Model
 
             // get the first address that has a GeoPoint or GeoFence that matches the value
             var result = Queryable()
-                .Where( a => 
+                .Where( a =>
                     a.GeoFence != null &&
                     a.GeoFence.SpatialEquals( fence ) )
                 .FirstOrDefault();
@@ -185,40 +185,91 @@ namespace Rock.Model
         /// <param name="reVerify">if set to <c>true</c> [re verify].</param>
         public void Verify( Location location, bool reVerify )
         {
-            string inputLocation = location.ToString();
+            string inputLocation = location.GetFullStreetAddress();
+
+            var processDate = DateTime.Now;
+
+            if ( string.IsNullOrWhiteSpace( inputLocation ) )
+            {                
+                // If there is no address to geoode, mark this entry to avoid further processing.
+                location.GeocodeAttemptedDateTime = processDate;
+                location.GeocodeAttemptedServiceType = null;
+                location.GeocodeAttemptedResult = "ignored";
+
+                location.StandardizeAttemptedDateTime = processDate;
+                location.StandardizeAttemptedServiceType = null;
+                location.StandardizeAttemptedResult = "ignored";
+
+                return;
+            }
 
             // Create new context to save service log without affecting calling method's context
-            var rockContext = new RockContext();
-            Model.ServiceLogService logService = new Model.ServiceLogService( rockContext );
-
-            // Try each of the verification services that were found through MEF
-            foreach ( var service in Rock.Address.VerificationContainer.Instance.Components )
+            using ( var rockContext = new RockContext() )
             {
-                if ( service.Value.Value.IsActive )
+                Model.ServiceLogService logService = new Model.ServiceLogService( rockContext );
+
+                // Try each of the active verification services that were found through MEF
+                var activeComponents = Rock.Address.VerificationContainer.Instance.Components.Where(x => x.Value.Value.IsActive).Select(x => x.Value);
+
+                foreach ( var component in activeComponents )
                 {
-                    string result;
-                    bool success = service.Value.Value.VerifyLocation( location, reVerify, out result );
-                    if ( !string.IsNullOrWhiteSpace( result ) )
+                    var service = component.Value;
+                    string componentName = component.Metadata.ComponentName;
+                    string logMessage = null;
+                    string resultMessage = null;
+                    bool success = false;
+
+                    try
+                    {
+                        success = service.VerifyLocation( location, reVerify, out resultMessage );
+                    }
+                    catch (Exception ex)
+                    {
+                        resultMessage = "Failed. Refer to Service Log for details.";
+                        logMessage = ex.Message;
+                    }
+                    finally
+                    {
+                        // Update the Location record with the details of this verification attempt.
+                        //string serviceName = service.GetType().Name;
+                        if (string.IsNullOrWhiteSpace(resultMessage))
+                            resultMessage = null;
+                        else
+                            resultMessage = resultMessage.ToStringSafe().Left( 50 );
+
+                        location.StandardizeAttemptedDateTime = processDate;
+                        location.StandardizeAttemptedServiceType = componentName;
+                        location.StandardizeAttemptedResult = resultMessage;                        
+
+                        location.GeocodeAttemptedDateTime = processDate;
+                        location.GeocodeAttemptedServiceType = componentName;
+                        location.GeocodeAttemptedResult = resultMessage;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(logMessage))
+                        logMessage = resultMessage;
+
+                    if ( !string.IsNullOrWhiteSpace( logMessage ) )
                     {
                         // Log the results of the service
                         Model.ServiceLog log = new Model.ServiceLog();
                         log.LogDateTime = RockDateTime.Now;
                         log.Type = "Location Verify";
-                        log.Name = service.Value.Metadata.ComponentName;
+                        log.Name = componentName;
                         log.Input = inputLocation;
-                        log.Result = result.Left( 200 );
+                        log.Result = logMessage.Left( 200 );
                         log.Success = success;
                         logService.Add( log );
                     }
 
-                    if (success)
+                    if ( success )
                     {
                         break;
                     }
                 }
-            }
 
-            rockContext.SaveChanges();
+                rockContext.SaveChanges();
+            }
 
         }
 
@@ -247,7 +298,7 @@ namespace Rock.Model
         /// <param name="deviceId">The device identifier.</param>
         /// <param name="includeChildLocations">if set to <c>true</c> [include child locations].</param>
         /// <returns></returns>
-        public IEnumerable<Location> GetByDevice ( int deviceId, bool includeChildLocations = true )
+        public IEnumerable<Location> GetByDevice( int deviceId, bool includeChildLocations = true )
         {
             string childQuery = includeChildLocations ? @"
                     UNION ALL

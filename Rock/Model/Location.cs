@@ -593,6 +593,58 @@ namespace Rock.Model
         /// </summary>
         /// <returns></returns>
         public virtual string EncodeGooglePolygon()
+        {            
+            return this.EncodeGooglePolygon(0);
+
+            //var str = new StringBuilder();
+
+            //if ( this.GeoFence != null )
+            //{
+            //    var encodeDiff = (Action<int>)( diff =>
+            //                                    {
+            //        int shifted = diff << 1;
+            //        if ( diff < 0 )
+            //            shifted = ~shifted;
+            //        int rem = shifted;
+            //        while ( rem >= 0x20 )
+            //        {
+            //            str.Append( (char)( ( 0x20 | ( rem & 0x1f ) ) + 63 ) );
+            //            rem >>= 5;
+            //        }
+            //        str.Append( (char)( rem + 63 ) );
+            //    } );
+
+            //    int lastLat = 0;
+            //    int lastLng = 0;
+
+            //    // AsText() returns coordinates as Well-Known-Text format (WKT).  Strip leading and closing text
+            //    string coordinates = this.GeoFence.AsText().Replace( "POLYGON ((", "" ).Replace( "))", "" );
+            //    string[] longSpaceLat = coordinates.Split( ',' );
+
+            //    for ( int i = 0; i < longSpaceLat.Length; i++ )
+            //    {
+            //        string[] longLat = longSpaceLat[i].Trim().Split( ' ' );
+            //        int lat = (int)Math.Round( double.Parse( longLat[1] ) * 1E5 );
+            //        int lng = (int)Math.Round( double.Parse( longLat[0] ) * 1E5 );
+
+            //        int latDiff = lat - lastLat;
+            //        int lngDiff = lng - lastLng;
+
+            //        encodeDiff( latDiff );
+            //        encodeDiff( lngDiff );
+            //        lastLat = lat;
+            //        lastLng = lng;
+            //    }
+            //}
+            
+            //return str.ToString();
+        }
+
+        /// <summary>
+        /// Encodes the polygon for Google maps
+        /// </summary>
+        /// <returns></returns>
+        public virtual string EncodeGooglePolygon(double minimumDistanceBetweenPointsInMeters)
         {
             var str = new StringBuilder();
 
@@ -619,15 +671,41 @@ namespace Rock.Model
                 string coordinates = this.GeoFence.AsText().Replace( "POLYGON ((", "" ).Replace( "))", "" );
                 string[] longSpaceLat = coordinates.Split( ',' );
 
+                DbGeography pointLast = null;
+                DbGeography pointThis = null;
+
                 for ( int i = 0; i < longSpaceLat.Length; i++ )
                 {
                     string[] longLat = longSpaceLat[i].Trim().Split( ' ' );
-                    int lat = (int)Math.Round( double.Parse( longLat[1] ) * 1E5 );
-                    int lng = (int)Math.Round( double.Parse( longLat[0] ) * 1E5 );
-                    encodeDiff( lat - lastLat );
-                    encodeDiff( lng - lastLng );
-                    lastLat = lat;
-                    lastLng = lng;
+
+                    double latDbl = double.Parse(longLat[1]);
+                    double lngDbl = double.Parse( longLat[0] );
+
+                    int latRnd = (int)Math.Round( latDbl * 1E5 );
+                    int lngRnd = (int)Math.Round( lngDbl * 1E5 );
+
+                    bool addPoint = true;
+
+                    if (minimumDistanceBetweenPointsInMeters > 0)
+                    {
+                        pointThis = DbGeography.FromText( string.Format( "POINT({1} {0})", latDbl, lngDbl ) );
+
+                        if ( pointLast != null && pointThis.Distance( pointLast ) < minimumDistanceBetweenPointsInMeters )
+                        {
+                            addPoint = false;
+                        }
+                    }
+
+                    if (addPoint)
+                    {
+                        encodeDiff( latRnd - lastLat );
+                        encodeDiff( lngRnd - lastLng );
+
+                        lastLat = latRnd;
+                        lastLng = lngRnd;
+
+                        pointLast = pointThis;
+                    }
                 }
             }
 
