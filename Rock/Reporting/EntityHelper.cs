@@ -208,19 +208,39 @@ namespace Rock.Reporting
         /// <param name="attribute">The attribute.</param>
         public static void AddEntityFieldForAttribute( List<EntityField> entityFields, AttributeCache attribute )
         {
+            var entityField = GetEntityFieldForAttribute( attribute );
+
+            if (entityField == null)
+                return;
+            
             // Ensure prop name is unique
-            string propName = attribute.Key;
+            string propName = entityField.Name; 
+            
             int i = 1;
             while ( entityFields.Any( p => p.Name.Equals( propName, StringComparison.CurrentCultureIgnoreCase ) ) )
             {
                 propName = attribute.Key + ( i++ ).ToString();
             }
 
+            entityFields.Add( entityField );
+        }
+
+        /// <summary>
+        /// Create an EntityField for an Attribute.
+        /// </summary>
+        /// <param name="attribute">The attribute.</param>
+        public static EntityField GetEntityFieldForAttribute( AttributeCache attribute )
+        {
+            // Ensure prop name is unique
+            string propName = attribute.Key;
+
+            EntityField entityField = null;
+
             // Make sure that the attributes field type actually renders a filter control
             var fieldType = FieldTypeCache.Read( attribute.FieldTypeId );
             if ( fieldType != null && fieldType.Field.FilterControl( attribute.QualifierValues, propName, true ) != null )
             {
-                var entityField = new EntityField();
+                entityField = new EntityField();
                 entityField.Name = propName;
                 entityField.Title = attribute.Name.SplitCase();
                 entityField.FieldKind = FieldKind.Attribute;
@@ -243,9 +263,9 @@ namespace Rock.Reporting
                         }
                     }
                 }
-
-                entityFields.Add( entityField );
             }
+
+            return entityField;
         }
     }
 

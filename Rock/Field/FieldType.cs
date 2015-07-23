@@ -523,14 +523,31 @@ namespace Rock.Field
             if ( filterValues.Count >= 2 )
             {
                 string comparisonValue = filterValues[0];
-                if ( comparisonValue != "0" )
+
+                if ( comparisonValue == "0" )
                 {
-                    ComparisonType comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
+                    return null;
+                }
+
+                ComparisonType comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
+
+                string filterValue = filterValues[1];
+
+                if ( string.IsNullOrWhiteSpace( filterValue )
+                     && comparisonType != ComparisonType.IsBlank && comparisonType != ComparisonType.IsNotBlank )
+                {
+                    return null;
+                }
+                
+                //string comparisonValue = filterValues[0];
+                //if ( comparisonValue != "0" )
+                //{
+                    //ComparisonType comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
                     MemberExpression propertyExpression = Expression.Property( parameterExpression, "Value" );
                     ConstantExpression constantExpression = Expression.Constant( filterValues[1], typeof( string ) );
 
                     return ComparisonHelper.ComparisonExpression( comparisonType, propertyExpression, constantExpression );
-                }
+                //}
             }
 
             return null;

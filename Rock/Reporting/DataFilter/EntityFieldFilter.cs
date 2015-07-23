@@ -173,6 +173,11 @@ namespace Rock.Reporting.DataFilter
             }
         }
 
+        public Expression GetAttributeExpression( IService serviceInstance, ParameterExpression parameterExpression, EntityField entityField, List<string> values )
+        {
+            return CreateAttributeExpression( serviceInstance, parameterExpression, entityField, values );
+        }
+
         /// <summary>
         /// Builds an expression for an attribute field
         /// </summary>
@@ -181,7 +186,7 @@ namespace Rock.Reporting.DataFilter
         /// <param name="entityField">The property.</param>
         /// <param name="values">The values.</param>
         /// <returns></returns>
-        public Expression GetAttributeExpression( IService serviceInstance, ParameterExpression parameterExpression, EntityField entityField, List<string> values )
+        public static Expression CreateAttributeExpression( IService serviceInstance, ParameterExpression parameterExpression, EntityField entityField, List<string> values )
         {
             var service = new AttributeValueService( (RockContext)serviceInstance.Context );
             var attributeValues = service.Queryable().Where( v =>
@@ -196,42 +201,49 @@ namespace Rock.Reporting.DataFilter
             // Therefore, if the specified comparison works by excluding certain values we must invert our filter logic:
             // first we find the Attribute Values that match those values and then we exclude the associated Entities from the result set.
             var comparisonType = ComparisonType.EqualTo;
+            ComparisonType evaluatedComparisonType = comparisonType;
 
-            if (values.Count >= 2)
+            if ( values.Count >= 2 )
             {
                 string comparisonValue = values[0];
-                if (comparisonValue != "0")
+
+                // If no comparison is specified, we do not have sufficient information to create a valid filter.
+                if (comparisonValue == "0")
                 {
-                    comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
+                    return null;
                 }
+
+                comparisonType = comparisonValue.ConvertToEnum<ComparisonType>( ComparisonType.EqualTo );
+
+                switch ( comparisonType )
+                {
+                    case ComparisonType.DoesNotContain:
+                        evaluatedComparisonType = ComparisonType.Contains;
+                        break;
+                    case ComparisonType.IsBlank:
+                        evaluatedComparisonType = ComparisonType.IsNotBlank;
+                        break;
+                    case ComparisonType.NotEqualTo:
+                        evaluatedComparisonType = ComparisonType.EqualTo;
+                        break;
+                    default:
+                        evaluatedComparisonType = comparisonType;
+                        break;
+                }
+
+                values[0] = evaluatedComparisonType.ToString();
             }
-
-            ComparisonType evaluatedComparisonType;
-
-            switch (comparisonType)
-            {
-                case ComparisonType.DoesNotContain:
-                    evaluatedComparisonType = ComparisonType.Contains;
-                    break;
-                case ComparisonType.IsBlank:
-                    evaluatedComparisonType = ComparisonType.IsNotBlank;
-                    break;
-                case ComparisonType.NotEqualTo:
-                    evaluatedComparisonType = ComparisonType.EqualTo;
-                    break;
-                default:
-                    evaluatedComparisonType = comparisonType;
-                    break;
-            }
-
-            values[0] = evaluatedComparisonType.ToString();
 
             var filterExpression = entityField.FieldType.Field.AttributeFilterExpression( entityField.FieldConfig, values, attributeValueParameterExpression );
 
-            if ( filterExpression != null )
+            // The filter values could not be used to create a valid expression, so exit.
+            if (filterExpression == null)
             {
-                attributeValues = attributeValues.Where( attributeValueParameterExpression, filterExpression, null );
+                return null;
             }
+            
+            attributeValues = attributeValues.Where( attributeValueParameterExpression, filterExpression, null );
+            
 
             IQueryable<int> ids = attributeValues.Select( v => v.EntityId.Value );
 

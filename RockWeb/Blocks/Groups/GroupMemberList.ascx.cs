@@ -18,12 +18,15 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Web.UI.WebControls;
 using Newtonsoft.Json;
 using Rock;
 using Rock.Attribute;
 using Rock.Data;
 using Rock.Model;
+using Rock.Reporting;
+using Rock.Reporting.DataFilter;
 using Rock.Security;
 using Rock.Web.Cache;
 using Rock.Web.UI;
@@ -515,7 +518,7 @@ namespace RockWeb.Blocks.Groups
                     GroupMemberService groupMemberService = new GroupMemberService( rockContext );
                     var qry = groupMemberService.Queryable( "Person,GroupRole", true )
                         .Where( m => m.GroupId == _group.Id );
-
+                    
                     // Filter by First Name
                     string firstName = tbFirstName.Text;
                     if ( !string.IsNullOrWhiteSpace( firstName ) )
@@ -563,33 +566,40 @@ namespace RockWeb.Blocks.Groups
                         qry = qry.Where( m => statuses.Contains( m.GroupMemberStatus ) );
                     }
 
-                    // Filter query by any configured attribute filters
+                    // Filter the query using any configured attribute filters.
                     if ( AvailableAttributes != null && AvailableAttributes.Any() )
                     {
-                        var attributeValueService = new AttributeValueService( rockContext );
-                        var parameterExpression = attributeValueService.ParameterExpression;
+                        // Get a reference to the parameter accepted by the Query expression.
+                        var methodCallExpression = (MethodCallExpression)qry.Expression;
 
+                        var lambdaDelegate = Expression.Lambda<Func<LambdaExpression>>( methodCallExpression.Arguments[1] ).Compile();
+
+                        var lambdaExpression = (Expression<Func<GroupMember, bool>>)( lambdaDelegate.Invoke() );
+
+                        var queryParameter = lambdaExpression.Parameters[0];
+
+                        // Add a condition for each of the specified attribute values.
                         foreach ( var attribute in AvailableAttributes )
                         {
                             var filterControl = phAttributeFilters.FindControl( "filter_" + attribute.Id.ToString() );
+                            
                             if ( filterControl != null )
                             {
                                 var filterValues = attribute.FieldType.Field.GetFilterValues( filterControl, attribute.QualifierValues );
-                                var expression = attribute.FieldType.Field.AttributeFilterExpression( attribute.QualifierValues, filterValues, parameterExpression );
-                                if ( expression != null )
+
+                                var entityField = EntityHelper.GetEntityFieldForAttribute( attribute );
+                                
+                                var filterExpression = EntityFieldFilter.CreateAttributeExpression( groupMemberService, queryParameter, entityField, filterValues );
+
+                                if ( filterExpression == null )
                                 {
-                                    var attributeValues = attributeValueService
-                                        .Queryable()
-                                        .Where( v => v.Attribute.Id == attribute.Id );
-
-                                    attributeValues = attributeValues.Where( parameterExpression, expression, null );
-
-                                    qry = qry.Where( w => attributeValues.Select( v => v.EntityId ).Contains( w.Id ) );
+                                    continue;
                                 }
+
+                                qry = qry.Where( queryParameter, filterExpression );
                             }
                         }
                     }
-
 
                     _inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE );
 
