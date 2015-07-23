@@ -208,20 +208,42 @@ namespace Rock.Reporting
         /// <param name="attribute">The attribute.</param>
         public static void AddEntityFieldForAttribute( List<EntityField> entityFields, AttributeCache attribute )
         {
-            // Ensure prop name is unique
-            string propName = attribute.Key;
+            var entityField = GetEntityFieldForAttribute( attribute );
+
+            // If the field could not be created, we are done.
+            if (entityField == null)
+                return;
+            
+            // Ensure that the field name is unique.
+            string fieldName = entityField.Name; 
+            
             int i = 1;
-            while ( entityFields.Any( p => p.Name.Equals( propName, StringComparison.CurrentCultureIgnoreCase ) ) )
+            while ( entityFields.Any( p => p.Name.Equals( fieldName, StringComparison.CurrentCultureIgnoreCase ) ) )
             {
-                propName = attribute.Key + ( i++ ).ToString();
+                fieldName = entityField.Name + ( i++ ).ToString();
             }
+
+            entityField.Name = fieldName;
+
+            entityFields.Add( entityField );
+        }
+
+        /// <summary>
+        /// Create an EntityField for an Attribute.
+        /// </summary>
+        /// <param name="attribute">The attribute.</param>
+        public static EntityField GetEntityFieldForAttribute( AttributeCache attribute )
+        {
+            string fieldName = attribute.Key;
+
+            EntityField entityField = null;
 
             // Make sure that the attributes field type actually renders a filter control
             var fieldType = FieldTypeCache.Read( attribute.FieldTypeId );
-            if ( fieldType != null && fieldType.Field.FilterControl( attribute.QualifierValues, propName, true ) != null )
+            if ( fieldType != null && fieldType.Field.FilterControl( attribute.QualifierValues, fieldName, true ) != null )
             {
-                var entityField = new EntityField();
-                entityField.Name = propName;
+                entityField = new EntityField();
+                entityField.Name = fieldName;
                 entityField.Title = attribute.Name.SplitCase();
                 entityField.FieldKind = FieldKind.Attribute;
                 entityField.PropertyType = typeof( string );
@@ -232,6 +254,7 @@ namespace Rock.Reporting
                     entityField.FieldConfig.Add( config.Key, config.Value );
                 }
 
+                // Special processing for Entity Type "Group" to handle sub-types that are distinguished by GroupTypeId.
                 if ( attribute.EntityTypeId == EntityTypeCache.GetId( typeof( Group ) ) && attribute.EntityTypeQualifierColumn == "GroupTypeId" )
                 {
                     using ( var rockContext = new RockContext() )
@@ -243,9 +266,9 @@ namespace Rock.Reporting
                         }
                     }
                 }
-
-                entityFields.Add( entityField );
             }
+
+            return entityField;
         }
     }
 
