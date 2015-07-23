@@ -290,6 +290,7 @@
     <Compile Include="Net\RockRestClient.cs" />
     <Compile Include="PersonProfile\Badge\DISC.cs" />
     <Compile Include="Reporting\ComparisonHelper.cs" />
+    <Compile Include="Reporting\DataComponentSettingsHelper.cs" />
     <Compile Include="Reporting\DataFilter\BaseAccountFilter.cs" />
     <Compile Include="Reporting\DataFilter\FinancialPledge\AccountFilter.cs" />
     <Compile Include="Reporting\DataFilter\FinancialTransactionDetail\AccountFilter.cs" />
@@ -297,11 +298,13 @@
     <Compile Include="Reporting\DataFilter\Group\GroupBranchFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\CampusFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\FirstContributionDateFilter.cs" />
+    <Compile Include="Reporting\DataFilter\Person\LocationDataViewFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\NotInGroupGroupTypeFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\NotInGroupFilter.cs" />
     <Compile Include="Reporting\DataSelect\FinancialTransaction\TotalAmountSelect.cs" />
     <Compile Include="Reporting\DataSelect\Group\MemberCountSelect.cs" />
     <Compile Include="Reporting\DataSelect\Group\ParticipationRateSelect.cs" />
+    <Compile Include="Reporting\DataSelect\Person\LocationsSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\PersonLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\TotalGivingAmountSelect.cs" />
     <Compile Include="Security\Authentication\Facebook.cs">
@@ -338,9 +341,11 @@
     <Compile Include="Transactions\UpdateFacebookFriends.cs" />
     <Compile Include="Utility\AttributeCacheJsonConverter.cs" />
     <Compile Include="Utility\AttributeValueJsonConverter.cs" />
+    <Compile Include="Utility\LinqExtensionMethods.cs" />
     <Compile Include="Utility\RockJsonMediaTypeFormatter.cs" />
     <Compile Include="Utility\RockJsonTextWriter.cs" />
     <Compile Include="Utility\RockSemanticVersion.cs" />
+    <Compile Include="Utility\SettingsStringBase.cs" />
     <Compile Include="Utility\SimpleModeJsonConverter.cs" />
     <Compile Include="Web\Cache\CachedModel.cs" />
     <Compile Include="Web\Cache\RockMemoryCache.cs" />
@@ -849,6 +854,7 @@
     <Compile Include="Web\UI\ISecondaryBlock.cs" />
     <Compile Include="Web\UI\ViewStateList.cs" />
     <Compile Include="Web\Utilities\HtmlSanitizer.cs" />
+    <Compile Include="Web\Utilities\WebControlHelper.cs" />
     <Compile Include="Workflow\Action\ActivateActions.cs" />
     <Compile Include="Workflow\Action\AssignActivityFromAttributeValue.cs" />
     <Compile Include="Workflow\Action\AssignActivityToSecurityRole.cs" />
