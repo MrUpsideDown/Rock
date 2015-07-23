@@ -290,6 +290,7 @@
     <Compile Include="Net\RockRestClient.cs" />
     <Compile Include="PersonProfile\Badge\DISC.cs" />
     <Compile Include="Reporting\ComparisonHelper.cs" />
+    <Compile Include="Reporting\DataComponentSettingsHelper.cs" />
     <Compile Include="Reporting\DataFilter\BaseAccountFilter.cs" />
     <Compile Include="Reporting\DataFilter\FinancialPledge\AccountFilter.cs" />
     <Compile Include="Reporting\DataFilter\FinancialTransactionDetail\AccountFilter.cs" />
@@ -306,6 +307,7 @@
     <Compile Include="Reporting\DataSelect\Person\GroupParticipationSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\PersonLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\TotalGivingAmountSelect.cs" />
+    <Compile Include="Utility\SettingsStringBase.cs" />
     <Compile Include="Web\Utilities\WebControlHelper.cs" />
     <Compile Include="Security\Authentication\Facebook.cs">
       <SubType>Code</SubType>
