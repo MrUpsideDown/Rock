@@ -206,7 +206,7 @@ namespace Rock.Reporting.DataFilter
             if ( values.Count >= 2 )
             {
                 string comparisonValue = values[0];
-                
+
                 // If no comparison is specified, we do not have sufficient information to create a valid filter.
                 if (comparisonValue == "0")
                 {
