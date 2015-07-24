@@ -298,6 +298,7 @@
     <Compile Include="Reporting\DataFilter\Group\GroupBranchFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\CampusFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\FirstContributionDateFilter.cs" />
+    <Compile Include="Reporting\DataFilter\Person\LocationDataViewFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\NotInGroupGroupTypeFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\NotInGroupFilter.cs" />
     <Compile Include="Reporting\DataSelect\FinancialTransaction\TotalAmountSelect.cs" />
@@ -305,6 +306,7 @@
     <Compile Include="Reporting\DataSelect\Group\ParticipationRateSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\RelatedPeopleSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\GroupParticipationSelect.cs" />
+    <Compile Include="Reporting\DataSelect\Person\LocationsSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\PersonLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\TotalGivingAmountSelect.cs" />
     <Compile Include="Utility\SettingsStringBase.cs" />
@@ -343,9 +345,11 @@
     <Compile Include="Transactions\UpdateFacebookFriends.cs" />
     <Compile Include="Utility\AttributeCacheJsonConverter.cs" />
     <Compile Include="Utility\AttributeValueJsonConverter.cs" />
+    <Compile Include="Utility\LinqExtensionMethods.cs" />
     <Compile Include="Utility\RockJsonMediaTypeFormatter.cs" />
     <Compile Include="Utility\RockJsonTextWriter.cs" />
     <Compile Include="Utility\RockSemanticVersion.cs" />
+    <Compile Include="Utility\SettingsStringBase.cs" />
     <Compile Include="Utility\SimpleModeJsonConverter.cs" />
     <Compile Include="Web\Cache\CachedModel.cs" />
     <Compile Include="Web\Cache\RockMemoryCache.cs" />
