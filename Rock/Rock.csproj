@@ -346,7 +346,6 @@
     <Compile Include="Utility\RockJsonMediaTypeFormatter.cs" />
     <Compile Include="Utility\RockJsonTextWriter.cs" />
     <Compile Include="Utility\RockSemanticVersion.cs" />
-    <Compile Include="Utility\SettingsStringBase.cs" />
     <Compile Include="Utility\SimpleModeJsonConverter.cs" />
     <Compile Include="Web\Cache\CachedModel.cs" />
     <Compile Include="Web\Cache\RockMemoryCache.cs" />
@@ -855,7 +854,6 @@
     <Compile Include="Web\UI\ISecondaryBlock.cs" />
     <Compile Include="Web\UI\ViewStateList.cs" />
     <Compile Include="Web\Utilities\HtmlSanitizer.cs" />
-    <Compile Include="Web\Utilities\WebControlHelper.cs" />
     <Compile Include="Workflow\Action\ActivateActions.cs" />
     <Compile Include="Workflow\Action\AssignActivityFromAttributeValue.cs" />
     <Compile Include="Workflow\Action\AssignActivityToSecurityRole.cs" />
