@@ -246,6 +246,8 @@
     <Compile Include="Financial\TestGateway.cs" />
     <Compile Include="Jobs\CalculateMetrics.cs" />
     <Compile Include="Jobs\GetScheduledPayments.cs" />
+    <Compile Include="Jobs\IRockJobResult.cs" />
+    <Compile Include="Jobs\RockJobResult.cs" />
     <Compile Include="Jobs\SendAttendanceReminders.cs" />
     <Compile Include="Lava\ILiquidizable.cs" />
     <Compile Include="Lava\RockFilters.cs" />

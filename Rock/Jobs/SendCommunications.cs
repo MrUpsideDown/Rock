@@ -15,16 +15,11 @@
 // </copyright>
 //
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using System.Web;
-using System.IO;
-
 using Quartz;
-
 using Rock.Attribute;
-using Rock.Model;
 using Rock.Data;
+using Rock.Model;
 
 namespace Rock.Jobs
 {
@@ -54,20 +49,57 @@ namespace Rock.Jobs
             var beginWindow = RockDateTime.Now.AddDays( 0 - dataMap.GetInt( "ExpirationPeriod" ));
             var endWindow = RockDateTime.Now.AddMinutes( 0 - dataMap.GetInt( "DelayPeriod" ));
 
-            foreach ( var comm in new CommunicationService( new RockContext() ).Queryable()
-                .Where( c => 
-                    c.Status == CommunicationStatus.Approved &&
-                    c.Recipients.Where( r => r.Status == CommunicationRecipientStatus.Pending).Any() &&
-                    (
-                        ( !c.FutureSendDateTime.HasValue && c.CreatedDateTime.HasValue && c.CreatedDateTime.Value.CompareTo(beginWindow) >= 0 && c.CreatedDateTime.Value.CompareTo(endWindow) <= 0 ) ||
-                        ( c.FutureSendDateTime.HasValue && c.FutureSendDateTime.Value.CompareTo(beginWindow) >= 0 && c.FutureSendDateTime.Value.CompareTo(endWindow) <= 0 )
-                    ) ).ToList() )
+            var communicationQuery = new CommunicationService(new RockContext()).Queryable()
+                                                                                .Where(c =>
+                                                                                       c.Status == CommunicationStatus.Approved &&
+                                                                                       c.Recipients.Any( r => r.Status == CommunicationRecipientStatus.Pending ) &&
+                                                                                       (
+                                                                                           (!c.FutureSendDateTime.HasValue && c.CreatedDateTime.HasValue
+                                                                                            && c.CreatedDateTime.Value.CompareTo(beginWindow) >= 0 && c.CreatedDateTime.Value.CompareTo(endWindow) <= 0)
+                                                                                           ||
+                                                                                           (c.FutureSendDateTime.HasValue && c.FutureSendDateTime.Value.CompareTo(beginWindow) >= 0
+                                                                                            && c.FutureSendDateTime.Value.CompareTo(endWindow) <= 0)
+                                                                                       ));
+                       
+            var pendingCount = communicationQuery.Count();
+
+            var communications = communicationQuery.ToList();
+
+            int processedCount = 0;
+            int sendCount = 0;
+            string currentActivityDescription = "Initializing";
+
+            try
             {
-                var medium = comm.Medium;
-                if ( medium != null )
+                foreach (var comm in communications)
                 {
-                    medium.Send( comm );
+                    currentActivityDescription = string.Format( "Sending Communication '{0}' [Id={1}]", comm.ToString(), comm.Id );
+
+                    var medium = comm.Medium;
+
+                    if (medium != null)
+                    {
+                        medium.Send(comm);
+
+                        sendCount++;
+                    }
+
+                    processedCount++;
                 }
+
+                pendingCount = pendingCount - processedCount;
+
+                string resultDescription = string.Format("Send Communication processing completed.\n[{0} processed, {1} sent, {2} pending].",
+                                                         processedCount,
+                                                         sendCount,
+                                                         pendingCount);
+
+                // Set the Job result summary.
+                context.Result = RockJobResult.NewSuccessResult(resultDescription);
+            }
+            catch (Exception ex)
+            {
+                throw new Exception(string.Format("Job Execution failed at Processing Task \"{0}\".", currentActivityDescription), ex);
             }
         }
     }
