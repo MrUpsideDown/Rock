@@ -314,8 +314,6 @@
     <Compile Include="Reporting\DataSelect\Person\LocationsSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\PersonLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\TotalGivingAmountSelect.cs" />
-    <Compile Include="Utility\SettingsStringBase.cs" />
-    <Compile Include="Web\Utilities\WebControlHelper.cs" />
     <Compile Include="Security\Authentication\Facebook.cs">
       <SubType>Code</SubType>
     </Compile>
