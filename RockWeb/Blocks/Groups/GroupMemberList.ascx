@@ -33,6 +33,7 @@
                                 <Columns>
                                     <Rock:SelectField></Rock:SelectField>
                                     <Rock:RockBoundField DataField="Name" HeaderText="Name" SortExpression="Person.LastName,Person.NickName" />
+                                    <Rock:RockBoundField DataField="ConnectionStatus" HeaderText="Connection" SortExpression="Person.ConnectionStatusValueId" ColumnPriority="Desktop"  />
                                     <Rock:RockBoundField DataField="GroupRole" HeaderText="Role" SortExpression="GroupRole.Name" />
                                     <Rock:RockBoundField DataField="GroupMemberStatus" HeaderText="Status" SortExpression="GroupMemberStatus" />
                                 </Columns>

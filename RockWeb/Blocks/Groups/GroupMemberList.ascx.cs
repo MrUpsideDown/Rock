@@ -41,6 +41,7 @@ namespace RockWeb.Blocks.Groups
     [GroupField( "Group", "Either pick a specific group or choose <none> to have group be determined by the groupId page parameter" )]
     [LinkedPage( "Detail Page" )]
     [LinkedPage( "Person Profile Page", "Page used for viewing a person's profile. If set a view profile button will show for each group member.", false, "", "", 2, "PersonProfilePage" )]
+    [BooleanField( "Display Connection Column", "Show the Person's Connection Status in the list?", false, "", 3 )]
     public partial class GroupMemberList : RockBlock, ISecondaryBlock
     {
         #region Private Variables
@@ -85,6 +86,13 @@ namespace RockWeb.Blocks.Groups
         protected override void OnInit( EventArgs e )
         {
             base.OnInit( e );
+
+            // Set Column Configuration
+            bool showConnectionColumn = GetAttributeValue( "DisplayConnectionColumn" ).AsBoolean();
+
+            var boundFields = gGroupMembers.Columns.OfType<BoundField>().ToDictionary( a => a.DataField );
+
+            boundFields["ConnectionStatus"].Visible = showConnectionColumn;
 
             // if this block has a specific GroupId set, use that, otherwise, determine it from the PageParameters
             Guid groupGuid = GetAttributeValue( "Group" ).AsGuid();
@@ -617,7 +625,7 @@ namespace RockWeb.Blocks.Groups
                     }
 
                     // Since we're not binding to actual group member list, but are using AttributeField columns,
-                    // we need to save the workflows into the grid's object list
+                    // we need to save the display data into the grid's object list
                     gGroupMembers.ObjectList = new Dictionary<string, object>();
                     groupMembers.ForEach( m => gGroupMembers.ObjectList.Add( m.Id.ToString(), m ) );
 
@@ -628,7 +636,8 @@ namespace RockWeb.Blocks.Groups
                         m.PersonId,
                         Name = m.Person.NickName + " " + m.Person.LastName,
                         GroupRole = m.GroupRole.Name,
-                        m.GroupMemberStatus
+                        m.GroupMemberStatus,
+                        ConnectionStatus = m.Person.ConnectionStatusValue.Value
                     } ).ToList();
 
                     gGroupMembers.DataBind();
