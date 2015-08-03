@@ -30,6 +30,7 @@ namespace Rock.Web.UI.Controls
     public class FilterGroup : CompositeControl
     {
         Toggle toggleAllAny;
+        Toggle toggleTrueFalse;
         LinkButton btnAddFilter;
         LinkButton btnAddGroup;
         LinkButton lbDelete;
@@ -83,7 +84,15 @@ namespace Rock.Web.UI.Controls
             get
             {
                 EnsureChildControls();
-                return toggleAllAny.Checked ? FilterExpressionType.GroupAll : FilterExpressionType.GroupAny;
+
+                if ( toggleAllAny.Checked )
+                {
+                    return toggleTrueFalse.Checked ? FilterExpressionType.GroupAll : FilterExpressionType.GroupAllFalse;
+                }
+                else
+                {
+                    return toggleTrueFalse.Checked ? FilterExpressionType.GroupAny : FilterExpressionType.GroupAnyFalse;    
+                }                
             }
 
             set
@@ -91,7 +100,9 @@ namespace Rock.Web.UI.Controls
                 if ( value != FilterExpressionType.Filter )
                 {
                     EnsureChildControls();
-                    toggleAllAny.Checked = value == FilterExpressionType.GroupAll;
+
+                    toggleAllAny.Checked = (value == FilterExpressionType.GroupAll || value == FilterExpressionType.GroupAllFalse);
+                    toggleTrueFalse.Checked = ( value == FilterExpressionType.GroupAll || value == FilterExpressionType.GroupAny );
                 }
             }
         }
@@ -130,6 +141,14 @@ namespace Rock.Web.UI.Controls
             toggleAllAny.OnText = "All";
             toggleAllAny.OffText = "Any";
             toggleAllAny.ActiveButtonCssClass = "btn-info";
+
+            toggleTrueFalse = new Toggle();
+            Controls.Add( toggleTrueFalse );
+            toggleTrueFalse.ID = this.ID + "_toggleTrueFalse";
+            toggleTrueFalse.ButtonSizeCssClass = "btn-xs";
+            toggleTrueFalse.OnText = "True";
+            toggleTrueFalse.OffText = "False";
+            toggleTrueFalse.ActiveButtonCssClass = "btn-info";
 
             btnAddGroup = new LinkButton();
             Controls.Add( btnAddGroup );
@@ -187,8 +206,10 @@ namespace Rock.Web.UI.Controls
             toggleAllAny.CssClass = "pull-left";
             toggleAllAny.RenderControl( writer );
             writer.RenderBeginTag( HtmlTextWriterTag.Span );
-            writer.Write( "of these are true" );
+            writer.Write( "of these are" );
             writer.RenderEndTag();
+            toggleTrueFalse.CssClass = "pull-left";
+            toggleTrueFalse.RenderControl( writer );
             writer.RenderEndTag();
 
             writer.AddAttribute( HtmlTextWriterAttribute.Class, "btn-group btn-group-sm pull-right" );
