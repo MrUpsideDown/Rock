@@ -302,7 +302,9 @@
     <Compile Include="Reporting\DataFilter\Group\ContainsPeopleFilter.cs" />
     <Compile Include="Reporting\DataFilter\Group\GroupBranchFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\CampusFilter.cs" />
+    <Compile Include="Reporting\DataFilter\Person\GroupMemberDataViewFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\FirstContributionDateFilter.cs" />
+    <Compile Include="Reporting\DataFilter\Person\GroupDataViewFilter.cs" />
     <Compile Include="Reporting\DataFilter\Person\HistoryDataViewFilter.cs">
       <SubType>Code</SubType>
     </Compile>
