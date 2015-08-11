@@ -74,7 +74,10 @@ namespace Rock.Model
         /// <returns></returns>
         public DataView GetNewFromTemplate(int dataViewId)
         {
-            var item = this.Queryable().AsNoTracking().Include( x => x.DataViewFilter ).FirstOrDefault( x => x.Id == dataViewId );
+            var item = this.Queryable()
+                           .AsNoTracking()
+                           .Include( x => x.DataViewFilter )
+                           .FirstOrDefault( x => x.Id == dataViewId );
 
             if (item == null)
                 throw new Exception(string.Format("GetNewFromTemplate method failed. Template Data View ID \"{0}\" could not be found.", dataViewId));
