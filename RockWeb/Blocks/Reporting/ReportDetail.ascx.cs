@@ -277,6 +277,31 @@ namespace RockWeb.Blocks.Reporting
         }
 
         /// <summary>
+        /// Handles the Click event of the Copy button control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
+        protected void btnCopy_Click( object sender, EventArgs e )
+        {
+            // Create a new Data View using the current item as a template.
+            var id = int.Parse( hfReportId.Value );
+
+            var service = new ReportService( new RockContext() );
+
+            var newItem = service.GetNewFromTemplate( id );
+
+            if ( newItem == null )
+                return;
+
+            newItem.Name += " (Copy)";
+
+            // Reset the stored identifier for the active Data View.
+            hfReportId.Value = "0";
+
+            ShowEditDetails( newItem );
+        }
+
+        /// <summary>
         /// Handles the Click event of the btnDelete control.
         /// </summary>
         /// <param name="sender">The source of the event.</param>
