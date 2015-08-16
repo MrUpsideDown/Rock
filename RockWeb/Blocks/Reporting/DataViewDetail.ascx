@@ -75,7 +75,16 @@
 
                     </fieldset>
 
-                    <h4>Results</h4>
+                    <div class="row margin-t-sm">
+                        <div class="col-md-6">
+                            <h4><asp:Label ID="lblResults" runat="server"></asp:Label></h4>
+                        </div>
+                        <div class="col-md-6 pull-right">
+                            <div class="pull-right">
+                                <asp:LinkButton ID="btnToggleResults" runat="server" CssClass="btn btn-default btn-xs margin-b-sm" OnClick="btnToggleResults_Click" />
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="grid">
                         <Rock:Grid ID="gReport" runat="server" AllowSorting="true" EmptyDataText="No Results" />

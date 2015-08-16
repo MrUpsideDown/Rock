@@ -43,6 +43,70 @@ namespace RockWeb.Blocks.Reporting
     [IntegerField( "Database Timeout", "The number of seconds to wait before reporting a database timeout.", false, 180 )]
     public partial class DataViewDetail : RockBlock, IDetailBlock
     {
+        #region Properties
+
+        private const string _ViewStateKeyShowResults = "ShowResults";
+        private string _SettingKeyShowResults = "data-view-show-results-{blockId}";
+
+        /// <summary>
+        /// Gets or sets the visibility of the Results Grid for the Data View.
+        /// </summary>
+        /// <value>
+        ///   <c>true</c> if Results Grid is visible; otherwise, <c>false</c>.
+        /// </value>
+        protected bool ShowResults
+        {
+            get
+            {
+                return ViewState[_ViewStateKeyShowResults].ToStringSafe().AsBoolean();
+            }
+
+            set
+            {
+                if ( this.ShowResults != value )
+                {
+                    ViewState[_ViewStateKeyShowResults] = value;
+
+                    SetUserPreference( _SettingKeyShowResults, value.ToString() );
+                }
+
+                gReport.Visible = this.ShowResults;
+
+                if ( this.ShowResults )
+                {
+                    lblResults.Text = "Results";
+                    btnToggleResults.Text = "Hide Results <i class='fa fa-chevron-up'></i>";
+                    btnToggleResults.ToolTip = "Hide Results";
+
+                }
+                else
+                {
+                    lblResults.Text = string.Empty;
+                    btnToggleResults.Text = "Show Results <i class='fa fa-chevron-down'></i>";
+                    btnToggleResults.ToolTip = "Show Results";
+                }
+
+                if ( !this.ShowResults )
+                {
+                    return;
+                }
+
+                // Execute the Data View and show the results.
+                var dataViewService = new DataViewService( new RockContext() );
+
+                var dataView = dataViewService.Get( hfDataViewId.Value.AsInteger() );
+
+                if ( dataView == null )
+                {
+                    return;
+                }
+
+                BindGrid( gReport, dataView );
+            }
+        }
+
+        #endregion
+
         #region Control Methods
 
         /// <summary>
@@ -52,6 +116,9 @@ namespace RockWeb.Blocks.Reporting
         protected override void OnInit( EventArgs e )
         {
             base.OnInit( e );
+
+            // Create unique user setting keys for this block.
+            _SettingKeyShowResults = _SettingKeyShowResults.Replace( "{blockId}", this.BlockId.ToString() );
 
             // Switch does not automatically initialize again after a partial-postback.  This script 
             // looks for any switch elements that have not been initialized and re-intializes them.
@@ -89,6 +156,8 @@ $(document).ready(function() {
 
             if ( !Page.IsPostBack )
             {
+                this.ShowResults = GetUserPreference( _SettingKeyShowResults ).AsBoolean(true);
+
                 string itemId = PageParameter( "DataViewId" );
                 if ( !string.IsNullOrWhiteSpace( itemId ) )
                 {
@@ -337,6 +406,16 @@ $(document).ready(function() {
                     NavigateToPage( RockPage.Guid, qryParams );
                 }
             }
+        }
+
+        /// <summary>
+        /// Handles the Click event of the btnToggleResults control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void btnToggleResults_Click( object sender, EventArgs e )
+        {
+            this.ShowResults = !this.ShowResults;
         }
 
         #endregion
@@ -613,6 +692,11 @@ $(document).ready(function() {
         /// <returns></returns>
         private bool BindGrid( Grid grid, DataView dataView, int? fetchRowCount = null )
         {
+            if ( !this.ShowResults )
+            {
+                return false;
+            }
+
             var errorMessages = new List<string>();
             grid.DataSource = null;
             var rockContext = new RockContext();
