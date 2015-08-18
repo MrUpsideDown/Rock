@@ -280,20 +280,9 @@ function() {
 
             var historyQuery = historyService.Queryable();
 
-            if (dataView != null)
+            if ( dataView != null )
             {
-                var paramExpression = historyService.ParameterExpression;
-
-                List<string> errorMessages;
-
-                var whereExpression = dataView.GetExpression( historyService, paramExpression, out errorMessages );
-
-                if (errorMessages.Any())
-                {
-                    throw new Exception( "Filter issue(s): " + errorMessages.AsDelimited( "; " ) );
-                }
-
-                historyQuery = historyQuery.Where( paramExpression, whereExpression, null );
+                historyQuery = DataComponentSettingsHelper.FilterByDataView( historyQuery, dataView, historyService );
             }
 
             // Select only those History records that are either related to a Person, or affect a Person.
@@ -307,7 +296,8 @@ function() {
                                                          p =>
                                                          historyQuery.Any(
                                                                           h =>
-                                                                          h.EntityTypeId == personEntityTypeId && h.EntityId == p.Id
+                                                                          h.EntityTypeId == personEntityTypeId
+                                                                          && h.EntityId == p.Id
                                                                           || ( h.RelatedEntityTypeId == personEntityTypeId && h.RelatedEntityId == p.Id ) ) );
 
             // Retrieve the Filter Expression.
