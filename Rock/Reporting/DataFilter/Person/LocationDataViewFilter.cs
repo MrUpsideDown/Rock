@@ -25,7 +25,6 @@ using System.Web.UI.WebControls;
 using Rock.Constants;
 using Rock.Data;
 using Rock.Model;
-using Rock.Reporting.DataSelect;
 using Rock.Utility;
 using Rock.Web.Cache;
 using Rock.Web.UI.Controls;
@@ -61,6 +60,12 @@ namespace Rock.Reporting.DataFilter.Person
                 FromSelectionString( settingsString );
             }
 
+            /// <summary>
+            /// Indicates if the current settings are valid.
+            /// </summary>
+            /// <value>
+            /// True if the settings are valid.
+            /// </value>
             public override bool IsValid
             {
                 get
@@ -74,6 +79,11 @@ namespace Rock.Reporting.DataFilter.Person
                 }
             }
 
+            /// <summary>
+            /// Set the property values parsed from a settings string.
+            /// </summary>
+            /// <param name="version">The version number of the parameter set.</param>
+            /// <param name="parameters">An ordered collection of strings representing the parameter values.</param>
             protected override void OnSetParameters( int version, IReadOnlyList<string> parameters )
             {
                 // Parameter 1: Data View
@@ -83,6 +93,13 @@ namespace Rock.Reporting.DataFilter.Person
                 LocationTypeGuid = DataComponentSettingsHelper.GetParameterOrEmpty( parameters, 1 ).AsGuidOrNull();
             }
 
+            /// <summary>
+            /// Gets an ordered set of property values that can be used to construct the
+            /// settings string.
+            /// </summary>
+            /// <returns>
+            /// An ordered collection of strings representing the parameter values.
+            /// </returns>
             protected override IEnumerable<string> OnGetParameters()
             {
                 var settings = new List<string>();
@@ -99,10 +116,10 @@ namespace Rock.Reporting.DataFilter.Person
         #region Properties
 
         /// <summary>
-        ///     Gets the entity type that filter applies to.
+        /// Gets the entity type that the filter applies to.
         /// </summary>
         /// <value>
-        ///     The entity that filter applies to.
+        /// The namespace-qualified Type name of the entity that the filter applies to, or an empty string if the filter applies to all entities.
         /// </value>
         public override string AppliesToEntityType
         {
@@ -110,14 +127,14 @@ namespace Rock.Reporting.DataFilter.Person
         }
 
         /// <summary>
-        ///     Gets the section.
+        /// Gets the name of the section in which the filter should be displayed in a browsable list.
         /// </summary>
         /// <value>
-        ///     The section.
+        /// The section name.
         /// </value>
         public override string Section
         {
-            get { return "Additional Filters"; }
+            get { return "Related Data Views"; }
         }
 
         #endregion
@@ -125,13 +142,12 @@ namespace Rock.Reporting.DataFilter.Person
         #region Public Methods
 
         /// <summary>
-        ///     Gets the title.
+        /// Gets the user-friendly title used to identify the filter component.
         /// </summary>
-        /// <param name="entityType"></param>
-        /// <returns></returns>
-        /// <value>
-        ///     The title.
-        /// </value>
+        /// <param name="entityType">The System Type of the entity to which the filter will be applied.</param>
+        /// <returns>
+        /// The name of the filter.
+        /// </returns>
         public override string GetTitle( Type entityType )
         {
             return "Location Data View";
@@ -163,11 +179,13 @@ function() {
         }
 
         /// <summary>
-        ///     Formats the selection.
+        /// Provides a user-friendly description of the specified filter values.
         /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="selection">The selection.</param>
-        /// <returns></returns>
+        /// <param name="entityType">The System Type of the entity to which the filter will be applied.</param>
+        /// <param name="selection">A formatted string representing the filter settings.</param>
+        /// <returns>
+        /// A string containing the user-friendly description of the settings.
+        /// </returns>
         public override string FormatSelection( Type entityType, string selection )
         {
             var settings = new FilterSettings( selection );
@@ -202,8 +220,10 @@ function() {
         private const string _CtlLocationType = "ddlLocationType";
 
         /// <summary>
-        ///     Creates the child controls.
+        /// Creates the child controls.
         /// </summary>
+        /// <param name="entityType">Type of the entity.</param>
+        /// <param name="parentControl">The parent control.</param>
         /// <returns></returns>
         public override Control[] CreateChildControls( Type entityType, FilterField parentControl )
         {
@@ -233,18 +253,21 @@ function() {
             parentControl.Controls.Add( ddlLocationType );
 
             // Populate the Data View Picker
-            int entityTypeId = EntityTypeCache.Read( typeof(Location) ).Id;
+            var entityTypeId = EntityTypeCache.Read( typeof(Location) ).Id;
             ddlDataView.EntityTypeId = entityTypeId;
 
             return new Control[] {ddlDataView, ddlLocationType};
         }
 
         /// <summary>
-        ///     Gets the selection.
+        /// Gets the selection.
+        /// Implement this version of GetSelection if your DataFilterComponent works the same in all FilterModes
         /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="controls">The controls.</param>
-        /// <returns></returns>
+        /// <param name="entityType">The System Type of the entity to which the filter will be applied.</param>
+        /// <param name="controls">The collection of controls used to set the filter values.</param>
+        /// <returns>
+        /// A formatted string.
+        /// </returns>
         public override string GetSelection( Type entityType, Control[] controls )
         {
             var ddlDataView = controls.GetByName<DataViewPicker>( _CtlDataView );
@@ -259,7 +282,8 @@ function() {
         }
 
         /// <summary>
-        ///     Sets the selection.
+        /// Sets the selection.
+        /// Implement this version of SetSelection if your DataFilterComponent works the same in all FilterModes
         /// </summary>
         /// <param name="entityType">Type of the entity.</param>
         /// <param name="controls">The controls.</param>
@@ -281,13 +305,16 @@ function() {
         }
 
         /// <summary>
-        ///     Gets the expression.
+        /// Creates a Linq Expression that can be applied to an IQueryable to filter the result set.
         /// </summary>
-        /// <param name="entityType">Type of the entity.</param>
-        /// <param name="serviceInstance">The service instance.</param>
-        /// <param name="parameterExpression">The parameter expression.</param>
-        /// <param name="selection">The selection.</param>
-        /// <returns></returns>
+        /// <param name="entityType">The type of entity in the result set.</param>
+        /// <param name="serviceInstance">A service instance that can be queried to obtain the result set.</param>
+        /// <param name="parameterExpression">The input parameter that will be injected into the filter expression.</param>
+        /// <param name="selection">A formatted string representing the filter settings.</param>
+        /// <returns>
+        /// A Linq Expression that can be used to filter an IQueryable.
+        /// </returns>
+        /// <exception cref="System.Exception">Filter issue(s):  + errorMessages.AsDelimited( ;  )</exception>
         public override Expression GetExpression( Type entityType, IService serviceInstance, ParameterExpression parameterExpression, string selection )
         {
             var settings = new FilterSettings( selection );
@@ -302,20 +329,9 @@ function() {
 
             var locationQuery = locationService.Queryable();
 
-            if (dataView != null)
+            if ( dataView != null )
             {
-                var paramExpression = locationService.ParameterExpression;
-
-                List<string> errorMessages;
-
-                var whereExpression = dataView.GetExpression( locationService, paramExpression, out errorMessages );
-
-                if (errorMessages.Any())
-                {
-                    throw new Exception( "Filter issue(s): " + errorMessages.AsDelimited( "; " ) );
-                }
-
-                locationQuery = locationQuery.Where( paramExpression, whereExpression, null );
+                locationQuery = DataComponentSettingsHelper.FilterByDataView( locationQuery, dataView, locationService );
             }
 
             // Get all the Family Groups that have a Location matching one of the candidate Locations.
@@ -327,7 +343,7 @@ function() {
             // If a Location Type is specified, apply the filter condition.
             if (settings.LocationTypeGuid.HasValue)
             {
-                int groupLocationTypeId = DefinedValueCache.Read( settings.LocationTypeGuid.Value ).Id;
+                var groupLocationTypeId = DefinedValueCache.Read( settings.LocationTypeGuid.Value ).Id;
 
                 groupLocationsQuery = groupLocationsQuery.Where( x => x.GroupLocationTypeValue.Id == groupLocationTypeId );
             }
