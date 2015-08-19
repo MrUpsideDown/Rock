@@ -115,14 +115,7 @@ Because the contents of this setting will be rendered inside a &lt;ul&gt; elemen
             {
                 if ( Person != null && Person.Id != 0 )
                 {
-                    if ( Person.NickName == Person.FirstName )
-                    {
-                        lName.Text = Person.FullName.FormatAsHtmlTitle();
-                    }
-                    else
-                    {
-                        lName.Text = String.Format( "{0} {2} <span class='full-name'>({1})</span>", Person.NickName.FormatAsHtmlTitle(), Person.FirstName, Person.LastName );
-                    }
+                    SetPersonName();
 
                     // Setup Image
                     string imgTag = Rock.Model.Person.GetPhotoImageTag( Person.PhotoId, Person.Age, Person.Gender, 200, 200 );
@@ -261,6 +254,64 @@ Because the contents of this setting will be rendered inside a &lt;ul&gt; elemen
                     pnlContent.Visible = false;
                 }
             }
+        }
+
+        private void SetPersonName()
+        {
+            // Check if this record represents a Business.
+            bool isBusiness = false;
+
+            if ( Person.RecordTypeValueId.HasValue )
+            {
+                int recordTypeValueIdBusiness = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_TYPE_BUSINESS.AsGuid() ).Id;
+
+                isBusiness = ( Person.RecordTypeValueId.Value == recordTypeValueIdBusiness );
+            }
+
+            // Get the Display Name.
+            string nameText;
+
+            if ( isBusiness )
+            {
+                nameText = Person.LastName;
+            }
+            else
+            {
+                nameText = string.Format( "<span class='first-word'>{0}</span> {1}", Person.NickName, Person.LastName );
+
+                // Add First Name if different from NickName.
+                if ( Person.NickName != Person.FirstName )
+                {
+                    if ( !string.IsNullOrWhiteSpace( Person.FirstName ) )
+                    {
+                        nameText += string.Format( " ({0})", Person.FirstName );
+                    }
+                }
+
+                // Add Suffix.
+                if ( Person.SuffixValueId.HasValue )
+                {
+                    var suffix = DefinedValueCache.Read( Person.SuffixValueId.Value );
+                    if ( suffix != null )
+                    {
+                        nameText += " " + suffix.Value;
+                    }
+                }
+
+                // Uncomment these lines for version 4.
+                // Add Previous Names. 
+                //using ( var rockContext = new RockContext() )
+                //{
+                //    var previousNames = Person.GetPreviousNames( rockContext ).Select( a => a.LastName );
+
+                //    if ( previousNames.Any() )
+                //    {
+                //        nameText += string.Format( Environment.NewLine + "<span class='previous-names'>(Previous Names: {0})</span>", previousNames.ToList().AsDelimited( ", " ) );
+                //    }
+                //}
+            }
+
+            lName.Text = nameText;
         }
 
         protected override void OnPreRender( EventArgs e )
