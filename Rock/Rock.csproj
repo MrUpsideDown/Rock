@@ -284,6 +284,7 @@
     <Compile Include="Model\EntitySetItem.cs" />
     <Compile Include="Model\GroupScheduleExclusion.cs" />
     <Compile Include="Model\PersonDuplicate.cs" />
+    <Compile Include="Model\PersonQueryExtensions.cs" />
     <Compile Include="Model\PluginMigration.cs" />
     <Compile Include="Model\ScheduleService.Partial.cs" />
     <Compile Include="Model\WorkflowActionService.Partial.cs" />
@@ -320,6 +321,10 @@
     <Compile Include="Reporting\DataSelect\Person\LocationsSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\PersonLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\Person\TotalGivingAmountSelect.cs" />
+    <Compile Include="Search\IEntitySearchComponent.cs" />
+    <Compile Include="Search\Person\Name.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Security\Authentication\Facebook.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -354,7 +359,7 @@
     <Compile Include="Transactions\UpdateFacebookFriends.cs" />
     <Compile Include="Utility\AttributeCacheJsonConverter.cs" />
     <Compile Include="Utility\AttributeValueJsonConverter.cs" />
-    <Compile Include="Utility\LinqExtensionMethods.cs" />
+    <Compile Include="Utility\LinqPredicateBuilder.cs" />
     <Compile Include="Utility\RockJsonMediaTypeFormatter.cs" />
     <Compile Include="Utility\RockJsonTextWriter.cs" />
     <Compile Include="Utility\RockSemanticVersion.cs" />
@@ -1031,7 +1036,6 @@
     <Compile Include="Jobs\RockCleanup.cs" />
     <Compile Include="Search\Person\Address.cs" />
     <Compile Include="Search\Person\Email.cs" />
-    <Compile Include="Search\Person\Name.cs" />
     <Compile Include="Search\Person\Phone.cs" />
     <Compile Include="Search\SearchComponent.cs" />
     <Compile Include="Search\SearchContainer.cs" />

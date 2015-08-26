@@ -17,7 +17,6 @@
 using System;
 using System.ComponentModel;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Web.UI.WebControls;
 
@@ -25,13 +24,11 @@ using Rock;
 using Rock.Attribute;
 using Rock.Model;
 using Rock.Web.UI.Controls;
-using System.Text.RegularExpressions;
-using System.Data.Entity.SqlServer;
 using Rock.Data;
 using Rock.Web.Cache;
 using System.Diagnostics;
-using System.Data.Entity.Core.Objects;
 using System.Text;
+using Rock.Search;
 
 namespace RockWeb.Blocks.Crm
 {
@@ -211,131 +208,209 @@ namespace RockWeb.Blocks.Crm
 
         private void BindGrid()
         {
-
             string type = PageParameter( "SearchType" );
             string term = PageParameter( "SearchTerm" );
 
-            if ( !String.IsNullOrWhiteSpace( type ) && !String.IsNullOrWhiteSpace( term ) )
+            if ( string.IsNullOrWhiteSpace( type )
+                || string.IsNullOrWhiteSpace( term ) )
             {
-                var rockContext = new RockContext();
+                return;
+            }
 
-                var personService = new PersonService( rockContext );
-                IQueryable<Person> people = null;
+            var rockContext = new RockContext();
 
-                switch ( type.ToLower() )
+            var personService = new PersonService( rockContext );
+            IQueryable<Person> people = null;
+
+            // Try to get a reference to the component that implements this search by matching the Path of the Result URL to the current Page URL.
+            // Any search component that implements the IEntitySearchComponent<Person> interface can use this block to display its results.
+            IEntitySearchComponent<Person> searchProvider = null;
+
+            var searchComponent = GetSearchComponentForResultUrl( this.Request.Path );
+
+            searchProvider = searchComponent as IEntitySearchComponent<Person>;
+
+            if ( searchProvider != null )
+            {
+                // Ask the search component to provide the query for the search results.
+                people = searchProvider.GetResultsQuery( term );
+            }
+            else
+            {
+                // Process hard-coded search components that do not implement the IEntitySearchComponent<Person> interface.
+                // TODO: Reimplement these search components to implement IEntitySearchComponent<Person>.
+                switch (type.ToLower())
                 {
                     case ( "name" ):
-                        {
-                            bool allowFirstNameOnly = false;
-                            if ( !bool.TryParse( PageParameter( "allowFirstNameOnly" ), out allowFirstNameOnly ) )
-                            {
-                                allowFirstNameOnly = false;
-                            }
-                            people = personService.GetByFullName( term, allowFirstNameOnly, true );
-                            break;
-                        }
-                    case ( "phone" ):
-                        {
-                            var phoneService = new PhoneNumberService( rockContext );
-                            var personIds = phoneService.GetPersonIdsByNumber( term );
-                            people = personService.Queryable().Where( p => personIds.Contains( p.Id ) );
-                            break;
-                        }
-                    case ( "address" ):
-                        {
-                            var groupMemberService = new GroupMemberService( rockContext );
-                            var personIds2 = groupMemberService.GetPersonIdsByHomeAddress( term );
-                            people = personService.Queryable().Where( p => personIds2.Contains( p.Id ) );
-                            break;
-                        }
-                    case ( "email" ):
-                        {
-                            people = personService.Queryable().Where( p => p.Email.Contains( term ) );
-                            break;
-                        }
-                }
-
-                SortProperty sortProperty = gPeople.SortProperty;
-                if ( sortProperty != null )
-                {
-                    people = people.Sort( sortProperty );
-                }
-                else
-                {
-                    people = people.OrderBy( p => p.LastName ).ThenBy( p => p.FirstName );
-                }
-
-                Guid familyGuid = new Guid( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY );
-                Guid homeAddressTypeGuid = new Guid( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME );
-
-                var personList = people.Select( p => new PersonSearchResult
-                {
-                    Id = p.Id,
-                    FirstName = p.FirstName,
-                    NickName = p.NickName,
-                    LastName = p.LastName,
-                    BirthDate = p.BirthDate,
-                    BirthYear = p.BirthYear,
-                    BirthMonth = p.BirthMonth,
-                    BirthDay = p.BirthDay,
-                    ConnectionStatusValueId = p.ConnectionStatusValueId,
-                    RecordStatusValueId = p.RecordStatusValueId,
-                    RecordTypeValueId = p.RecordTypeValueId,
-                    SuffixValueId = p.SuffixValueId,
-                    IsDeceased = p.IsDeceased,
-                    Email = p.Email,
-                    Gender = p.Gender,
-                    PhotoId = p.PhotoId,
-                    CampusIds = p.Members
-                        .Where( m =>
-                            m.Group.GroupType.Guid.Equals( familyGuid ) &&
-                            m.Group.CampusId.HasValue )
-                        .Select( m => m.Group.CampusId.Value )
-                        .ToList(),
-                    HomeAddresses = p.Members
-                        .Where( m => m.Group.GroupType.Guid == familyGuid )
-                        .SelectMany( m => m.Group.GroupLocations )
-                        .Where( gl => gl.GroupLocationTypeValue.Guid.Equals( homeAddressTypeGuid ) )
-                        .Select( gl => gl.Location )
-                } ).ToList();
-
-                if ( personList.Count == 1 )
-                {
-                    Response.Redirect( string.Format( "~/Person/{0}", personList[0].Id ), false );
-                    Context.ApplicationInstance.CompleteRequest();
-                }
-                else
-                {
-                    if ( type.ToLower() == "name" )
                     {
-                        var similiarNames = personService.GetSimiliarNames( term,
-                            personList.Select( p => p.Id ).ToList(), true );
-                        if ( similiarNames.Any() )
+                        bool allowFirstNameOnly = false;
+                        if (!bool.TryParse( PageParameter( "allowFirstNameOnly" ), out allowFirstNameOnly ))
                         {
-                            var hyperlinks = new List<string>();
-                            foreach ( string name in similiarNames.Distinct() )
-                            {
-                                var pageRef = CurrentPageReference;
-                                pageRef.Parameters["SearchTerm"] = name;
-                                hyperlinks.Add( string.Format( "<a href='{0}'>{1}</a>", pageRef.BuildUrl(), name ) );
-                            }
-                            string altNames = string.Join( ", ", hyperlinks );
-                            nbNotice.Text = string.Format( "Other Possible Matches: {0}", altNames );
-                            nbNotice.Visible = true;
+                            allowFirstNameOnly = false;
                         }
+                        people = personService.GetByFullName( term, allowFirstNameOnly, true );
+                        break;
                     }
-
-                    _inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE );
-
-                    gPeople.DataSource = personList;
-                    gPeople.DataBind();
+                    case ( "phone" ):
+                    {
+                        var phoneService = new PhoneNumberService( rockContext );
+                        var personIds = phoneService.GetPersonIdsByNumber( term );
+                        people = personService.Queryable().Where( p => personIds.Contains( p.Id ) );
+                        break;
+                    }
+                    case ( "address" ):
+                    {
+                        var groupMemberService = new GroupMemberService( rockContext );
+                        var personIds2 = groupMemberService.GetPersonIdsByHomeAddress( term );
+                        people = personService.Queryable().Where( p => personIds2.Contains( p.Id ) );
+                        break;
+                    }
+                    case ( "email" ):
+                    {
+                        people = personService.Queryable().Where( p => p.Email.Contains( term ) );
+                        break;
+                    }
                 }
             }
+
+            // If no suitable query can be supplied for the search results, we are done.
+            if (people == null)
+            {
+                return;
+            }
+
+            SortProperty sortProperty = gPeople.SortProperty;
+            if ( sortProperty != null )
+            {
+                people = people.Sort( sortProperty );
+            }
+            else
+            {
+                people = people.OrderBy( p => p.LastName ).ThenBy( p => p.FirstName );
+            }
+
+            Guid familyGuid = new Guid( Rock.SystemGuid.GroupType.GROUPTYPE_FAMILY );
+            Guid homeAddressTypeGuid = new Guid( Rock.SystemGuid.DefinedValue.GROUP_LOCATION_TYPE_HOME );
+
+            var personList = people.Select( p => new PersonSearchResult
+            {
+                Id = p.Id,
+                FirstName = p.FirstName,
+                NickName = p.NickName,
+                LastName = p.LastName,
+                BirthDate = p.BirthDate,
+                BirthYear = p.BirthYear,
+                BirthMonth = p.BirthMonth,
+                BirthDay = p.BirthDay,
+                ConnectionStatusValueId = p.ConnectionStatusValueId,
+                RecordStatusValueId = p.RecordStatusValueId,
+                RecordTypeValueId = p.RecordTypeValueId,
+                SuffixValueId = p.SuffixValueId,
+                IsDeceased = p.IsDeceased,
+                Email = p.Email,
+                Gender = p.Gender,
+                PhotoId = p.PhotoId,
+                CampusIds = p.Members
+                    .Where( m =>
+                        m.Group.GroupType.Guid.Equals( familyGuid ) &&
+                        m.Group.CampusId.HasValue )
+                    .Select( m => m.Group.CampusId.Value )
+                    .ToList(),
+                HomeAddresses = p.Members
+                    .Where( m => m.Group.GroupType.Guid == familyGuid )
+                    .SelectMany( m => m.Group.GroupLocations )
+                    .Where( gl => gl.GroupLocationTypeValue.Guid.Equals( homeAddressTypeGuid ) )
+                    .Select( gl => gl.Location )
+            } ).ToList();
+
+            if ( personList.Count == 1 )
+            {
+                // If the search returns a single result, display the Person Page immediately.
+                Response.Redirect( string.Format( "~/Person/{0}", personList[0].Id ), false );
+                Context.ApplicationInstance.CompleteRequest();
+            }
+            else
+            {
+                // If the search returns multiple results or nothing, include suggested related search terms if they are available from the search provider.
+                List<string> similarNames;
+
+                if (searchProvider != null)
+                {
+                    similarNames = searchProvider.GetSearchSuggestions( term, personList.Select( p => p.Id ).ToList() );
+                }
+                else if (type.ToLower() == "name")
+                {
+                    // Process hard-coded search components that do not implement the IEntitySearchComponent<Person> interface.
+                    similarNames = personService.GetSimiliarNames( term,
+                                                                   personList.Select( p => p.Id ).ToList(), true );
+                }
+                else
+                {
+                    similarNames = new List<string>();
+                }
+                
+                if (similarNames.Any())
+                {
+                    var hyperlinks = new List<string>();
+                    foreach (string name in similarNames.Distinct())
+                    {
+                        var pageRef = CurrentPageReference;
+                        pageRef.Parameters["SearchTerm"] = name;
+                        hyperlinks.Add( string.Format( "<a href='{0}'>{1}</a>", pageRef.BuildUrl(), name ) );
+                    }
+                    string altNames = string.Join( ", ", hyperlinks );
+                    nbNotice.Text = string.Format( "Other Possible Matches: {0}", altNames );
+                    nbNotice.Visible = true;
+                }
+
+                _inactiveStatus = DefinedValueCache.Read( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE );
+
+                gPeople.DataSource = personList;
+                gPeople.DataBind();
+            }
+        }
+
+        /// <summary>
+        /// Retrieve a Search Component by its associated ResultUrl.
+        /// </summary>
+        /// <param name="resultUrlPath">The Path component of the Url specified as the destination page for search results.</param>
+        /// <returns></returns>
+        private SearchComponent GetSearchComponentForResultUrl( string resultUrlPath )
+        {
+            resultUrlPath = resultUrlPath.ToStringSafe().TrimEnd( '/' );
+
+            foreach ( var serviceEntry in SearchContainer.Instance.Components )
+            {
+                var service = serviceEntry.Value.Value;
+
+                if (!service.IsActive)
+                {
+                    continue;
+                }
+
+                // Identify the Service using the base ResultUrl set in the Attributes.
+                // The actual ResultUrl may be modified dynamically at runtime by the Service itself.
+                string baseResultUrl = service.GetAttributeValue( "ResultURL" ).ToLower();
+
+                if (!baseResultUrl.StartsWith( "/" ))
+                {
+                    baseResultUrl = "/" + baseResultUrl;
+                }
+
+                if ( baseResultUrl.Equals( resultUrlPath, StringComparison.OrdinalIgnoreCase )
+                    || baseResultUrl.StartsWith( resultUrlPath + "/", StringComparison.OrdinalIgnoreCase )
+                    || baseResultUrl.StartsWith( resultUrlPath + "?", StringComparison.OrdinalIgnoreCase ) )
+                {
+                    return service;
+                }
+            }
+
+            return null;
         }
 
         #endregion
 
-}
+    }
     #region result models
     public class PersonSearchResult
     {
