@@ -200,7 +200,7 @@ namespace Rock.Reporting.DataSelect.Person
 
             foreach ( var l in locations )
             {
-                var groupLocationPredicate = LinqPredicateBuilder.False<GroupLocation>();
+                var groupLocationPredicate = LinqPredicateBuilder.Begin<GroupLocation>();
 
                 if ( l.GeoPoint != null )
                 {
