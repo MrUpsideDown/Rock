@@ -79,19 +79,39 @@
                         <asp:Literal ID="lReportDescription" runat="server"></asp:Literal>
                     </p>
 
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <dl>
+                                <dt>Applies To</dt>
+                                <dd>
+                                    <asp:Literal ID="lAppliesTo" runat="server"></asp:Literal></dd>
+                                <dt>Data View</dt>
+                                <dd>
+                                    <asp:Literal ID="lDataView" runat="server"></asp:Literal></dd>
+                            </dl>
+
+                        </div>
+                        <div class="col-sm-6">
+                            <asp:PlaceHolder ID="phAttributes" runat="server"></asp:PlaceHolder>
+                        </div>
+                    </div>
+
                     <Rock:NotificationBox ID="nbEditModeMessage" runat="server" NotificationBoxType="Info" />
 
                     <div class="row">
                         <asp:Literal ID="lblMainDetails" runat="server" />
                     </div>
 
-                    <div class="actions">
-                        <asp:LinkButton ID="btnEdit" runat="server" AccessKey="m" Text="Edit" CssClass="btn btn-primary" OnClick="btnEdit_Click" />
-                        <Rock:ModalAlert ID="mdDeleteWarning" runat="server" />
-                        <asp:LinkButton ID="btnCopy" runat="server" Text="Copy" CssClass="btn btn-link" OnClick="btnCopy_Click" />
-                        <asp:LinkButton ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-link" OnClick="btnDelete_Click" />
-                        <Rock:SecurityButton ID="btnSecurity" runat="server" class="btn btn-sm btn-security pull-right" />
-                    </div>
+                    <fieldset>
+                        <div class="actions">
+                            <asp:LinkButton ID="btnEdit" runat="server" AccessKey="m" Text="Edit" CssClass="btn btn-primary" OnClick="btnEdit_Click" />
+                            <Rock:ModalAlert ID="mdDeleteWarning" runat="server" />
+                            <asp:LinkButton ID="btnCopy" runat="server" Text="Copy" CssClass="btn btn-link" OnClick="btnCopy_Click" />
+                            <asp:LinkButton ID="btnDelete" runat="server" Text="Delete" CssClass="btn btn-link" OnClick="btnDelete_Click" />
+                            <Rock:SecurityButton ID="btnSecurity" runat="server" class="btn btn-sm btn-security pull-right" />
+                        </div>
+                    </fieldset>
+
                     <div class="row margin-t-sm">
                         <div class="col-md-6">
                             <h4><asp:Label ID="lblResults" runat="server"></asp:Label></h4>
