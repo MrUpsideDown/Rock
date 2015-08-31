@@ -111,7 +111,7 @@
                             <Rock:SecurityButton ID="btnSecurity" runat="server" class="btn btn-sm btn-security pull-right" />
                         </div>
                     </fieldset>
-
+                    
                     <div class="row margin-t-sm">
                         <div class="col-md-6">
                             <h4><asp:Label ID="lblResults" runat="server"></asp:Label></h4>
