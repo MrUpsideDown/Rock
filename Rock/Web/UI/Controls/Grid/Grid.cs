@@ -1280,13 +1280,15 @@ namespace Rock.Web.UI.Controls
 
                 // get all properties of the objects in the grid
                 IList<PropertyInfo> allprops = new List<PropertyInfo>( oType.GetProperties() );
-                IList<PropertyInfo> props = new List<PropertyInfo>();
+                IList<PropertyInfo> props;
 
                 var gridDataFields = this.Columns.OfType<BoundField>().ToList();
 
                 // Inspect the collection of Fields that appear in the Grid and add the corresponding data item properties to the set of fields to be exported.
+                // Also build a lookup table to map PropertyInfo objects to corresponding Grid columns.
                 // The fields are exported in the same order as they appear in the Grid.
                 var orderedProps = new SortedDictionary<int, PropertyInfo>();
+                var mapPropertyToGridField = new Dictionary<PropertyInfo, BoundField>();
 
                 foreach ( PropertyInfo prop in allprops )
                 {
@@ -1299,6 +1301,8 @@ namespace Rock.Web.UI.Controls
 
                     if ( gridField == null )
                         continue;
+
+                    mapPropertyToGridField.Add( prop, gridField );
 
                     int fieldIndex = gridDataFields.IndexOf( gridField );
 
@@ -1346,27 +1350,67 @@ namespace Rock.Web.UI.Controls
                     {
                         columnCounter++;
 
-                        object propValue = prop.GetValue( item, null );
+                        //object propValue = prop.GetValue( item, null );
 
-                        var definedValueAttribute = prop.GetCustomAttributes( typeof( DefinedValueAttribute ), true ).FirstOrDefault();
+                        //var definedValueAttribute = prop.GetCustomAttributes( typeof( DefinedValueAttribute ), true ).FirstOrDefault();
 
-                        bool isDefinedValue = ( definedValueAttribute != null || definedValueFields.Any( f => f.DataField == prop.Name ) );
+                        //bool isDefinedValue = ( definedValueAttribute != null || definedValueFields.Any( f => f.DataField == prop.Name ) );
 
-                        string value = this.GetExportValue( prop, propValue, isDefinedValue );
+//<<<<<<< HEAD
+//                        string value = this.GetExportValue( prop, propValue, isDefinedValue );
 
-                        worksheet.Cells[rowCounter, columnCounter].Value = value.ConvertBrToCrLf();
+//                        worksheet.Cells[rowCounter, columnCounter].Value = value.ConvertBrToCrLf();
 
-                        // format background color for alternating rows
-                        if ( rowCounter % 2 == 1 )
-                        {
-                            worksheet.Cells[rowCounter, columnCounter].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-                            worksheet.Cells[rowCounter, columnCounter].Style.Fill.BackgroundColor.SetColor( Color.FromArgb( 240, 240, 240 ) );
-                        }
+//                        // format background color for alternating rows
+//                        if ( rowCounter % 2 == 1 )
+//                        {
+//                            worksheet.Cells[rowCounter, columnCounter].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+//                            worksheet.Cells[rowCounter, columnCounter].Style.Fill.BackgroundColor.SetColor( Color.FromArgb( 240, 240, 240 ) );
+//                        }
 
-                        if ( propValue is DateTime )
-                        {
-                            worksheet.Cells[rowCounter, columnCounter].Style.Numberformat.Format = "MM/dd/yyyy hh:mm";
-                        }
+//                        if ( propValue is DateTime )
+//                        {
+//                            worksheet.Cells[rowCounter, columnCounter].Style.Numberformat.Format = "MM/dd/yyyy hh:mm";
+//                        }
+//=======
+                            object propValue = prop.GetValue( item, null );
+                            var gridDataField = mapPropertyToGridField[prop];
+                            var cell = worksheet.Cells[rowCounter, columnCounter];
+
+                            string value = string.Empty;
+
+                            if ( gridDataField is RockBoundField )
+                            {
+                                // If this is a BoundField, apply the field formatting before output.
+                                var cbField = gridDataField as RockBoundField;
+
+                                object exportValue = cbField.GetFormattedDataValue( propValue, true );
+
+                                value = exportValue != null ? exportValue.ToString() : cell.Text;
+                                value = value.ConvertBrToCrLf();
+                            }
+                            else
+                            {
+                                var definedValueAttribute = prop.GetCustomAttributes( typeof( DefinedValueAttribute ), true ).FirstOrDefault();
+
+                                bool isDefinedValue = ( definedValueAttribute != null || definedValueFields.Any( f => f.DataField == prop.Name ) );
+
+                                if (isDefinedValue)
+                                {
+                                    value = this.GetExportValueForDefinedValueField( prop, propValue ).ConvertBrToCrLf();
+                                }
+                                else
+                                {
+                                    value = this.GetExportValueForUnboundField( prop, propValue, cell ).ConvertBrToCrLf();
+                                }
+                            }
+
+                            cell.Value = value;
+                            if ( value.Contains( Environment.NewLine ) )
+                            {
+                                cell.Style.WrapText = true;
+                            }
+//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
 
                     }
 
@@ -1492,94 +1536,180 @@ namespace Rock.Web.UI.Controls
         /// <summary>
         /// Formats a raw value from the Grid DataSource so that it is suitable for export to an Excel Worksheet.
         /// </summary>
-        /// <param name="prop"></param>
-        /// <param name="propValue"></param>
-        /// <param name="isDefinedValueField"></param>
+        /// <param name="prop">The property.</param>
+        /// <param name="propValue">The property value.</param>
+        /// <param name="cell">The cell.</param>
         /// <returns></returns>
-        private string GetExportValue(PropertyInfo prop, object propValue, bool isDefinedValueField)
-        {            
+        private string GetExportValueForUnboundField( PropertyInfo prop, object propValue, ExcelRange cell )
+        {
+//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
             // Get the formatted value string for export.
             string value = string.Empty;
 
-            if ( propValue != null )
+            if ( propValue == null )
             {
-                if ( isDefinedValueField )
+                return value;
+            }
+
+            if ( propValue is IEnumerable<object> )
+            {
+                value = ( propValue as IEnumerable<object> ).ToList().AsDelimited( ", " );
+            }
+            else if ( propValue is DateTime? )
+            {
+                DateTime dateTimeValue = ( propValue as DateTime? ).Value;
+                var columnAttribute = prop.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>( true );
+                if ( ( columnAttribute != null && columnAttribute.Name == "Date" ) || prop.Name.EndsWith( "Date" ) )
                 {
-                    if ( prop.PropertyType == typeof( int? ) || prop.PropertyType == typeof( int ) )
-                    {
-                        // Attempt to parse the value as a single Defined Value Id.
-                        int definedValueId;
-
-                        if ( prop.PropertyType == typeof(int) )
-                        {
-                            definedValueId = (int)propValue;
-                        }
-                        else
-                        {
-                            definedValueId = (int?)propValue ?? 0;
-                        }
-
-                        if ( definedValueId > 0 )
-                        {
-                            var definedValue = DefinedValueCache.Read( definedValueId );
-                            value = definedValue != null ? definedValue.Value : definedValueId.ToString();
-                        }
-                    }
-                    else if ( prop.PropertyType == typeof( string ) )
-                    {
-                        // Attempt to parse the value as a list of Defined Value Guids.
-                        // If a value is not a Guid or cannot be matched to a Defined Value, the raw value will be shown.
-                        var guids = propValue.ToString().Split( ',' );
-                        var definedValues = new List<string>();
-
-                        foreach ( var guidString in guids )
-                        {
-                            Guid definedValueGuid;
-
-                            bool isGuid = Guid.TryParse( guidString, out definedValueGuid );
-                            bool addRaw = true;
-
-                            if ( isGuid )
-                            {
-                                var definedValue = DefinedValueCache.Read( definedValueGuid );
-
-                                if ( definedValue != null )
-                                {
-                                    definedValues.Add( definedValue.Value );
-                                    addRaw = false;
-                                }
-                            }
-
-                            if ( addRaw )
-                            {
-                                definedValues.Add(guidString);
-                            }
-                        }
-
-                        value = definedValues.AsDelimited( ", " );
-                    }
+                    value = dateTimeValue.ToShortDateString();
                 }
-                else if ( propValue is IEnumerable<object> )
+                else
                 {
-                    value = ( propValue as IEnumerable<object> ).ToList().AsDelimited( ", " );
+                    value = dateTimeValue.ToString();
                 }
-                else if ( propValue is DateTime? )
+            }
+            else
+            {
+                // Is the value a single link field? (such as a PersonLinkSelect field)
+                if ( propValue.ToString().Split( new string[] { "<a href=" }, StringSplitOptions.None ).Length - 1 == 1 )
                 {
-                    DateTime dateTimeValue = ( propValue as DateTime? ).Value;
-                    var columnAttribute = prop.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>( true );
-                    if (( columnAttribute != null && columnAttribute.Name == "Date" ) || prop.Name.EndsWith( "Date" ))
+                    try
                     {
-                        value = dateTimeValue.ToShortDateString();
+//<<<<<<< HEAD
+//                        // Attempt to parse the value as a single Defined Value Id.
+//                        int definedValueId;
+
+//                        if ( prop.PropertyType == typeof(int) )
+//                        {
+//                            definedValueId = (int)propValue;
+//                        }
+//                        else
+//                        {
+//                            definedValueId = (int?)propValue ?? 0;
+//                        }
+
+//                        if ( definedValueId > 0 )
+//                        {
+//                            var definedValue = DefinedValueCache.Read( definedValueId );
+//                            value = definedValue != null ? definedValue.Value : definedValueId.ToString();
+//                        }
+//=======
+                        System.Xml.XmlDocument htmlSnippet = new System.Xml.XmlDocument();
+                        htmlSnippet.Load( new StringReader( propValue.ToString() ) );
+                        // Select the hyperlink tag
+                        var aNode = htmlSnippet.GetElementsByTagName( "a" ).Item( 0 );
+                        string url = string.Format( "{0}{1}", this.RockBlock().RootPath, aNode.Attributes["href"].Value );
+                        cell.Hyperlink = new Uri( url );
+                        value = aNode.InnerText;
+//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
                     }
-                    else
+                    catch ( System.Xml.XmlException )
                     {
-                        value = dateTimeValue.ToString();
+                        value = propValue.ToString();
                     }
                 }
                 else
                 {
                     value = propValue.ToString();
                 }
+            }
+
+            return value;
+        }
+
+        /// <summary>
+        /// Formats a DefinedValue field from the Grid DataSource so that it is suitable for export to an Excel Worksheet.
+        /// </summary>
+        /// <param name="prop">The property.</param>
+        /// <param name="propValue">The property value.</param>
+        /// <returns></returns>
+        private string GetExportValueForDefinedValueField( PropertyInfo prop, object propValue )
+        {
+            // Get the formatted value string for export.
+            string value = string.Empty;
+
+            if ( propValue == null )
+            {
+                return value;
+            }
+
+//<<<<<<< HEAD
+//                            if ( addRaw )
+//                            {
+//                                definedValues.Add(guidString);
+//                            }
+//                        }
+//=======
+            if ( prop.PropertyType == typeof( int? ) || prop.PropertyType == typeof( int ) )
+            {
+                // Attempt to parse the value as a single Defined Value Id.
+                int definedValueId;
+//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
+
+                if ( prop.PropertyType == typeof( int ) )
+                {
+                    definedValueId = (int)propValue;
+                }
+                else
+                {
+                    definedValueId = (int?)propValue ?? 0;
+                }
+
+                if ( definedValueId > 0 )
+                {
+//<<<<<<< HEAD
+//                    DateTime dateTimeValue = ( propValue as DateTime? ).Value;
+//                    var columnAttribute = prop.GetCustomAttribute<System.ComponentModel.DataAnnotations.Schema.ColumnAttribute>( true );
+//                    if (( columnAttribute != null && columnAttribute.Name == "Date" ) || prop.Name.EndsWith( "Date" ))
+//                    {
+//                        value = dateTimeValue.ToShortDateString();
+//                    }
+//                    else
+//                    {
+//                        value = dateTimeValue.ToString();
+//                    }
+//=======
+                    var definedValue = DefinedValueCache.Read( definedValueId );
+                    value = definedValue != null ? definedValue.Value : definedValueId.ToString();
+//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
+                }
+            }
+            else if ( prop.PropertyType == typeof( string ) )
+            {
+                // Attempt to parse the value as a list of Defined Value Guids.
+                // If a value is not a Guid or cannot be matched to a Defined Value, the raw value will be shown.
+                var guids = propValue.ToString().Split( ',' );
+                var definedValues = new List<string>();
+
+                foreach ( var guidString in guids )
+                {
+//<<<<<<< HEAD
+//                    value = propValue.ToString();
+//=======
+                    Guid definedValueGuid;
+
+                    bool isGuid = Guid.TryParse( guidString, out definedValueGuid );
+                    bool addRaw = true;
+
+                    if ( isGuid )
+                    {
+                        var definedValue = DefinedValueCache.Read( definedValueGuid );
+
+                        if ( definedValue != null )
+                        {
+                            definedValues.Add( definedValue.Value );
+                            addRaw = false;
+                        }
+                    }
+
+                    if ( addRaw )
+                    {
+                        definedValues.Add( guidString );
+                    }
+//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
+                }
+
+                value = definedValues.AsDelimited( ", " );
             }
 
             return value;

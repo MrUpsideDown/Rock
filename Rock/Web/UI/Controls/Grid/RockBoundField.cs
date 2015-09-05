@@ -72,6 +72,40 @@ namespace Rock.Web.UI.Controls
         }
 
         /// <summary>
+        /// Formats the specified field value for a cell in the <see cref="T:System.Web.UI.WebControls.BoundField" /> object.
+        /// </summary>
+        /// <param name="dataValue">The field value to format.</param>
+        /// <param name="encode">true to encode the value; otherwise, false.</param>
+        /// <returns>
+        /// The field value converted to the format specified by <see cref="P:System.Web.UI.WebControls.BoundField.DataFormatString" />.
+        /// </returns>
+        public string GetFormattedDataValue( object dataValue, bool encode )
+        {
+            return this.FormatDataValue( dataValue, encode );
+        }
+
+        /// <summary>
+        /// Gets the value that should be exported to Excel
+        /// </summary>
+        /// <param name="row">The row.</param>
+        /// <returns></returns>
+        public virtual object GetExportValue( GridViewRow row )
+        {
+            if (row.DataItem == null)
+            {
+                return null;
+            }
+
+            if ( row.DataItem is System.Data.DataRowView )
+            {
+                var dataRow = ( (System.Data.DataRowView)row.DataItem ).Row;
+                return dataRow[this.DataField];
+            }
+
+            return row.DataItem.GetPropertyValue( this.DataField );
+        }
+
+        /// <summary>
         /// Performs basic instance initialization for a data control field.
         /// </summary>
         /// <param name="sortingEnabled">A value that indicates whether the control supports the sorting of columns of data.</param>
