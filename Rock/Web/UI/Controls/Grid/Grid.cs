@@ -31,6 +31,8 @@ using System.Web.UI.WebControls;
 using DotLiquid;
 using OfficeOpenXml;
 using Rock.Data;
+using Rock.Field;
+using Rock.Reporting;
 using Rock.Web.Cache;
 
 namespace Rock.Web.UI.Controls
@@ -1350,44 +1352,34 @@ namespace Rock.Web.UI.Controls
                     {
                         columnCounter++;
 
-                        //object propValue = prop.GetValue( item, null );
+                        object propValue = prop.GetValue( item, null );
+                        var gridDataField = mapPropertyToGridField[prop];
+                        var cell = worksheet.Cells[rowCounter, columnCounter];
 
-                        //var definedValueAttribute = prop.GetCustomAttributes( typeof( DefinedValueAttribute ), true ).FirstOrDefault();
+                        // Format the cell value data according to the column type.
+                        string value = string.Empty;
 
-                        //bool isDefinedValue = ( definedValueAttribute != null || definedValueFields.Any( f => f.DataField == prop.Name ) );
+                        if ( gridDataField is RockBoundField )
+                        {
+                            // If this is a BoundField, apply the field formatting supplied by the associated BoundField object.
+                            var cbField = gridDataField as RockBoundField;
 
-//<<<<<<< HEAD
-//                        string value = this.GetExportValue( prop, propValue, isDefinedValue );
+                            object exportValue = cbField.GetFormattedDataValue( propValue, true );
 
-//                        worksheet.Cells[rowCounter, columnCounter].Value = value.ConvertBrToCrLf();
+                            value = exportValue != null ? exportValue.ToString() : cell.Text;
+                            value = value.ConvertBrToCrLf();
+                        }
+                        else
+                        {
+                            // If this is an Entity Attribute, apply the field formatting supplied by the the associated Attribute object.
+                            var entityAttribute = EntityAttributeHelper.GetAttributeFromFieldName( prop.Name );                            
+                            bool isEntityAttribute = ( entityAttribute != null );
 
-//                        // format background color for alternating rows
-//                        if ( rowCounter % 2 == 1 )
-//                        {
-//                            worksheet.Cells[rowCounter, columnCounter].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-//                            worksheet.Cells[rowCounter, columnCounter].Style.Fill.BackgroundColor.SetColor( Color.FromArgb( 240, 240, 240 ) );
-//                        }
-
-//                        if ( propValue is DateTime )
-//                        {
-//                            worksheet.Cells[rowCounter, columnCounter].Style.Numberformat.Format = "MM/dd/yyyy hh:mm";
-//                        }
-//=======
-                            object propValue = prop.GetValue( item, null );
-                            var gridDataField = mapPropertyToGridField[prop];
-                            var cell = worksheet.Cells[rowCounter, columnCounter];
-
-                            string value = string.Empty;
-
-                            if ( gridDataField is RockBoundField )
+                            if (isEntityAttribute)
                             {
-                                // If this is a BoundField, apply the field formatting before output.
-                                var cbField = gridDataField as RockBoundField;
+                                var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
 
-                                object exportValue = cbField.GetFormattedDataValue( propValue, true );
-
-                                value = exportValue != null ? exportValue.ToString() : cell.Text;
-                                value = value.ConvertBrToCrLf();
+                                value = fieldType.FormatValue( null, propValue.ToStringSafe(), null, false );
                             }
                             else
                             {
@@ -1397,21 +1389,22 @@ namespace Rock.Web.UI.Controls
 
                                 if (isDefinedValue)
                                 {
+                                    // If this is a DefinedValueField, apply the field formatting supplied by the associated DefinedValue object.
                                     value = this.GetExportValueForDefinedValueField( prop, propValue ).ConvertBrToCrLf();
                                 }
                                 else
                                 {
+                                    // For all other fields, apply general formatting according to the raw data type.
                                     value = this.GetExportValueForUnboundField( prop, propValue, cell ).ConvertBrToCrLf();
                                 }
                             }
+                        }
 
-                            cell.Value = value;
-                            if ( value.Contains( Environment.NewLine ) )
-                            {
-                                cell.Style.WrapText = true;
-                            }
-//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
-
+                        cell.Value = value;
+                        if ( value.Contains( Environment.NewLine ) )
+                        {
+                            cell.Style.WrapText = true;
+                        }
                     }
 
                     if ( attributeFields.Any() )
@@ -1542,7 +1535,6 @@ namespace Rock.Web.UI.Controls
         /// <returns></returns>
         private string GetExportValueForUnboundField( PropertyInfo prop, object propValue, ExcelRange cell )
         {
-//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
             // Get the formatted value string for export.
             string value = string.Empty;
 
@@ -1575,25 +1567,6 @@ namespace Rock.Web.UI.Controls
                 {
                     try
                     {
-//<<<<<<< HEAD
-//                        // Attempt to parse the value as a single Defined Value Id.
-//                        int definedValueId;
-
-//                        if ( prop.PropertyType == typeof(int) )
-//                        {
-//                            definedValueId = (int)propValue;
-//                        }
-//                        else
-//                        {
-//                            definedValueId = (int?)propValue ?? 0;
-//                        }
-
-//                        if ( definedValueId > 0 )
-//                        {
-//                            var definedValue = DefinedValueCache.Read( definedValueId );
-//                            value = definedValue != null ? definedValue.Value : definedValueId.ToString();
-//                        }
-//=======
                         System.Xml.XmlDocument htmlSnippet = new System.Xml.XmlDocument();
                         htmlSnippet.Load( new StringReader( propValue.ToString() ) );
                         // Select the hyperlink tag
@@ -1601,7 +1574,6 @@ namespace Rock.Web.UI.Controls
                         string url = string.Format( "{0}{1}", this.RockBlock().RootPath, aNode.Attributes["href"].Value );
                         cell.Hyperlink = new Uri( url );
                         value = aNode.InnerText;
-//>>>>>>> 8dce3a6... + Fixed issue where Grid column with post-query formatting incorrectly outputs unformatted value in Excel Export (Fixes #1216).
                     }
                     catch ( System.Xml.XmlException )
                     {

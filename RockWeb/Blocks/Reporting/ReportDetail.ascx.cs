@@ -291,27 +291,22 @@ namespace RockWeb.Blocks.Reporting
                     {
                         var boundField = gReport.Columns[i] as BoundField;
 
-                        // AttributeFields are named in format "Attribute_{attributeId}_{columnIndex}". We need the attributeId portion
-                        if ( boundField != null && boundField.DataField.StartsWith( "Attribute_" ) )
+                        // Get the Entity Attribute associated with this Field.
+                        if ( boundField != null)
                         {
-                            if ( boundField is BoolField )
+                            if (boundField is BoolField)
                             {
                                 // let BoolFields take care of themselves
                             }
                             else
                             {
-                                string[] nameParts = boundField.DataField.Split( '_' );
-                                if ( nameParts.Count() > 1 )
+                                var attr = EntityAttributeHelper.GetAttributeFromFieldName( boundField.DataField );
+
+                                if (attr != null)
                                 {
-                                    string attributeIdPortion = nameParts[1];
-                                    int attributeID = attributeIdPortion.AsInteger();
-                                    if ( attributeID > 0 )
-                                    {
-                                        AttributeCache attr = AttributeCache.Read( attributeID );
-                                        var cell = e.Row.Cells[i];
-                                        string cellValue = HttpUtility.HtmlDecode( cell.Text ).Trim();
-                                        cell.Text = attr.FieldType.Field.FormatValue( cell, cellValue, attr.QualifierValues, true );
-                                    }
+                                    var cell = e.Row.Cells[i];
+                                    string cellValue = HttpUtility.HtmlDecode( cell.Text ).Trim();
+                                    cell.Text = attr.FieldType.Field.FormatValue( cell, cellValue, attr.QualifierValues, true );
                                 }
                             }
                         }
