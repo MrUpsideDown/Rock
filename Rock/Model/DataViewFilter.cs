@@ -27,6 +27,7 @@ using System.Text;
 using Rock.Data;
 using Rock.Reporting;
 using Rock.Security;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Model
 {
@@ -180,6 +181,10 @@ namespace Rock.Model
         /// <returns></returns>
         public virtual Expression GetExpression( Type filteredEntityType, IService serviceInstance, ParameterExpression parameter, List<string> errorMessages )
         {
+            Expression resultExp = null;
+
+            bool isNegated = ( ExpressionType == FilterExpressionType.GroupAnyFalse || ExpressionType == FilterExpressionType.GroupAllFalse );
+
             switch ( ExpressionType )
             {
                 case FilterExpressionType.Filter:
@@ -196,7 +201,7 @@ namespace Rock.Model
                                 {
                                     return component.GetExpression( filteredEntityType, serviceInstance, parameter, this.Selection );
                                 }
-                                catch (SystemException ex)
+                                catch ( SystemException ex )
                                 {
                                     errorMessages.Add( string.Format( "{0}: {1}", component.FormatSelection( filteredEntityType, this.Selection ), ex.Message ) );
                                 }
@@ -207,65 +212,93 @@ namespace Rock.Model
 
                 case FilterExpressionType.GroupAll:
                 case FilterExpressionType.GroupAnyFalse:
-
+                {
+                    // Combine the filters in the Filter Group using logical "AND".
                     Expression andExp = null;
-                    foreach ( var filter in this.ChildFilters )
-                    {
-                        Expression exp = filter.GetExpression( filteredEntityType, serviceInstance, parameter, errorMessages );
-                        if ( exp != null )
-                        {
-                            if ( andExp == null )
-                            {
-                                andExp = exp;
-                            }
-                            else
-                            {
 
-                                andExp = Expression.AndAlso( andExp, exp );
-                            }
+                    foreach (var filter in this.ChildFilters)
+                    {
+                        var exp = filter.GetExpression( filteredEntityType, serviceInstance, parameter, errorMessages );
+
+                        if (exp != null)
+                        {
+                            andExp = andExp == null ? exp : Expression.AndAlso( andExp, exp );
                         }
                     }
 
-                    if ( ExpressionType == FilterExpressionType.GroupAnyFalse
-                         && andExp != null )
-                    {
-                        // If only one of the conditions must be false, invert the expression so that it becomes the logical equivalent of "NOT ALL".
-                        andExp = Expression.Not( andExp );
-                    }
-
-                    return andExp;
-
+                    resultExp = andExp;
+                }
+                    break;
                 case FilterExpressionType.GroupAny:
                 case FilterExpressionType.GroupAllFalse:
-
+                {
+                    // Combine the filters in the Filter Group using logical "OR".
                     Expression orExp = null;
-                    foreach ( var filter in this.ChildFilters )
+
+                    foreach (var filter in this.ChildFilters)
                     {
-                        Expression exp = filter.GetExpression( filteredEntityType, serviceInstance, parameter, errorMessages );
-                        if ( exp != null )
+                        var exp = filter.GetExpression( filteredEntityType, serviceInstance, parameter, errorMessages );
+
+                        if (exp != null)
                         {
-                            if ( orExp == null )
-                            {
-                                orExp = exp;
-                            }
-                            else
-                            {
-                                orExp = Expression.OrElse( orExp, exp );
-                            }
+                            orExp = orExp == null ? exp : Expression.OrElse( orExp, exp );
                         }
                     }
 
-                    if ( ExpressionType == FilterExpressionType.GroupAllFalse
-                         && orExp != null )
-                    {
-                        // If all of the conditions must be false, invert the expression so that it becomes the logical equivalent of "NOT ANY".
-                        orExp = Expression.Not( orExp );
-                    }
-
-                    return orExp;
+                    resultExp = orExp;
+                }
+                    break;
             }
 
-            return null;
+            if ( isNegated )
+            {
+                resultExp = GetNegatedExpression( parameter, resultExp, serviceInstance );
+            }
+
+            return resultExp;
+        }
+
+        /// <summary>
+        /// Constructs a negated predicate expression for the supplied expression.
+        /// The negation is performed by constructing a sub-query to return all entities from the default repository except those selected by the supplied predicate.
+        /// This addresses the situation where the original predicate expression filters on related data that does not exist for every entity.
+        /// In this case, we need to return even those records for which a value does not exist, in similar fashion to a SQL Left Outer Join operation.
+        /// </summary>
+        /// <param name="parameterExpression">The parameter expression.</param>
+        /// <param name="predicateExpression">The predicate expression.</param>
+        /// <param name="serviceInstance">The service instance.</param>
+        /// <returns></returns>
+        private Expression GetNegatedExpression(ParameterExpression parameterExpression, Expression predicateExpression, IService serviceInstance)
+        {
+            // Retrieve the Get Method of the Service instance so we can call it to get the query results.
+            // TODO: Implement this method on an interface - eg. IQueryable<IEntity> IEntityService.Get(ParameterExpression parameter, Expression predicate, SortProperty sort)
+            var getMethod = serviceInstance.GetType().GetMethod( "Get", new Type[] { typeof( ParameterExpression ), typeof( Expression ), typeof( SortProperty ) } );
+
+            if ( getMethod == null )
+            {
+                return null;
+            }
+
+            var getResult = getMethod.Invoke( serviceInstance, new object[] { parameterExpression, predicateExpression, null } );
+
+            var innerQuery = getResult as IQueryable<IEntity>;
+
+            // Create a new Query to return all of the candidate Entities except those selected by the predicate Expression.
+            // TODO: Implement this method on an interface - eg. IQueryable<IEntity> IEntityService.Queryable()
+            var queryableMethod = serviceInstance.GetType().GetMethod( "Queryable", new Type[] { } );
+
+            var query = queryableMethod.Invoke( serviceInstance, new object[] { } ) as IQueryable<IEntity>;
+
+            if ( query == null )
+            {
+                return null;
+            }
+
+            query = query.Where( o => !innerQuery.Any( x => x.Id == o.Id ) );
+
+            var negatedExpression = FilterExpressionExtractor.Extract( query, parameterExpression, "o" );
+
+            return negatedExpression;
         }
 
         /// <summary>

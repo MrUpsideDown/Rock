@@ -71,11 +71,37 @@ namespace Rock.Reporting
         /// <param name="parameterExpression">The original parameter expression.</param>
         /// <param name="parameterName">Name of the parameter (forexample: 'p') from the qry to replace with the parameterExpression.</param>
         /// <returns></returns>
+        [Obsolete("The generic Type parameter is not required")]
         public static Expression Extract<T>( IQueryable qry, ParameterExpression parameterExpression, string parameterName )
         {
             MethodCallExpression methodCallExpression = qry.Expression as MethodCallExpression;
             Expression<Func<LambdaExpression>> executionLambda = Expression.Lambda<Func<LambdaExpression>>( methodCallExpression.Arguments[1] );
             Expression extractedExpression = ( executionLambda.Compile().Invoke() as Expression<Func<T, bool>> ).Body;
+
+            var filterExpressionVisitor = new ParameterExpressionVisitor( parameterExpression, parameterName );
+
+            return filterExpressionVisitor.Visit( extractedExpression );
+        }
+
+        /// <summary>
+        /// Extracts the "Where" clause Expression from an IQueryable
+        /// </summary>
+        /// <param name="qry">The qry.</param>
+        /// <param name="parameterExpression">The original parameter expression.</param>
+        /// <param name="parameterName">Name of the parameter (forexample: 'p') from the qry to replace with the parameterExpression.</param>
+        /// <returns></returns>
+        public static Expression Extract( IQueryable qry, ParameterExpression parameterExpression, string parameterName )
+        {
+            var methodCallExpression = qry.Expression as MethodCallExpression;
+
+            if (methodCallExpression == null)
+            {
+                return null;
+            }
+
+            var executionLambda = Expression.Lambda<Func<LambdaExpression>>( methodCallExpression.Arguments[1] );
+            
+            var extractedExpression = ( executionLambda.Compile().Invoke() ).Body;
 
             var filterExpressionVisitor = new ParameterExpressionVisitor( parameterExpression, parameterName );
 
