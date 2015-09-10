@@ -40,7 +40,7 @@ namespace Rock.Web.UI.Controls
         {
             if (dataValue == null)
             {
-                return null;
+                return string.Empty;
             }
             
             var dataType = dataValue.GetType();

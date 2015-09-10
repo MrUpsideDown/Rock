@@ -1371,7 +1371,7 @@ namespace Rock.Web.UI.Controls
                         }
                         else
                         {
-                            // If this is an Entity Attribute, apply the field formatting supplied by the the associated Attribute object.
+                            // If this is an Entity Attribute, apply the field formatting supplied by the associated Attribute object.
                             var entityAttribute = EntityAttributeHelper.GetAttributeFromFieldName( prop.Name );                            
                             bool isEntityAttribute = ( entityAttribute != null );
 
