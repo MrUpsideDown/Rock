@@ -1,0 +1,22 @@
+﻿@import url("theme_default.css");
+
+#content-wrapper header .navbar-default
+  {
+    background-color: #3399FF; // light-blue
+  }
+
+.navbar-static-side
+  {
+    background-color: #3399FF; // light-blue
+  }
+
+.navbar-static-side .navbar-header
+  {
+    background-color: #3399FF; // light-blue
+  }
+
+body
+  {  
+    background-color: #3399FF; // light-blue
+  }
+
