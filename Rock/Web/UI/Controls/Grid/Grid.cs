@@ -1359,47 +1359,30 @@ namespace Rock.Web.UI.Controls
                         // Format the cell value data according to the column type.
                         string value = string.Empty;
 
-                        if ( gridDataField is RockBoundField )
+                        // If this is an Entity Attribute, apply the field formatting supplied by the associated Attribute object.
+                        var entityAttribute = EntityAttributeHelper.GetAttributeFromFieldName( prop.Name );                            
+                        bool isEntityAttribute = ( entityAttribute != null );
+
+                        if (isEntityAttribute)
                         {
-                            // If this is a BoundField, apply the field formatting supplied by the associated BoundField object.
-                            var cbField = gridDataField as RockBoundField;
+                            var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
 
-                            object exportValue = cbField.GetFormattedDataValue( propValue, true );
-
-                            value = exportValue != null ? exportValue.ToString() : cell.Text;
-                            value = value.ConvertBrToCrLf();
+                            value = fieldType.FormatValue( null, propValue.ToStringSafe(), entityAttribute.QualifierValues, false );
                         }
+                        else if ( gridDataField is RockBoundField )
+                            {
+                                // If this is a BoundField, apply the field formatting supplied by the associated BoundField object.
+                                var cbField = gridDataField as RockBoundField;
+
+                                object exportValue = cbField.GetFormattedDataValue( propValue, true );
+
+                                value = exportValue != null ? exportValue.ToString() : cell.Text;
+                                value = value.ConvertBrToCrLf();
+                            }
                         else
                         {
-                            // If this is an Entity Attribute, apply the field formatting supplied by the associated Attribute object.
-                            var entityAttribute = EntityAttributeHelper.GetAttributeFromFieldName( prop.Name );                            
-                            bool isEntityAttribute = ( entityAttribute != null );
-
-                            if (isEntityAttribute)
-                            {
-                                var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
-
-                                value = fieldType.FormatValue( null, propValue.ToStringSafe(), null, false );
-                            }
-                            else
-                            {
-                                // TODO: This method of processing DefinedValues has been replaced by the BoundField processing above.
-                                // TODO: 10/09/2015 - Reinstate this code if a problem is found during testing.
-                                //var definedValueAttribute = prop.GetCustomAttributes( typeof( DefinedValueAttribute ), true ).FirstOrDefault();
-
-                                //bool isDefinedValue = ( definedValueAttribute != null || definedValueFields.Any( f => f.DataField == prop.Name ) );
-
-                                //if (isDefinedValue)
-                                //{
-                                //    // If this is a DefinedValueField, apply the field formatting supplied by the associated DefinedValue object.
-                                //    value = this.GetExportValueForDefinedValueField( prop, propValue ).ConvertBrToCrLf();
-                                //}
-                                //else
-                                //{
-                                    // For all other fields, apply general formatting according to the raw data type.
-                                    value = this.GetExportValueForUnboundField( prop, propValue, cell ).ConvertBrToCrLf();
-                                //}
-                            }
+                            // For all other fields, apply formatting according to the raw data type.
+                            value = this.GetExportValueForUnboundField( prop, propValue, cell ).ConvertBrToCrLf();
                         }
 
                         cell.Value = value;

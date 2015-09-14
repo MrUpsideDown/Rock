@@ -38,65 +38,12 @@ namespace Rock.Web.UI.Controls
         /// </returns>
         protected override string FormatDataValue(object dataValue, bool encode)
         {
-            if (dataValue == null)
-            {
-                return string.Empty;
-            }
-            
-            var dataType = dataValue.GetType();
-
-            if ( dataType == typeof( int? ) || dataType == typeof( int ) )
-            {
-                // Attempt to parse the value as a single Defined Value Id.
-                int definedValueId;
-
-                if ( dataType == typeof( int ) )
-                {
-                    definedValueId = (int)dataValue;
-                }
-                else
-                {
-                    definedValueId = (int?)dataValue ?? 0;
-                }
-
-                dataValue = Rock.Web.Cache.DefinedValueCache.Read( definedValueId ).Value;
-            }
-            else if ( dataType == typeof( string ) )
-            {
-                // Attempt to parse the value as a list of Defined Value Guids.
-                // If a value is not a Guid or cannot be matched to a Defined Value, the raw value will be shown.
-                var guids = dataValue.ToString().Split( ',' );
-
-                var definedValues = new List<string>();
-
-                foreach ( var guidString in guids )
-                {
-                    Guid definedValueGuid;
-
-                    bool isGuid = Guid.TryParse( guidString, out definedValueGuid );
-                    bool addRaw = true;
-
-                    if ( isGuid )
-                    {
-                        var definedValue = DefinedValueCache.Read( definedValueGuid );
-
-                        if ( definedValue != null )
-                        {
-                            definedValues.Add( definedValue.Value );
-                            addRaw = false;
-                        }
-                    }
-
-                    if ( addRaw )
-                    {
-                        definedValues.Add( guidString );
-                    }
-                }
-
-                dataValue = definedValues.AsDelimited( ", " );
-            }
-
-            return base.FormatDataValue(dataValue, encode);
+             if (dataValue is int)
+             {
+                 dataValue = Rock.Web.Cache.DefinedValueCache.Read((int)dataValue).Value;
+             }
+ 
+             return base.FormatDataValue(dataValue, encode);
         }
     }
 }

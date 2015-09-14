@@ -175,7 +175,9 @@ namespace Rock.Field.Types
         /// <returns></returns>
         public override string FormatValue( System.Web.UI.Control parentControl, string value, Dictionary<string, ConfigurationValue> configurationValues, bool condensed )
         {
-            if ( !string.IsNullOrWhiteSpace( value ) && configurationValues.ContainsKey( "values" ) )
+            if ( !string.IsNullOrWhiteSpace( value )
+                 && configurationValues != null
+                 && configurationValues.ContainsKey( "values" ) )
             {
                 var configuredValues = GetConfiguredValues( configurationValues );
                 var selectedValues = value.Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ).ToList();
