@@ -178,8 +178,7 @@ namespace Rock.Field.Types
             if ( !string.IsNullOrWhiteSpace( value ) )
             {
                 bool useDescription = false;
-                if ( !condensed &&
-                     configurationValues != null &&
+                if ( configurationValues != null &&
                      configurationValues.ContainsKey( DISPLAY_DESCRIPTION ) &&
                      configurationValues[DISPLAY_DESCRIPTION].Value.AsBoolean() )
                 {
