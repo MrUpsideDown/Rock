@@ -105,7 +105,10 @@ namespace RockWeb.Blocks.Crm.PersonDetail
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void ddlRecordStatus_SelectedIndexChanged( object sender, EventArgs e )
         {
-            ddlReason.Visible = ( ddlRecordStatus.SelectedValueAsInt() == DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE ) ).Id );
+            bool showInactiveReason = ( ddlRecordStatus.SelectedValueAsInt() == DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE ) ).Id );
+            
+            ddlReason.Visible = showInactiveReason;
+            tbInactiveReasonNote.Visible = showInactiveReason;
         }
 
         /// <summary>
@@ -332,6 +335,9 @@ namespace RockWeb.Blocks.Crm.PersonDetail
                     History.EvaluateChange( changes, "Inactive Reason", DefinedValueCache.GetName( person.RecordStatusReasonValueId ), DefinedValueCache.GetName( newRecordStatusReasonId ) );
                     person.RecordStatusReasonValueId = newRecordStatusReasonId;
 
+                    History.EvaluateChange( changes, "Inactive Reason Note", person.InactiveReasonNote, tbInactiveReasonNote.Text );
+                    person.InactiveReasonNote = tbInactiveReasonNote.Text.Trim();
+
                     if ( person.IsValid )
                     {
                         if ( rockContext.SaveChanges() > 0 )
@@ -427,8 +433,13 @@ namespace RockWeb.Blocks.Crm.PersonDetail
 
             ddlRecordStatus.SelectedValue = Person.RecordStatusValueId.HasValue ? Person.RecordStatusValueId.Value.ToString() : string.Empty;
             ddlReason.SelectedValue = Person.RecordStatusReasonValueId.HasValue ? Person.RecordStatusReasonValueId.Value.ToString() : string.Empty;
-            ddlReason.Visible = Person.RecordStatusReasonValueId.HasValue &&
-                Person.RecordStatusValueId.Value == DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE ) ).Id;
+            tbInactiveReasonNote.Text = Person.InactiveReasonNote;
+
+            bool showInactiveReason = ( Person.RecordStatusValueId.HasValue
+                                        && Person.RecordStatusValueId.Value == DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_RECORD_STATUS_INACTIVE ) ).Id );
+
+            ddlReason.Visible = showInactiveReason;
+            tbInactiveReasonNote.Visible = showInactiveReason;
 
             var mobilePhoneType = DefinedValueCache.Read( new Guid( Rock.SystemGuid.DefinedValue.PERSON_PHONE_TYPE_MOBILE ) );
 
