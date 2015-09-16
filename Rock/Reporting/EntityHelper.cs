@@ -50,17 +50,14 @@ namespace Rock.Reporting
                 }
             }
 
-            if ( entityFields == null )
-            {
-                entityFields = new List<EntityField>();
-            }
+            entityFields = new List<EntityField>();
 
             // Find all non-virtual properties or properties that have the [IncludeForReporting] attribute
             var entityProperties = entityType.GetProperties().ToList();
             var filteredEntityProperties = entityProperties
-                .Where( p => 
-                    !p.GetGetMethod().IsVirtual || 
-                    p.GetCustomAttributes( typeof( IncludeForReportingAttribute ), true ).Any() || 
+                .Where( p =>
+                    !p.GetGetMethod().IsVirtual ||
+                    p.GetCustomAttributes( typeof( IncludeForReportingAttribute ), true ).Any() ||
                     p.Name == "Order" )
                 .ToList();
 
@@ -70,15 +67,84 @@ namespace Rock.Reporting
                 bool isReportable = !property.GetCustomAttributes( typeof( HideFromReportingAttribute ), true ).Any();
                 if ( !includeOnlyReportingFields || isReportable )
                 {
+                    //
+                    // Determine the appropriate Field Type for this Property.
+                    //
+
+                    // Check if the Field Type has been explicitly set using an Attribute.
+                    string fieldTypeGuidText = null;
+
+                    var reportingFieldAttribute = property.GetCustomAttributes( typeof( Rock.Data.ReportingFieldAttribute ), true ).FirstOrDefault() as ReportingFieldAttribute;
+
+                    if ( reportingFieldAttribute != null )
+                    {
+                        fieldTypeGuidText = reportingFieldAttribute.FilterFieldTypeGuid.AsGuidOrNull().ToStringSafe();
+                    }
+                    else
+                    {
+                        // Infer the Field Type from the Property Type.
+                        // Enum Properties
+                        if ( property.PropertyType.IsEnum )
+                        {
+                            fieldTypeGuidText = SystemGuid.FieldType.SINGLE_SELECT;
+                        }
+                        // Boolean properties
+                        else if ( property.PropertyType == typeof( bool ) || property.PropertyType == typeof( bool? ) )
+                        {
+                            fieldTypeGuidText = SystemGuid.FieldType.BOOLEAN;
+                        }
+                        // Datetime properties
+                        else if ( property.PropertyType == typeof( DateTime ) || property.PropertyType == typeof( DateTime? ) )
+                        {
+                            var colAttr = property.GetCustomAttributes( typeof( ColumnAttribute ), true ).FirstOrDefault();
+                            if ( colAttr != null && ( (ColumnAttribute)colAttr ).TypeName == "Date" )
+                            {
+                                fieldTypeGuidText = SystemGuid.FieldType.DATE;
+                            }
+                            else
+                            {
+                                fieldTypeGuidText = SystemGuid.FieldType.DATE_TIME;
+                            }
+                        }
+                        // Decimal properties
+                        else if ( property.PropertyType == typeof( decimal ) || property.PropertyType == typeof( decimal? ) )
+                        {
+                            fieldTypeGuidText = SystemGuid.FieldType.DECIMAL;
+                        }
+                        // Text Properties
+                        else if ( property.PropertyType == typeof( string ) )
+                        {
+                            fieldTypeGuidText = SystemGuid.FieldType.TEXT;
+                        }
+                        // Integer Properties
+                        else if ( property.PropertyType == typeof( int ) || property.PropertyType == typeof( int? ) )
+                        {                            
+                            var definedValueAttribute = property.GetCustomAttributes( typeof( Rock.Data.DefinedValueAttribute ), true ).FirstOrDefault();
+                            if ( definedValueAttribute != null )
+                            {
+                                fieldTypeGuidText = SystemGuid.FieldType.DEFINED_VALUE;
+                            }
+                            else
+                            {
+                                fieldTypeGuidText = SystemGuid.FieldType.INTEGER;    
+                            }
+                        }
+                    }
 
                     EntityField entityField = new EntityField( property.Name, FieldKind.Property, property.PropertyType );
                     entityField.IsPreviewable = property.GetCustomAttributes( typeof( PreviewableAttribute ), true ).Any();
 
-                    // Enum Properties
-                    if ( property.PropertyType.IsEnum )
-                    {
-                        entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.SINGLE_SELECT.AsGuid() );
+                    entityField.FieldType = FieldTypeCache.Read( fieldTypeGuidText.AsGuid() );
 
+                    entityField.IsPreviewable = property.GetCustomAttributes( typeof( ReportingFieldAttribute ), true ).Any();
+
+                    //
+                    // Set additional configuration for some Field Types.
+                    //
+
+                    // Single Select Field
+                    if ( fieldTypeGuidText == SystemGuid.FieldType.SINGLE_SELECT )
+                    {
                         var list = new List<string>();
                         foreach ( var value in Enum.GetValues( property.PropertyType ) )
                         {
@@ -89,48 +155,13 @@ namespace Rock.Reporting
                         entityField.FieldConfig.Add( "values", new Field.ConfigurationValue( listSource ) );
                         entityField.FieldConfig.Add( "fieldtype", new Field.ConfigurationValue( "rb" ) );
                     }
-
-                    // Boolean properties
-                    else if ( property.PropertyType == typeof( bool ) || property.PropertyType == typeof( bool? ) )
+                    // Defined Value Field
+                    else if ( fieldTypeGuidText == SystemGuid.FieldType.DEFINED_VALUE )
                     {
-                        entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.BOOLEAN.AsGuid() );
-                    }
-
-                    // Datetime properties
-                    else if ( property.PropertyType == typeof( DateTime ) || property.PropertyType == typeof( DateTime? ) )
-                    {
-                        var colAttr = property.GetCustomAttributes( typeof( ColumnAttribute ), true ).FirstOrDefault();
-                        if ( colAttr != null && ( (ColumnAttribute)colAttr ).TypeName == "Date" )
-                        {
-                            entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.DATE.AsGuid() );
-                        }
-                        else
-                        {
-                            entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.DATE_TIME.AsGuid() );
-                        }
-                    }
-
-                    // Decimal properties
-                    else if ( property.PropertyType == typeof( decimal ) || property.PropertyType == typeof( decimal? ) )
-                    {
-                        entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.DECIMAL.AsGuid() );
-                    }
-
-                    // Text Properties
-                    else if ( property.PropertyType == typeof( string ) )
-                    {
-                        entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.TEXT.AsGuid() );
-                    }
-
-                    // Integer Properties
-                    else if ( property.PropertyType == typeof( int ) || property.PropertyType == typeof( int? ) )
-                    {
-                        entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.INTEGER.AsGuid() );
-
                         var definedValueAttribute = property.GetCustomAttributes( typeof( Rock.Data.DefinedValueAttribute ), true ).FirstOrDefault();
+
                         if ( definedValueAttribute != null )
                         {
-                            // Defined Value Properties
                             Guid? definedTypeGuid = ( (Rock.Data.DefinedValueAttribute)definedValueAttribute ).DefinedTypeGuid;
                             if ( definedTypeGuid.HasValue )
                             {
@@ -138,14 +169,13 @@ namespace Rock.Reporting
                                 entityField.Title = definedType != null ? definedType.Name : property.Name.Replace( "ValueId", string.Empty ).SplitCase();
                                 if ( definedType != null )
                                 {
-                                    entityField.FieldType = FieldTypeCache.Read( SystemGuid.FieldType.DEFINED_VALUE.AsGuid() );
                                     entityField.FieldConfig.Add( "definedtype", new Field.ConfigurationValue( definedType.Id.ToString() ) );
                                 }
                             }
                         }
                     }
 
-                    if ( entityField != null && entityField.FieldType != null )
+                    if ( entityField.FieldType != null )
                     {
                         entityFields.Add( entityField );
                     }

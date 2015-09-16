@@ -794,6 +794,7 @@ namespace Rock.Model
         /// </value>
         [DataMember]
         [DatabaseGenerated( DatabaseGeneratedOption.Computed )]
+        [ReportingField( FilterFieldTypeGuid = SystemGuid.FieldType.DATE )]
         public DateTime? BirthDate
         {
             get
