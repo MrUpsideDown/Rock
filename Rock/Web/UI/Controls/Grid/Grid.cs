@@ -1753,9 +1753,11 @@ namespace Rock.Web.UI.Controls
 
             foreach ( var property in modelType.GetProperties() )
             {
+                bool isPreviewable = property.GetCustomAttributes( typeof(Rock.Data.PreviewableAttribute) ).Any();
+
                 // limit to non-virtual methods to prevent lazy loading issues
                 var getMethod = property.GetGetMethod();
-                if ( !getMethod.IsVirtual )
+                if ( !getMethod.IsVirtual || isPreviewable )
                 {
                     if ( property.Name != "Id" )
                     {
