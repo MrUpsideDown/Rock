@@ -15,6 +15,7 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Web.UI;
 
@@ -50,10 +51,56 @@ namespace Rock.Web.Utilities
         ///     collection. The parent name prefix is not required if the controls in the collection have the same parent.
         /// </param>
         /// <returns></returns>
-        public static TControl GetByName<TControl>( this Control[] controls, string controlName )
-            where TControl : class
+        public static TControl GetByName<TControl>( this ControlCollection controls, string controlName )
+            where TControl : System.Web.UI.Control
         {
-            var matchingControls = controls.Where( x => x.ID.Equals( controlName ) || x.ID.EndsWith( "_" + controlName ) ).ToList();
+            var controlsList = new List<Control>();
+
+            foreach (var c in controls)
+            {
+                controlsList.Add( c as Control );
+            }
+
+            return GetByName<TControl>( controlsList.ToArray(), controlName );
+        }
+
+        /// <summary>
+        /// Specifies the depth of a search in a hierarchy of container controls.
+        /// </summary>
+        public enum SearchDepthSpecifier
+        {
+            IncludeChildControls = 0,
+            ExcludeChildControls = 1
+        }
+
+        /// <summary>
+        ///     Retrieves a control from the specified collection by Name.
+        /// </summary>
+        /// <typeparam name="TControl"></typeparam>
+        /// <param name="controls"></param>
+        /// <param name="controlName">
+        ///     The name of the control which distinguishes it from other controls in the supplied
+        ///     collection. The parent name prefix is not required if the controls in the collection have the same parent.
+        /// </param>
+        /// <param name="searchDepth">The depth of search to perform.</param>
+        /// <returns></returns>
+        public static TControl GetByName<TControl>( this IEnumerable<Control> controls, string controlName, SearchDepthSpecifier searchDepth = SearchDepthSpecifier.IncludeChildControls )
+            where TControl : System.Web.UI.Control
+        {
+            List<Control> matchingControls;
+
+            if (searchDepth == SearchDepthSpecifier.IncludeChildControls)
+            {
+                matchingControls = new List<Control>();
+
+                GetByNameRecursive<TControl>( controls, controlName, matchingControls );
+            }
+            else
+            {
+                matchingControls = controls.ToList();
+            }
+            
+            matchingControls = matchingControls.Where( x => x.ID.Equals( controlName ) || x.ID.EndsWith( "_" + controlName ) ).ToList();
 
             if (matchingControls.Count == 0)
             {
@@ -72,6 +119,34 @@ namespace Rock.Web.Utilities
             }
 
             return (TControl)control;
+        }
+
+        /// <summary>
+        /// Gets all controls in a container having the specified Id.
+        /// </summary>
+        /// <param name="controls">The control collection.</param>
+        /// <param name="id">The id of the control to find.</param>
+        /// <param name="resultCollection">The result collection.</param>
+        private static void GetByNameRecursive<TControl>( IEnumerable<System.Web.UI.Control> controls, string id, List<System.Web.UI.Control> resultCollection )
+            where TControl : System.Web.UI.Control
+        { 
+            foreach ( System.Web.UI.Control control in controls )
+            {
+                if (control is TControl)
+                {
+                    if (control.ID.Equals( id, StringComparison.OrdinalIgnoreCase )
+                        || control.ID.EndsWith( "_" + id ))
+                    {
+                        resultCollection.Add( control );
+                    }
+                }
+                if (control.HasControls())
+                {
+                    var childControls = control.Controls.Cast<Control>().ToList();
+
+                    GetByNameRecursive<TControl>( childControls, id, resultCollection );
+                }
+            }
         }
     }
 }

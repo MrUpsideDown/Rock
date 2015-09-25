@@ -295,6 +295,7 @@
     <Compile Include="PersonProfile\Badge\DISC.cs" />
     <Compile Include="Reporting\ComparisonHelper.cs" />
     <Compile Include="Reporting\DataFilter\GroupMembers\GroupDataViewFilter.cs" />
+    <Compile Include="Reporting\DataFilter\GroupMembers\GroupMemberAttributesFilter.cs" />
     <Compile Include="Reporting\EntityAttributeHelper.cs" />
     <Compile Include="Reporting\DataComponentSettingsHelper.cs" />
     <Compile Include="Reporting\DataFilter\BaseAccountFilter.cs" />

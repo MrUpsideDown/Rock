@@ -2179,7 +2179,7 @@ namespace Rock
         /// <param name="items">The items.</param>
         /// <param name="delimiter">The delimiter.</param>
         /// <returns></returns>
-        public static string AsDelimited<T>( this List<T> items, string delimiter )
+        public static string AsDelimited<T>( this IEnumerable<T> items, string delimiter )
         {
             List<string> strings = new List<string>();
             foreach ( T item in items )
