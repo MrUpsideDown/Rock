@@ -105,6 +105,7 @@ namespace Rock.Model
         /// A <see cref="Rock.Model.Person"/> representing the person who is the GroupMember.
         /// </value>
         [DataMember]
+        [Previewable]
         public virtual Model.Person Person { get; set; }
         
         /// <summary>
@@ -113,6 +114,7 @@ namespace Rock.Model
         /// <value>
         /// A <see cref="Rock.Model.Group"/> representing the Group that the GroupMember is a part of.
         /// </value>
+        [Previewable]
         public virtual Group Group { get; set; }
         
         /// <summary>
@@ -122,6 +124,7 @@ namespace Rock.Model
         /// A <see cref="Rock.Model.GroupTypeRole"/> representing the GroupMember's <see cref="Rock.Model.GroupTypeRole"/> in the <see cref="Rock.Model.Group"/>.
         /// </value>
         [DataMember]
+        [Previewable]
         public virtual GroupTypeRole GroupRole { get; set; }
 
         #endregion
