@@ -141,7 +141,7 @@ namespace Rock.Reporting.DataSelect.Person
             //
 
             // Set the Output Format of the field.
-            Expression<Func<GroupMember, string>> outputExpression;
+            Expression<Func<Rock.Model.GroupMember, string>> outputExpression;
 
             switch ( settings.ListFormat )
             {

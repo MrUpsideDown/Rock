@@ -18,8 +18,6 @@ using System;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
-using Rock;
-
 namespace Rock.Web.UI.Controls
 {
     /// <summary>
@@ -80,6 +78,11 @@ namespace Rock.Web.UI.Controls
         /// </returns>
         protected override string FormatDataValue( object dataValue, bool encode )
         {
+            if ( dataValue == null )
+            {
+                return string.Empty;
+            }
+
             if ( FormatAsElapsedTime )
             {
                 DateTime dateValue = DateTime.MinValue;
@@ -90,12 +93,39 @@ namespace Rock.Web.UI.Controls
 
                 if ( dataValue is DateTime? )
                 {
-                    dateValue = ( (DateTime?)dataValue ) ?? DateTime.MinValue; ;
+                    dateValue = ( (DateTime?)dataValue ) ?? DateTime.MinValue;
                 }
 
                 if ( dateValue != DateTime.MinValue )
                 {
                     return string.Format( "<span class='date-field' title='{0}'>{1}</span>", dateValue.ToString(), dateValue.ToElapsedString() );
+                }
+            }
+            else
+            {
+                // Format the value as a Short Date Time.
+                if ( dataValue is DateTime )
+                {
+                    DateTime dateValue = (DateTime)dataValue;
+
+                    return dateValue.ToShortDateString();
+                }
+                else if ( dataValue is DateTime? )
+                {
+                    DateTime? dateValue = (DateTime?)dataValue;
+
+                    return dateValue.HasValue ? dateValue.Value.ToShortDateString() : string.Empty;
+                }
+                else
+                {
+                    DateTime dt;
+
+                    bool isValid = DateTime.TryParse( dataValue.ToString(), out dt );
+
+                    if ( isValid )
+                    {
+                        return dt.ToShortDateString();
+                    }
                 }
             }
 
