@@ -1374,7 +1374,7 @@ namespace Rock.Web.UI.Controls
                                 // If this is a BoundField, apply the field formatting supplied by the associated BoundField object.
                                 var cbField = gridDataField as RockBoundField;
 
-                                object exportValue = cbField.GetFormattedDataValue( propValue, true );
+                                object exportValue = cbField.GetFormattedDataValue( propValue, false );
 
                                 value = exportValue != null ? exportValue.ToString() : cell.Text;
                                 value = value.ConvertBrToCrLf();

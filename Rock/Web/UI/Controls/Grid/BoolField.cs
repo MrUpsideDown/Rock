@@ -49,10 +49,19 @@ namespace Rock.Web.UI.Controls
 
             bool boolValue = value.AsBoolean();
 
-            if ( boolValue )
-                return "<i class=\"fa fa-check\"></i>";
+            if (encode)
+            {
+                // Return HTML markup to display a checkbox.
+                if (boolValue)
+                    return "<i class=\"fa fa-check\"></i>";
+                else
+                    return "";
+            }
             else
-                return "";
+            {
+                // Return the raw value.
+                return boolValue ? "Yes" : "No";
+            }
         }
     }
 }
