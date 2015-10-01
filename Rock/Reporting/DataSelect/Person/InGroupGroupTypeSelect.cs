@@ -125,7 +125,7 @@ namespace Rock.Reporting.DataSelect.Person
                 GroupMemberService groupMemberService = new GroupMemberService( context );
                 Guid groupTypeGuid = selectionValues[0].AsGuid();
 
-                var groupMemberServiceQry = groupMemberService.Queryable().Where( xx => xx.Group.GroupType.Guid == groupTypeGuid );
+                var groupMemberServiceQry = groupMemberService.Queryable().Where( xx => xx.Group.GroupType.Guid == groupTypeGuid && xx.GroupMemberStatus == GroupMemberStatus.Active );
 
                 var groupRoleGuids = selectionValues[1].Split( new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries ).Select( n => n.AsGuid() ).ToList();
                 if ( groupRoleGuids.Count() > 0 )
