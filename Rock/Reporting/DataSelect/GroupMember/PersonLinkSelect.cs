@@ -21,13 +21,14 @@ using System.Linq;
 using System.Web.UI.WebControls;
 using Rock.Attribute;
 using Rock.Model;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Reporting.DataSelect.GroupMember
 {
     /// <summary>
     /// Report Field for Group Member Person.
     /// </summary>
-    [Description( "Show person's name as a optional link that navigates to the person's record" )]
+    [Description( "Show the name of the person as a navigable link to the person detail page" )]
     [Export( typeof( DataSelectComponent ) )]
     [ExportMetadata( "ComponentName", "Select Person Name" )]
     [BooleanField( "Show As Link", "", true )]
@@ -93,6 +94,11 @@ namespace Rock.Reporting.DataSelect.GroupMember
             return result;
         }
 
+        public override Type ColumnFieldType
+        {
+            get { return typeof( FormattedDataValue ); }
+        }
+
         /// <summary>
         /// Gets the expression.
         /// </summary>
@@ -104,39 +110,37 @@ namespace Rock.Reporting.DataSelect.GroupMember
         {
             bool showAsLink = this.GetAttributeValueFromSelection( "ShowAsLink", selection ).AsBooleanOrNull() ?? false;
             int displayOrder = this.GetAttributeValueFromSelection( "DisplayOrder", selection ).AsIntegerOrNull() ?? 0;
-            
+
             var memberQuery = new GroupMemberService( context ).Queryable();
 
-            IQueryable<string> personLinkQuery;
-            
+            IQueryable<FormattedDataValue> personLinkQuery;
+
             if ( showAsLink )
             {
-                // Return a string in the format: <a href='/person/{personId}'>LastName, NickName</a>
-                // Prepend with a HTML comment to ensure that items are sorted correctly.
                 if ( displayOrder == 0 )
                 {
-                    personLinkQuery = memberQuery.Select( gm => "<!--" + gm.Person.NickName + " " + gm.Person.LastName + "--><a href='/person/" + gm.PersonId.ToString() + "'>" + gm.Person.NickName + " " + gm.Person.LastName + "</a>" );
+                    personLinkQuery = memberQuery.Select( gm => new HtmlLinkDataValue { SourceValue = gm.Person.NickName + " " + gm.Person.LastName, Url = "/person/" + gm.PersonId.ToString() } );
                 }
                 else
                 {
-                    personLinkQuery = memberQuery.Select( gm => "<!--" + gm.Person.LastName + ", " + gm.Person.NickName + "--><a href='/person/" + gm.PersonId.ToString() + "'>" + gm.Person.LastName + ", " + gm.Person.NickName + "</a>" );
+                    personLinkQuery = memberQuery.Select( gm => new HtmlLinkDataValue { SourceValue = gm.Person.LastName + ", " + gm.Person.NickName, Url = "/person/" + gm.PersonId.ToString() } );
                 }
             }
             else
             {
                 if ( displayOrder == 0 )
                 {
-                    personLinkQuery = memberQuery.Select( gm => gm.Person.NickName + " " + gm.Person.LastName );
+                    personLinkQuery = memberQuery.Select( gm => new FormattedDataValue { SourceValue = gm.Person.LastName + ", " + gm.Person.NickName } );
                 }
                 else
                 {
-                    personLinkQuery = memberQuery.Select( gm => gm.Person.LastName + ", " + gm.Person.NickName );
+                    personLinkQuery = memberQuery.Select( gm => new FormattedDataValue { SourceValue = gm.Person.LastName + ", " + gm.Person.NickName } );
                 }
             }
 
             var exp = SelectExpressionExtractor.Extract( personLinkQuery, entityIdProperty, "gm" );
 
-            return exp; 
+            return exp;
         }
     }
 }

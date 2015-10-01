@@ -296,6 +296,7 @@
     <Compile Include="Reporting\ComparisonHelper.cs" />
     <Compile Include="Reporting\DataFilter\GroupMembers\GroupDataViewFilter.cs" />
     <Compile Include="Reporting\DataFilter\GroupMembers\GroupMemberAttributesFilter.cs" />
+    <Compile Include="Web\UI\Controls\Grid\FormattedDataValue.cs" />
     <Compile Include="Reporting\DataSelect\GroupMember\GroupLinkSelect.cs" />
     <Compile Include="Reporting\DataSelect\GroupMember\GroupMemberAttributeSelect.cs" />
     <Compile Include="Reporting\DataSelect\GroupMember\GroupStatusSelect.cs" />

@@ -1353,23 +1353,34 @@ namespace Rock.Web.UI.Controls
                         columnCounter++;
 
                         object propValue = prop.GetValue( item, null );
-                        var gridDataField = mapPropertyToGridField[prop];
                         var cell = worksheet.Cells[rowCounter, columnCounter];
 
-                        // Format the cell value data according to the column type.
-                        string value = string.Empty;
+                        // Get the cell value formatted for export.
+                        string value;
+                        
+                        var formattedDataValue = propValue as IFormattedDataValue;
 
-                        // If this is an Entity Attribute, apply the field formatting supplied by the associated Attribute object.
-                        var entityAttribute = EntityAttributeHelper.GetAttributeFromFieldName( prop.Name );                            
-                        bool isEntityAttribute = ( entityAttribute != null );
-
-                        if (isEntityAttribute)
+                        if ( formattedDataValue != null )
                         {
-                            var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
-
-                            value = fieldType.FormatValue( null, propValue.ToStringSafe(), entityAttribute.QualifierValues, false );
+                            // Get the export value provided by the data value object.
+                            value = formattedDataValue.ExportValue;
                         }
-                        else if ( gridDataField is RockBoundField )
+                        else
+                        {
+                            // Format the cell value data according to the column type.
+                            var gridDataField = mapPropertyToGridField[prop];
+                            
+                            // If this is an Entity Attribute, apply the field formatting supplied by the associated Attribute object.
+                            var entityAttribute = EntityAttributeHelper.GetAttributeFromFieldName( prop.Name );
+                            bool isEntityAttribute = ( entityAttribute != null );
+
+                            if (isEntityAttribute)
+                            {
+                                var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
+
+                                value = fieldType.FormatValue( null, propValue.ToStringSafe(), entityAttribute.QualifierValues, false );
+                            }
+                            else if (gridDataField is RockBoundField)
                             {
                                 // If this is a BoundField, apply the field formatting supplied by the associated BoundField object.
                                 var cbField = gridDataField as RockBoundField;
@@ -1379,10 +1390,11 @@ namespace Rock.Web.UI.Controls
                                 value = exportValue != null ? exportValue.ToString() : cell.Text;
                                 value = value.ConvertBrToCrLf();
                             }
-                        else
-                        {
-                            // For all other fields, apply formatting according to the raw data type.
-                            value = this.GetExportValueForUnboundField( prop, propValue, cell ).ConvertBrToCrLf();
+                            else
+                            {
+                                // For all other fields, apply formatting according to the raw data type.
+                                value = this.GetExportValueForUnboundField( prop, propValue, cell ).ConvertBrToCrLf();
+                            }
                         }
 
                         cell.Value = value;

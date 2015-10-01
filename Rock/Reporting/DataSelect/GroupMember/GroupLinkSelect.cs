@@ -18,16 +18,16 @@ using System;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.Linq;
-using System.Web.UI.WebControls;
 using Rock.Attribute;
 using Rock.Model;
+using Rock.Web.UI.Controls;
 
 namespace Rock.Reporting.DataSelect.GroupMember
 {
     /// <summary>
     /// A tabular report field that displays the name of a Group as a hyperlink.
     /// </summary>
-    [Description( "Show Group Name" )]
+    [Description( "Show the name of the group as a navigable link to the group detail page" )]
     [Export( typeof( DataSelectComponent ) )]
     [ExportMetadata( "ComponentName", "Select Group Name" )]
     [BooleanField( "Show As Link", "", true )]
@@ -84,12 +84,17 @@ namespace Rock.Reporting.DataSelect.GroupMember
         /// <returns></returns>
         public override System.Web.UI.WebControls.DataControlField GetGridField( Type entityType, string selection )
         {
-            var result = new BoundField();
-            
+            var result = new RockBoundField();
+                        
             // Disable encoding of field content because the value contains markup.
             result.HtmlEncode = false;
-            
+
             return result;
+        }
+
+        public override Type ColumnFieldType
+        {
+            get { return typeof( FormattedDataValue ); }
         }
 
         /// <summary>
@@ -105,17 +110,15 @@ namespace Rock.Reporting.DataSelect.GroupMember
 
             var memberQuery = new GroupMemberService( context ).Queryable();
 
-            IQueryable<string> groupLinkQuery;
+            IQueryable<FormattedDataValue> groupLinkQuery;
 
             if ( showAsLink )
             {
-                // Return a string in the format: <a href='/group/{groupId}'>Group Name</a>
-                // Prepend with a HTML comment to ensure that items are sorted correctly.
-                groupLinkQuery = memberQuery.Select( gm => "<!--" + gm.Group.Name + "--><a href='/group/" + gm.GroupId.ToString() + "'>" + gm.Group.Name + "</a>" );
+                groupLinkQuery = memberQuery.Select( gm => new HtmlLinkDataValue { SourceValue = gm.Group.Name, Url = "/group/" + gm.GroupId.ToString() } );
             }
             else
             {
-                groupLinkQuery = memberQuery.Select( gm => gm.Group.Name );
+                groupLinkQuery = memberQuery.Select( gm => new FormattedDataValue { SourceValue = gm.Group.Name } );
             }
 
             var exp = SelectExpressionExtractor.Extract( groupLinkQuery, entityIdProperty, "gm" );
