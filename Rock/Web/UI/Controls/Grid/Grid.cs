@@ -1345,6 +1345,8 @@ namespace Rock.Web.UI.Controls
 
                 var dataKeyName = DataKeyNames.FirstOrDefault();
 
+                int textFieldTypeId = FieldTypeCache.Read( SystemGuid.FieldType.TEXT ).Id;
+
                 foreach ( var item in data )
                 {
                     columnCounter = 0;
@@ -1376,9 +1378,17 @@ namespace Rock.Web.UI.Controls
 
                             if (isEntityAttribute)
                             {
-                                var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
+                                if (entityAttribute.FieldTypeId == textFieldTypeId)
+                                {
+                                    // Use the raw value to bypass HTML encoding and truncation.
+                                    value = propValue.ToStringSafe();
+                                }
+                                else
+                                {
+                                    var fieldType = FieldTypeCache.Read( entityAttribute.FieldTypeId ).Field;
 
-                                value = fieldType.FormatValue( null, propValue.ToStringSafe(), entityAttribute.QualifierValues, false );
+                                    value = fieldType.FormatValue( null, propValue.ToStringSafe(), entityAttribute.QualifierValues, false );
+                                }
                             }
                             else if (gridDataField is RockBoundField)
                             {
