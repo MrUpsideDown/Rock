@@ -102,6 +102,7 @@ namespace RockWeb.Blocks.Core
                 Location Location = ( new LocationService( new RockContext() ) ).Get( int.Parse( _LocationId ) );
 
                 lbAddLocationChild.Enabled = Location != null && canEditBlock;
+                lbAddLocationSibling.Enabled = Location != null && canEditBlock;
 
                 // get the parents of the selected item so we can tell the treeview to expand those
                 List<string> parentIdList = new List<string>();
@@ -156,12 +157,7 @@ namespace RockWeb.Blocks.Core
         /// <param name="e">The <see cref="EventArgs" /> instance containing the event data.</param>
         protected void lbAddLocationRoot_Click(object sender, EventArgs e)
         {
-            Dictionary<string, string> qryParams = new Dictionary<string, string>();
-            qryParams.Add( "LocationId", 0.ToString() );
-            qryParams.Add( "ParentLocationId", 0.ToString() );
-            qryParams.Add( "ExpandedIds", hfInitialLocationParentIds.Value );
-
-            NavigateToLinkedPage( "DetailPage", qryParams );
+            this.AddNewLocation();
         }
 
         /// <summary>
@@ -171,11 +167,38 @@ namespace RockWeb.Blocks.Core
         /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
         protected void lbAddLocationChild_Click(object sender, EventArgs e)
         {
+            this.AddNewLocation( hfSelectedLocationId.ValueAsInt() );
+        }
+
+        /// <summary>
+        /// Handles the Click event of the lbAddLocationSibling control.
+        /// </summary>
+        /// <param name="sender">The source of the event.</param>
+        /// <param name="e">The <see cref="EventArgs"/> instance containing the event data.</param>
+        protected void lbAddLocationSibling_Click( object sender, EventArgs e )
+        {
+            // Get parent of selected Location and use it as the parent of the new Location.
             int locationId = hfSelectedLocationId.ValueAsInt();
 
-            Dictionary<string, string> qryParams = new Dictionary<string, string>();
+            var service = new LocationService( new RockContext() );
+            
+            var parentLocation = service.Get( locationId );
+
+            if (parentLocation != null)
+            {
+                this.AddNewLocation( parentLocation.ParentLocationId.GetValueOrDefault(0) );
+            }
+            else
+            {
+                this.AddNewLocation();
+            }
+        }
+
+        private void AddNewLocation( int parentLocationId = 0 )
+        {
+            var qryParams = new Dictionary<string, string>();
             qryParams.Add( "LocationId", 0.ToString() );
-            qryParams.Add( "ParentLocationId", locationId.ToString() );
+            qryParams.Add( "ParentLocationId", parentLocationId.ToString() );
             qryParams.Add( "ExpandedIds", hfInitialLocationParentIds.Value );
 
             NavigateToLinkedPage( "DetailPage", qryParams );

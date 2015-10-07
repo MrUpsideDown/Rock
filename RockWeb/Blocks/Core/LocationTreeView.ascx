@@ -16,8 +16,9 @@
                         <i class="fa fa-plus-circle"></i> Add Location <span class="fa fa-caret-down"></span>
                     </button>
                     <ul class="dropdown-menu" role="menu">
-                        <li><asp:LinkButton ID="lbAddLocationRoot" OnClick="lbAddLocationRoot_Click" Text="Add Top-Level" runat="server"></asp:LinkButton></li>
-                        <li><asp:LinkButton ID="lbAddLocationChild" OnClick="lbAddLocationChild_Click" Enabled="false" Text="Add Child To Selected" runat="server"></asp:LinkButton></li>
+                        <li><asp:LinkButton ID="lbAddLocationRoot" OnClick="lbAddLocationRoot_Click" Text="Add Top-Level" runat="server"></asp:LinkButton></li>                        
+                        <li><asp:LinkButton ID="lbAddLocationChild" OnClick="lbAddLocationChild_Click" Enabled="false" Text="Add Child" runat="server"></asp:LinkButton></li>
+                        <li><asp:LinkButton ID="lbAddLocationSibling" OnClick="lbAddLocationSibling_Click" Enabled="false" Text="Add Sibling" runat="server"></asp:LinkButton></li>
                     </ul>
                 </div>
 
