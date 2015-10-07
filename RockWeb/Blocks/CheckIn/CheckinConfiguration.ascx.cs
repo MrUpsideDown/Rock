@@ -522,6 +522,8 @@ namespace RockWeb.Blocks.CheckIn
                 groupEditor.Locations.Add( gridItem );
             }
 
+            groupEditor.Locations = groupEditor.Locations.OrderBy( x => x.FullNamePath ).ToList();
+
             groupEditor.AddLocationClick += groupEditor_AddLocationClick;
             groupEditor.DeleteLocationClick += groupEditor_DeleteLocationClick;
             groupEditor.DeleteGroupClick += groupEditor_DeleteGroupClick;
@@ -699,6 +701,8 @@ namespace RockWeb.Blocks.CheckIn
                     }
 
                     checkinGroupEditor.Locations.Add( gridItem );
+
+                    checkinGroupEditor.Locations = checkinGroupEditor.Locations.OrderBy(x => x.FullNamePath).ToList();
                 }
             }
 
