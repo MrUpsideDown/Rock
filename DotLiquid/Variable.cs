@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -58,12 +59,20 @@ namespace DotLiquid
 
 		public void Render(Context context, TextWriter result)
 		{
-			object output = RenderInternal(context);
+            if ( !context.HasKey( Name ) )
+            {
+                // Check if the Variable Name can be resolved.
+                throw new DotLiquid.Exceptions.ArgumentException( string.Format( "Cannot resolve Variable \"{0}\".", Name ));
+            }
 
-			if (output is ILiquidizable)
-				output = null;
+            object output = RenderInternal(context);
 
-			if (output != null)
+		    if (output is ILiquidizable)
+		    {
+                output = null;
+		    }
+
+		    if (output != null)
 			{
                 var transformer = Template.GetValueTypeTransformer(output.GetType());
                 

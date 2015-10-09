@@ -19,7 +19,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.Composition;
 using System.Linq;
-
+using DotLiquid;
 using Rock;
 using Rock.Attribute;
 using Rock.Data;
@@ -95,11 +95,30 @@ namespace Rock.Workflow.Action
                             {
                                 var mergeFields = GetMergeFields( action );
                                 mergeFields.Add( "Entity", entity );
-                                string parsedValue = lavaTemplate.ResolveMergeFields( mergeFields );
-                                SetWorkflowAttributeValue( action, guid, parsedValue );
-                            }
 
-                            return true;
+                                string parsedValue;
+
+                                if (lavaTemplate.HasMergeFields())
+                                {
+                                    var template = Template.Parse( lavaTemplate );
+
+                                    parsedValue = template.Render( Hash.FromDictionary( mergeFields ) );
+
+                                    if (template.Errors.Any())
+                                    {
+                                        errorMessages.AddRange( template.Errors.Select( error => error.Message ) );
+                                    }
+                                }
+                                else
+                                {
+                                    parsedValue = lavaTemplate;
+                                }
+
+                                if (!errorMessages.Any())
+                                {
+                                    SetWorkflowAttributeValue( action, guid, parsedValue );
+                                }
+                            }
                         }
                     }
                     else
@@ -123,7 +142,8 @@ namespace Rock.Workflow.Action
             }
 
             errorMessages.ForEach( m => action.AddLogEntry( m, true ) );
-            return false;
+            
+            return !errorMessages.Any();
         }
 
     }

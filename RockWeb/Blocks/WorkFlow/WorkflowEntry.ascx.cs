@@ -336,28 +336,36 @@ namespace RockWeb.Blocks.WorkFlow
                     }
 
                     List<string> errorMessages;
-                    if ( _workflow.Process( _rockContext, entity, out errorMessages ) )
+
+                    bool success = _workflow.Process( _rockContext, entity, out errorMessages );
+
+                    // If errors were encountered while processing the workflow, display them and disallow further processing.
+                    if (!success)
                     {
-                        // If the workflow type is persisted, save the workflow
-                        if ( _workflow.IsPersisted || _workflowType.IsPersisted )
+                        ShowMessage( NotificationBoxType.Danger, "Workflow Processing Error(s):", "<ul><li>" + errorMessages.AsDelimited( "</li><li>" ) + "</li></ul>" );
+                        ShowNotes( false );
+                        return false;
+                    }
+
+                    // If the workflow type is persisted, save the workflow
+                    if ( _workflow.IsPersisted || _workflowType.IsPersisted )
+                    {
+                        if ( _workflow.Id == 0 )
                         {
-                            if ( _workflow.Id == 0 )
-                            {
-                                _workflowService.Add( _workflow );
-                            }
-
-                            _rockContext.WrapTransaction( () =>
-                            {
-                                _rockContext.SaveChanges();
-                                _workflow.SaveAttributeValues( _rockContext );
-                                foreach ( var activity in _workflow.Activities )
-                                {
-                                    activity.SaveAttributeValues( _rockContext );
-                                }
-                            } );
-
-                            WorkflowId = _workflow.Id;
+                            _workflowService.Add( _workflow );
                         }
+
+                        _rockContext.WrapTransaction( () =>
+                        {
+                            _rockContext.SaveChanges();
+                            _workflow.SaveAttributeValues( _rockContext );
+                            foreach ( var activity in _workflow.Activities )
+                            {
+                                activity.SaveAttributeValues( _rockContext );
+                            }
+                        } );
+
+                        WorkflowId = _workflow.Id;
                     }
                 }
             }
