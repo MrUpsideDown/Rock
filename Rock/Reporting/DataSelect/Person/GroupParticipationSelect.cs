@@ -277,7 +277,13 @@ namespace Rock.Reporting.DataSelect.Person
             }
 
             ddlRoleType.SelectedValue = settings.RoleType.ToStringSafe();
-            ddlGroupMemberStatus.SelectedValue = settings.MemberStatus.ToStringSafe();
+
+            if (settings.MemberStatus.HasValue)
+            {
+                int statusId = (int)settings.MemberStatus.Value;
+
+                ddlGroupMemberStatus.SelectedValue = statusId.ToString();
+            }
         }
 
         #endregion
