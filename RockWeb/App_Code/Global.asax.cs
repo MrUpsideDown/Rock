@@ -112,6 +112,13 @@ namespace RockWeb
                 // Get a db context
                 using ( var rockContext = new RockContext() )
                 {
+                    // Verify the database connection.
+                    VerifyDatabaseConnection( rockContext );
+
+                    //// Run any needed Rock and/or plugin migrations
+                    //// NOTE: MigrateDatabase must be the first thing that touches the database to help prevent EF from creating empty tables for a new database
+                    MigrateDatabase( rockContext );
+
                     if ( System.Web.Hosting.HostingEnvironment.IsDevelopmentEnvironment )
                     {
                         try
@@ -126,10 +133,6 @@ namespace RockWeb
                             // Intentionally Blank
                         }
                     }
-                    
-                    //// Run any needed Rock and/or plugin migrations
-                    //// NOTE: MigrateDatabase must be the first thing that touches the database to help prevent EF from creating empty tables for a new database
-                    MigrateDatabase( rockContext );
                     
                     // Preload the commonly used objects
                     stopwatch.Restart();
@@ -466,24 +469,38 @@ namespace RockWeb
             // default Initializer is CreateDatabaseIfNotExists, so set it to NULL so it doesn't try to do anything special
             Database.SetInitializer<Rock.Data.RockContext>( null );
 
-            var fileInfo = new FileInfo( Server.MapPath( "~/App_Data/Run.Migration" ) );
-            if ( fileInfo.Exists )
+            // Get pending migrations sorted by name (in the order that they run).
+            var migrator = new System.Data.Entity.Migrations.DbMigrator( new Rock.Migrations.Configuration() );
+            var pendingMigrations = migrator.GetPendingMigrations().OrderBy( a => a );
+
+            if ( pendingMigrations.Any() )
             {
-                // get the pendingmigrations sorted by name (in the order that they run), then run to the latest migration
-                var migrator = new System.Data.Entity.Migrations.DbMigrator( new Rock.Migrations.Configuration() );
-                var pendingMigrations = migrator.GetPendingMigrations().OrderBy(a => a);
-                if ( pendingMigrations.Any() )
+                // Check if the required flag exists to allow the migration to proceed.
+                var fileInfo = new FileInfo( Server.MapPath( "~/App_Data/Run.Migration" ) );
+
+                if ( fileInfo.Exists )
                 {
+                    // Execute all of the pending migrations.
                     LogMessage( APP_LOG_FILENAME, "Migrating Database..." );
-                    
+
                     var lastMigration = pendingMigrations.Last();
-                    
+
                     // NOTE: we need to specify the last migration vs null so it won't detect/complain about pending changes
                     migrator.Update( lastMigration );
                     result = true;
-                }
 
-                fileInfo.Delete();
+                    fileInfo.Delete();
+                }
+                else
+                {
+                    // Pending migrations exist but the upgrade flag is missing, so throw an error.
+                    var connection = rockContext.Database.Connection;
+
+                    string msg = string.Format( "Database \"{0}\" on server \"{1}\" must be upgraded before it can be used with the current version of Rock.",
+                                               connection.Database, connection.DataSource );
+
+                    throw new Exception( msg );
+                }
             }
 
             return result;
@@ -625,6 +642,26 @@ namespace RockWeb
             }
 
             return result;
+        }
+
+        private void VerifyDatabaseConnection( RockContext context )
+        {
+            Database.SetInitializer<Rock.Data.RockContext>( null );
+
+            // Attempt a connection to the database, and throw an informative exception if anything goes wrong.
+            var connection = context.Database.Connection;
+
+            try
+            {
+                connection.Open();
+            }
+            catch ( Exception ex )
+            {
+                string msg = string.Format( "Database initialization failed.\nCould not connect to database \"{0}\" on server \"{1}\".",
+                                            connection.Database, connection.DataSource );
+
+                throw new Exception( msg, ex );
+            }
         }
 
         /// <summary>
